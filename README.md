@@ -1,2 +1,2 @@
 # camfi
-Camera-based Analysis and Monitoring of Flying Insects
+**C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
