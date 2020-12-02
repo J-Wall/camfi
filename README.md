@@ -10,8 +10,8 @@
 2. In the top menu, click on Project, then choose Load (see the red oval to the
    left in below Fig. B1). Find your VIA project file, and click Open.
 
-   ![Loading and navigating VIA](manual_figures/navigating_via.png)Figure B1.
-   Loading and navigating VIA.
+   ![Loading and navigating VIA](manual_figures/navigating_via.png)*Figure B1.
+   Loading and navigating VIA.*
 
 3. If it is the first time that you work on the file, simply start with the
    first image. If you have already worked on the project file before and you
@@ -29,8 +29,8 @@
    Fig. B2). The only ones I have been using are the “Circular region shape”, the
    “Point region shape”, and the “Polyline region shape”.
 
-   ![Region shapes in VIA](manual_figures/region_shapes.png)Figure B2. Region
-   shapes in VIA.
+   ![Region shapes in VIA](manual_figures/region_shapes.png)*Figure B2. Region
+   shapes in VIA.*
 
    - Circular region shape: This shape can be used when you cannot see the
      whole moth (or the whole motion blur), e.g., when the moth is going out the
@@ -39,8 +39,8 @@
      the motion blur starts and ends. To draw a circle region, simply press single
      click and drag the mouse.
 
-     ![Example of circle annotation](manual_figures/circle_annotation.png)Figure
-     B3. Example of circle annotation.
+     ![Example of circle annotation](manual_figures/circle_annotation.png)*Figure
+     B3. Example of circle annotation.*
 
    - Point region shape: This shape can be used when the moth is visible as a
      point (usually in brighter conditions; see the two moths in Fig. B4). There
@@ -50,8 +50,8 @@
      is the case, an error message will show up at the bottom of the screen. To
      define a point, press single click.
 
-     ![Example of point annotations](manual_figures/point_annotation.png)Figure
-     B4. Example of point annotations.
+     ![Example of point annotations](manual_figures/point_annotation.png)*Figure
+     B4. Example of point annotations.*
 
    - Polyline region shape: This shape should be used when the moth is
      visible as a line (due to motion blur). Often, you can see the flapping of the
@@ -63,8 +63,8 @@
      times - so that a bend is properly annotated (see the polyline in Fig. B5).
 
      ![Example of polyline
-     annotation](manual_figures/polyline_annotation.png)Figure B5. Example of
-     polyline annotation.
+     annotation](manual_figures/polyline_annotation.png)*Figure B5. Example of
+     polyline annotation.*
 
 7. In the bottom left corner, you can find different Keyboard Shortcuts (see
    Fig. B6). There is an explanation to the right of each shortcut. Some of them can
@@ -75,8 +75,8 @@
    work eventually.
 
    ![Button to view keyboard shortcuts in
-   VIA](manual_figures/keyboard_shortcuts.png)Figure B6. Button to view keyboard
-   shortcuts in VIA.
+   VIA](manual_figures/keyboard_shortcuts.png)*Figure B6. Button to view keyboard
+   shortcuts in VIA.*
 
 8. Do not forget to save. Do this regularly, about every 30 min. You can find
    "Save" in the top menu under "Project" (see Fig. B1). It is recommended to
@@ -86,35 +86,35 @@
 
 ### Examples of problematic images and FAQ
 
-![Extremely busy image](manual_figures/problematic_busy.png)Figure B7. Extremely
-busy image.
+![Extremely busy image](manual_figures/problematic_busy.png)*Figure B7. Extremely
+busy image.*
 
-Q: What to do when an image is extremely busy and it is difficult to tell moths
+**Q:** What to do when an image is extremely busy and it is difficult to tell moths
 apart?
 
-A: Make a note of it and do not spend too long trying to get it exactly right.
+**A:** Make a note of it and do not spend too long trying to get it exactly right.
 Make some judgement calls.
 
 ![Endpoints are hard to see in faint blurs of moths in the
-background](manual_figures/problematic_background_moths_endpoints.png)Figure B8.
-Endpoints are hard to see in faint blurs of moths in the background.
+background](manual_figures/problematic_background_moths_endpoints.png)*Figure B8.
+Endpoints are hard to see in faint blurs of moths in the background.*
 
-Q: In this image, there are faint moths in the background, but it is hard to see
+**Q:** In this image, there are faint moths in the background, but it is hard to see
 exactly where the image blur starts and ends. What to do?
 
-A: The main thing is to be as consistent across images as possible. If you are
+**A:** The main thing is to be as consistent across images as possible. If you are
 not confident about the start and end point you could use a circle annotation
 (then it will be included in the abundance analysis, but not the wingbeat
 analysis).
 
 ![Faint blurs of moths in the background have no obviously visible
-wingbeat](manual_figures/problematic_background_moths_wingbeats.png)Figure B9.
-Faint blurs of moths in the background have no obviously visible wingbeat.
+wingbeat](manual_figures/problematic_background_moths_wingbeats.png)*Figure B9.
+Faint blurs of moths in the background have no obviously visible wingbeat.*
 
-Q: In this image, the flapping of the wings is not very obvious for some of the
+**Q:** In this image, the flapping of the wings is not very obvious for some of the
 moths in the background. Should I track them anyway?
 
-A: It is a bit of a judgement call. Ideally, we mark all moths and only moths.
+**A:** It is a bit of a judgement call. Ideally, we mark all moths and only moths.
 Obviously, this can be a bit tricky. Many of the smooth streaks might be other
 insects, spider web, or even rain. If you are not sure, mark it, and make a note
 of which image it is in. If it looks really different from other moths in the
