@@ -10,7 +10,7 @@
 2. In the top menu, click on Project, then choose Load (see the red oval to the
    left in @fig:navigating_via). Find your VIA project file, and click Open.
 
-   [Loading project and navigating through
+   ![Loading project and navigating through
    images](manual_figures/navigating_via.png){#fig:navigating_via.png}
 
 3. If it is the first time that you work on the file, simply start with the
