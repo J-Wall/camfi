@@ -323,7 +323,6 @@ EXAMPLE USAGE
 Running the above will produce a tab-separated file called `moth_wingbeats.csv`
 with the following columns:
 
-```
 1.  `image_name` : relative path to image
 2.  `capture_time` : datetime in yyyy-mm-dd HH:MM:SS format
 3.  `annotation_idx` : index of annotation in image (arbitrary)
@@ -341,7 +340,6 @@ with the following columns:
     body-length)
 13. `spec_dens` : comma separated values, with the spectral density array
     associated with the annotation ```
-```
 
 ## Wingbeat analysis
 
