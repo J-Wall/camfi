@@ -76,7 +76,7 @@
    arbitrary example):
 
    ```
-   annotation_project$ head annotation_image_filelist
+   annotation_project$ head annotation_image_filelist.txt
    moth_images_november/0001/100MEDIA/DSCF0001.JPG
    moth_images_november/0001/100MEDIA/DSCF0002.JPG
    moth_images_november/0001/100MEDIA/DSCF0003.JPG
