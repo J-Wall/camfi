@@ -1,7 +1,15 @@
 # camfi
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
-# B: Image annotation
+# A. Setting up the cameras
+
+## Rolling shuttle calibration measurements
+
+## Camera settings
+
+## Camera placement
+
+# B. Image annotation
 
 ## Setting up the VIA project file
 
@@ -256,3 +264,11 @@ $ cat via_annotation_project_file.json | \
     add_metadata_to_via.py --processes 8 > \
     via_annotation_project_file_with_metadata.json
 ```
+
+# C. Data analysis
+
+## Running camfi
+
+## Wingbeat analysis
+
+## Insect activity analysis
