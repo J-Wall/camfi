@@ -3,7 +3,7 @@
 
 # A. Setting up the cameras
 
-## Rolling shuttle calibration measurements
+## Rolling shutter calibration measurements
 
 ## Camera settings
 
