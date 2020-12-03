@@ -269,6 +269,89 @@ $ cat via_annotation_project_file.json | \
 
 ## Running camfi
 
+Once the manual annotation is completed, running `camfi.py` will analyse
+wingbeats from polyline-annotated moth motion blurs to gain information about
+the wingbeat frequency of the moths which produced those blurs.
+
+Before proceeding, ensure you have:
+
+1. Measured the rolling shutter line rate of you camera(s)
+2. A completed annotation project file
+3. The image files used to produce the annotation file
+
+A general summary of usage is provided below:
+
+```
+NAME
+    camfi.py
+
+SYNOPSIS
+    camfi.py ANNOTATION_FILE <flags>
+
+POSITIONAL ARGUMENTS
+    ANNOTATION_FILE
+
+FLAGS
+    --line_rate=LINE_RATE
+        The line rate of the rolling shutter. Defaults to infinity
+	(i.e. global shutter). It is strongly recommended to measure the
+        true rolling shutter line rate for unbiased results. Unless of
+        course you are using a camera with a global shutter, in which case,
+        lucky you!
+    --scan_distance=SCAN_DISTANCE
+        Width of analysis windows (width of blurs). Default 100
+    --max_dist=MAX_DIST
+        Maximum number of columns to calculate autocorrelation over.
+        Defaults to a half of the length of the image
+    --processes=PROCESSES
+        Number of worker processes to spawn. Default 1
+    --supplementary_figures=SUPPLEMENTARY_FIGURES
+        Directory in which to put supplementary figures (optional)
+
+NOTES
+    You can also use flags syntax for POSITIONAL ARGUMENTS
+
+EXAMPLE USAGE
+    $ camfi.py via_annotation_project_file_with_metadata.json \
+        --line-rate 91813 \
+	--scan-distance 100 \
+	--processes 8 \
+	--supplementary-figures wingbeat_supplemantry_figures \
+	> moth_wingbeats.csv
+```
+
+Running the above will produce a tab-separated file called `moth_wingbeats.csv`
+with the following columns:
+
+```
+1.  `image_name` : relative path to image
+2.  `capture_time` : datetime in yyyy-mm-dd HH:MM:SS format
+3.  `annotation_idx` : index of annotation in image (arbitrary)
+4.  `best_peak` : period of wingbeat in pixels
+5.  `blur_length` : length of motion blur in pixels
+6.  `snr` : signal to noise ratio of best peak
+7.  `wb_freq_up` : wingbeat frequency estimate, assuming upward motion (and zero
+    body-length)
+8.  `wb_freq_down` : wingbeat frequency estimate, assuming downward motion (and
+    zero body-length)
+9.  `et_up` : corrected moth exposure time, assuming upward motion
+10. `et_dn` : corrected moth exposure time, assuming downward motion
+11. `period_up` : wingbeat period, assuming upward motion (and zero body-length)
+12. `period_dn` : wingbeat period, assuming downward motion (and zero
+    body-length)
+13. `spec_dens` : comma separated values, with the spectral density array
+    associated with the annotation ```
+```
+
 ## Wingbeat analysis
 
+Once `camfi.py` has been run, the output can be used for further analysis of
+wingbeat frequency. For an example of such analysis, please refer to the
+[wingbeat analysis example notebook](examples/wingbeat_analysis.ipynb).
+
 ## Insect activity analysis
+
+The annotation file with image metadata produced in section B of this manual can
+be used directly for analysis of insect activity levels. Please refer to the
+[activity analysis example notebook](examples/activity_analysis.ipynb) for
+guidance on how this analysis could be conducted.
