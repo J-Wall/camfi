@@ -1,11 +1,112 @@
 # camfi
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
-# Image annotation
+# B: Image annotation
+
+## Setting up the VIA project file
+
+1. Place all the images to be annotated into a single parent directory. They may
+   be in sub-directories within this parent directory.
+
+2. Before making the project file, it is necessary to produce a text file which
+   contains the relative paths to all of the images to be annotated, one per
+   line. It is suggested to generate this on the command line. For example, if
+   your file structure is something like this:
+
+   ```
+   annotation_project            # Parent directory
+   ├-- via.html
+   ├-- moth_images_november      # Images may be contained within subdirs,
+   │   ├-- 0001                  # and these subdirs can be arbitrarily
+   │   │   ├-- 100MEDIA          # nested.
+   │   │   │   ├-- DSCF0001.JPG
+   │   │   │   └--...
+   │   │   └-- 101MEDIA
+   │   │       ├-- DSCF0001.JPG
+   │   │       └--...
+   │   └-- 0002
+   │       ├-- 100MEDIA
+   │       │   ├-- DSCF0001.JPG
+   │       │   └--...
+   │       └-- 101MEDIA
+   │           ├-- DSCF0001.JPG
+   │           └--...
+   └-- moth_images_december
+       ├-- 0001
+       │   ├-- 100MEDIA
+       │   │   ├-- DSCF0001.JPG
+       │   │   └--...
+       │   └-- 101MEDIA
+       │       ├-- DSCF0001.JPG
+       │       └--...
+       └-- 0002
+           ├-- 100MEDIA
+           │   ├-- DSCF0001.JPG
+           │   └--...
+           └-- 101MEDIA
+               ├-- DSCF0001.JPG
+               └--...
+   ```
+
+   Then you could generate the required file by running the following bash
+   command from within the `annotation_project` directory:
+
+   ```
+   $ ls -1 moth_images_*/*/*/*.JPG > annotation_image_filelist.txt
+   ```
+
+   Or if using fish-shell, one can easily be more flexible with regard to the
+   exact directory structure:
+
+   ```
+   ls -1 moth_images_**.JPG > annotation_image_filelist.txt
+   ```
+
+   You will then end with a file called `annotation_image_filelist.txt` in the
+   `annotation_project` directory, which starts something like this (note the
+   exact paths should reflect your directory structure, rather than that of this
+   arbitrary example):
+
+   ```
+   annotation_project$ head annotation_image_filelist
+   moth_images_november/0001/100MEDIA/DSCF0001.JPG
+   moth_images_november/0001/100MEDIA/DSCF0002.JPG
+   moth_images_november/0001/100MEDIA/DSCF0003.JPG
+   moth_images_november/0001/100MEDIA/DSCF0004.JPG
+   moth_images_november/0001/100MEDIA/DSCF0005.JPG
+   moth_images_november/0001/100MEDIA/DSCF0006.JPG
+   moth_images_november/0001/100MEDIA/DSCF0007.JPG
+   moth_images_november/0001/100MEDIA/DSCF0008.JPG
+   moth_images_november/0001/100MEDIA/DSCF0009.JPG
+   moth_images_november/0001/100MEDIA/DSCF0010.JPG
+   ```
+
+   Note that this file contains relative paths to the images, not absolute
+   paths. This is important for making the project portable between machines
+   (for example if the annotation work is to be spread between multiple people).
+   Once this file list has been generated, we are ready to set up the project in
+   VIA.
+
+3. Ensure "via.html" is placed into the parent directory containing the images
+   to be annotated (`annotation_project` in the above example), then open it in
+   you web browser by double-clicking it.
+
+4. In VIA, under "Project" in the top menu bar (see Fig. B1), select "Add url or
+   path from text file".
+
+5. Navigate to the project directory, and select the file list we generated in
+   step 2. The images should appear in the project pane on the left-hand side of
+   the screen.
+
+6. After checking that the image files were loaded properly, select "Save" under
+   the "Project" menu. Leave the boxes checked, and name the project file as you
+   wish. Your web browser will treat this as a file download. Once downloaded,
+   you should move the project file into your annotation project directory.
 
 ## Performing the annotations in VIA
 
-1. Open “via.html”.
+1. Open “via.html”, ensuring it is in the parent directory containing the images
+   to be annotated.
 
 2. In the top menu, click on Project, then choose Load (see the red oval to the
    left in below Fig. B1). Find your VIA project file, and click Open.
@@ -123,3 +224,5 @@ consistent. Some of the moths just has lower contrast against the sky, which
 makes the flapping harder to see. If you zoom in, you might see it better. You
 could also compare the speed (based on the length of the streak) of the moth to
 other moths in the image.
+
+## Loading the image metadata into the VIA project file
