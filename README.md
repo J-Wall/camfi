@@ -226,3 +226,33 @@ could also compare the speed (based on the length of the streak) of the moth to
 other moths in the image.
 
 ## Loading the image metadata into the VIA project file
+
+**Note:** It is recommended to only perform this steps after the annotation has
+been completed. This is because including the image metadata in the VIA project
+file increases the size of the file substantially, and since it is recommended
+to save all incremental versions of the project file, this could become
+cumbersome if the metadata is included from the start.
+
+For insect activity analysis ([see example jupyter
+notebook](examples/activity_analysis.ipynb)), we first need to load the image
+metadata into the annotation project file. To do this, a python script is
+provided, called `add_metadata_to_via.py`. Usage is simple, just pipe the
+contents of the annotation project file through, like so:
+
+```
+$ cat via_annotation_project_file.json | \
+    add_metadata_to_via.py > \
+    via_annotation_project_file_with_metadata.json
+```
+
+There is one optional argument to `add_metadata_to_via.py`, called `--processes`
+which enables multiple processes to be spawned. This may improve performance to
+a certain point, but eventually i/o will be the limiting factor to how fast this
+can run (as each image file needs to be opened in order to extract the
+metadata). For example, to run with 8 cores:
+
+```
+$ cat via_annotation_project_file.json | \
+    add_metadata_to_via.py --processes 8 > \
+    via_annotation_project_file_with_metadata.json
+```
