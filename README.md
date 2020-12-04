@@ -5,6 +5,40 @@
 
 ## Rolling shutter calibration measurements
 
+There are probably a number of possible ways to measure the rolling shutter line
+rate of a camera, so feel free to use your imagination. Here is one way of doing
+it:
+
+1. Find a place you can make very dark (or wait until night time to do the
+   measurement).
+
+2. Make a device which spins a white line about its centre at a constant
+   rotational velocity. For the line, We used a cardboard tube from a roll of
+   paper towels with a line of paper taped to it. The tube was taped to the
+   blades of a small desk fan. The inertia of the cardboard tube helped ensure
+   that the line would rotate at a constant rotational velocity.
+
+   ![Apparatus for measuring rolling shutter line
+   rate](manual_figures/calibration_setup.jpg)Figure A1. Apparatus for measuring
+   rolling shutter line rate.
+
+3. Measure the rotational velocity of the line by synchronising a strobe light
+   to the rotations of the line. We found the Strobily Android app (available on
+   the [Google Play
+   Store](https://play.google.com/store/apps/details?id=com.tp77.StrobeAd)) to
+   be very useful for this. This will be easiest in a dark room.
+
+4. Mount the camera you wish to measure facing the rotating line, ensuring the
+   camera is steady.
+
+5. Take (multiple) photos of the rotating line, under illumination by the
+   camera's infra-red LED flash. If using wildlife cameras, it is recommended to
+   do this buy using the camera's timed capture setting, so that it is not
+   bumped while taking the photos.
+
+6. Load the images onto your computer and follow the steps in the [camera
+   calibration notebook](examples/camera_calibration.ipynb).
+
 ## Camera settings
 
 ## Camera placement
