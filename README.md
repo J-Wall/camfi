@@ -1,6 +1,13 @@
 # camfi
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
+# Requirements
+
+Camfi (and all analyses presented in this repository) has been tested with:
+
+- fire 0.2.1
+-
+
 # A. Setting up the cameras
 
 ## Rolling shutter calibration measurements
@@ -41,7 +48,19 @@ it:
 
 ## Camera settings
 
+In general, the specific settings you use depend on the research question, but
+our suggestion is to use a time-lapse function, rather than (or in addition to,
+if available) passive infra-red (PIR) motion detection to trigger the camera.
+This is because insects will not be detected by the PIR sensor.
+
+Other settings are up to the user. We use the highest available quality setting
+and have set the cameras to only take photos during the night.
+
 ## Camera placement
+
+The cameras should ideally be placed such that the background of the images is
+more or less uniform (for example, at the sky), but again, this depends on the
+research question.
 
 # B. Image annotation
 
