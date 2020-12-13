@@ -399,7 +399,7 @@ with the following columns:
 12. `period_dn` : wingbeat period, assuming downward motion (and zero
     body-length)
 13. `spec_dens` : comma separated values, with the spectral density array
-    associated with the annotation ```
+    associated with the annotation
 
 ## Wingbeat analysis
 
