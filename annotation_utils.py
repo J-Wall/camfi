@@ -37,15 +37,15 @@ def _get_metadata_with_key(img_tup):
 
 class AnnotationUtils(object):
     def __init__(self, processes=1):
-        self.processes = processes
-
-    def add_metadata(self):
         """
         Parameters
         ----------
         processes : int
             number of child processes to spawn
         """
+        self.processes = processes
+
+    def add_metadata(self):
         pool = Pool(self.processes)
 
         annotation_project = json.load(sys.stdin)
