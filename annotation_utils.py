@@ -4,6 +4,7 @@ from datetime import datetime as dt
 import json
 from multiprocessing import Pool
 import sys
+from zipfile import ZipFile
 
 import fire
 import imageio
@@ -131,6 +132,22 @@ class AnnotationUtils(object):
             annotations["_via_img_metadata"].update(next_anns["_via_img_metadata"])
 
         self._output(json.dumps(annotations, separators=(",", ":"), sort_keys=True))
+
+    def zip_images(self, **kwargs):
+        """
+        Makes a zip archive of all the images in the provided VIA project file.
+        If --i is set, then the annotation file itself will be included in the zip file.
+        kwargs are passed to zipfile.ZipFile
+        """
+        assert self.o is not None, "Must specify output zipfile using --o=[file]"
+
+        annotations = self._load()
+
+        with ZipFile(self.o, mode="w", **kwargs) as outzip:
+            if self.i is not None:
+                outzip.write(self.i)
+            for img_data in annotations["_via_img_metadata"].values():
+                outzip.write(img_data["filename"])
 
 
 def main():
