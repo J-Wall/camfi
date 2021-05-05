@@ -2,6 +2,7 @@
 
 from datetime import datetime as dt
 import json
+from math import inf
 from multiprocessing import Pool
 import sys
 from zipfile import ZipFile
@@ -148,6 +149,65 @@ class AnnotationUtils(object):
                 outzip.write(self.i)
             for img_data in annotations["_via_img_metadata"].values():
                 outzip.write(img_data["filename"])
+
+    def filter(self, by, minimum=-inf, maximum=inf, mode="warn"):
+        """
+        Filters VIA annotations by enforcing a minimum and/or maximum value for a
+        numerical region attribute (eg. "score" which is defined during automatic
+        automatic annotation)
+
+        Parameters
+        ----------
+
+        by : str
+            The region_attributes key to filter annotations by.
+
+        minimum : float
+            The minimum value of the region attribute to pass the filter
+
+        maximum : float
+            The maximum value of the region attribute to pass the filter
+
+        mode : str
+            One of {"pass", "fail", "raise", "warn"}. Defines how annotations missing
+            the `by` region attribute are handled.
+                "pass": These annotations pass the filter
+                "fail": These annotations are removed
+                "raise": A KeyError is raised if an annotation is missing the attribute
+                "warn": Like "pass" but a warning is printed to sys.stderr
+        """
+
+        def _raise(ex):
+            raise ex
+
+        def _warn(ex):
+            print(
+                f"Warning: Missing region_attribute '{by}' for {img_data['filename']}",
+                file=sys.stderr,
+            )
+            return True
+
+        mode_fn = {
+            "pass": lambda x: True,
+            "fail": lambda x: False,
+            "raise": _raise,
+            "warn": _warn,
+        }[mode]
+
+        def _annotation_passes(region):
+            try:
+                return minimum < float(region["region_attributes"][by]) < maximum
+            except KeyError as ex:
+                return mode_fn(ex)
+
+        annotation_project = self._load()
+
+        for img_data in annotation_project["_via_img_metadata"].values():
+            img_data["regions"] = list(filter(_annotation_passes, img_data["regions"]))
+
+        self._output(
+            json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
+        )
 
 
 def main():
