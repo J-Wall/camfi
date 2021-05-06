@@ -1,7 +1,23 @@
 # camfi
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
+# Installation
+
+Installation is as easy as:
+
+```
+$ pip install camfi
+```
+
+Once you have installed camfi, you can run it from the command line:
+
+```
+$ camfi <command> <flags>
+```
+
 # Requirements
+
+Camfi requires python 3.9 or greater.
 
 See [requirements.txt](requirements.txt) for concrete dependencies.
 
