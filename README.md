@@ -303,35 +303,36 @@ cumbersome if the metadata is included from the start.
 
 For insect activity analysis ([see example jupyter
 notebook](examples/activity_analysis.ipynb)), we first need to load the image
-metadata into the annotation project file. To do this, a python script is
-provided, called `annotation_utils.py`. Usage is simple, just pipe the
-contents of the annotation project file through, like so:
+metadata into the annotation project file. This can be done using `camfi
+add-metadata`. Usage is simple, just provide the input file and desired output
+file:
 
 ```
-$ cat via_annotation_project_file.json | \
-    annotation_utils.py add_metadata > \
-    via_annotation_project_file_with_metadata.json
+$ camfi add-metadata \
+    --i via_annotation_project_file.json \
+    --o via_annotation_project_file_with_metadata.json
 ```
 
-There is one optional argument to `annotation_utils.py add_metadata`, called
+There is one optional argument to `camfi add_metadata`, called
 `--processes` which enables multiple processes to be spawned. This may improve
-performance to a certain point, but eventually i/o will be the limiting factor
+performance to a certain point, but eventually I/O will be the limiting factor
 to how fast this can run (as each image file needs to be opened in order to
 extract the metadata). For example, to run with 8 cores:
 
 ```
-$ cat via_annotation_project_file.json | \
-    annotation_utils.py add_metadata --processes 8 > \
-    via_annotation_project_file_with_metadata.json
+$ camfi add-metadata \
+    --i via_annotation_project_file.json \
+    --o via_annotation_project_file_with_metadata.json \
+    --processes 8
 ```
 
 # C. Data analysis
 
 ## Running camfi
 
-Once the manual annotation is completed, running `camfi.py` will analyse
-wingbeats from polyline-annotated moth motion blurs to gain information about
-the wingbeat frequency of the moths which produced those blurs.
+Once the manual annotation is completed, running `camfi extract-wingbeats` will
+analyse wingbeats from polyline-annotated moth motion blurs to gain information
+about the wingbeat frequency of the moths which produced those blurs.
 
 Before proceeding, ensure you have:
 
@@ -343,41 +344,50 @@ A general summary of usage is provided below:
 
 ```
 NAME
-    camfi.py
+    camfi extract-wingbeats - Uses the camfi algorithm to measure the wingbeat frequency of annotated flying insect motion blurs in still images.
 
 SYNOPSIS
-    camfi.py ANNOTATION_FILE <flags>
+    camfi extract-wingbeats <flags>
 
-POSITIONAL ARGUMENTS
-    ANNOTATION_FILE
+DESCRIPTION
+    Uses the camfi algorithm to measure the wingbeat frequency of annotated flying insect motion blurs in still images.
 
 FLAGS
-    --line_rate=LINE_RATE
-        The line rate of the rolling shutter. Defaults to infinity
-	(i.e. global shutter). It is strongly recommended to measure the
-        true rolling shutter line rate for unbiased results. Unless of
-        course you are using a camera with a global shutter, in which case,
-        lucky you!
-    --scan_distance=SCAN_DISTANCE
-        Width of analysis windows (width of blurs). Default 100
-    --max_dist=MAX_DIST
-        Maximum number of columns to calculate autocorrelation over.
-        Defaults to a half of the length of the image
     --processes=PROCESSES
-        Number of worker processes to spawn. Default 1
+        Default: 1
+        number of child processes to spawn
+    --i=I
+        Type: Optional[]
+        Default: None
+        path to input VIA project json file. Defaults to sys.stdin
+    --o=O
+        Type: Optional[]
+        Default: None
+        path to output file. Defaults to sys.stdout
+
+    --line_rate=LINE_RATE
+        Default: inf
+        The line rate of the rolling shutter
+    --scan_distance=SCAN_DISTANCE
+        Default: 100
+        Half width of analysis windows (half width of blurs)
+    --max_dist=MAX_DIST
+        Type: Optional[]
+        Default: None
+        Maximum number of columns to calculate autocorrelation over. Defaults to a half of the length of the image
     --supplementary_figures=SUPPLEMENTARY_FIGURES
+        Type: Optional[]
+        Default: None
         Directory in which to put supplementary figures (optional)
 
-NOTES
-    You can also use flags syntax for POSITIONAL ARGUMENTS
-
 EXAMPLE USAGE
-    $ camfi.py via_annotation_project_file_with_metadata.json \
+    $ camfi extract-wingbeats \
+        --i via_annotation_project_file_with_metadata.json \
         --line-rate 91813 \
 	--scan-distance 100 \
-	--processes 8 \
 	--supplementary-figures wingbeat_supplemantry_figures \
-	> moth_wingbeats.csv
+	--processes 8 \
+	--o moth_wingbeats.csv
 ```
 
 Running the above will produce a tab-separated file called `moth_wingbeats.csv`
