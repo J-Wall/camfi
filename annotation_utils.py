@@ -5,6 +5,7 @@ import json
 from math import inf
 from multiprocessing import Pool
 import sys
+from tqdm import tqdm
 from zipfile import ZipFile
 
 import fire
@@ -82,8 +83,12 @@ class AnnotationUtils(object):
             for img_key in annotation_project["_via_img_metadata"].keys()
         ]
 
-        for img_key, metadata_dict in pool.imap_unordered(
-            _get_metadata_with_key, img_paths, 100
+        for img_key, metadata_dict in tqdm(
+            pool.imap_unordered(_get_metadata_with_key, img_paths, 10),
+            total=len(img_paths),
+            desc="Adding metadata",
+            unit="img",
+            smoothing=0.0,
         ):
             annotation_project["_via_img_metadata"][img_key]["file_attributes"].update(
                 metadata_dict
@@ -147,7 +152,12 @@ class AnnotationUtils(object):
         with ZipFile(self.o, mode="w", **kwargs) as outzip:
             if self.i is not None:
                 outzip.write(self.i)
-            for img_data in annotations["_via_img_metadata"].values():
+            for img_data in tqdm(
+                annotations["_via_img_metadata"].values(),
+                desc="Zipping images",
+                unit="img",
+                smoothing=0.1,
+            ):
                 outzip.write(img_data["filename"])
 
     def filter(self, by, minimum=-inf, maximum=inf, mode="warn"):
