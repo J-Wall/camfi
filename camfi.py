@@ -11,6 +11,7 @@ import imageio
 from matplotlib import pyplot as plt
 import numpy as np
 from skimage import transform
+from tqdm import tqdm
 
 
 def extract_rois(regions, image_path, scan_distance):
@@ -33,8 +34,11 @@ def extract_rois(regions, image_path, scan_distance):
     capture_time = dt.strptime(
         img.meta["EXIF_MAIN"]["DateTimeOriginal"], "%Y:%m:%d %H:%M:%S"
     )
-    exposure_tup = img.meta["EXIF_MAIN"]["ExposureTime"]
-    exposure_time = exposure_tup[0] / exposure_tup[1]
+    exposure_meta = img.meta["EXIF_MAIN"]["ExposureTime"]
+    if isinstance(exposure_meta, tuple):
+        exposure_time = exposure_meta[0] / exposure_meta[1]
+    else:
+        exposure_time = float(img.meta["EXIF_MAIN"]["ExposureTime"])
 
     #
     xs, ys = [], []
@@ -194,8 +198,7 @@ def process_blur(roi, exposure_time, y_diff, line_rate, max_dist=None):
 def make_supplementary_figure(
     file_path, annotation_idx, roi, spectral_density, best_peak, snr
 ):
-    """
-    """
+    """ """
     fig = plt.figure()
 
     ax1 = fig.add_subplot(
@@ -240,8 +243,7 @@ def make_supplementary_figure(
 
 
 def process_annotations(args):
-    """
-    """
+    """ """
     image_metadata, scan_distance, line_rate, max_dist, supplementary_fig = args
     results = []
     regions = image_metadata["regions"]
@@ -348,20 +350,34 @@ def main(
 
     pool = Pool(processes)
 
-    for results in pool.imap(
-        process_annotations,
-        zip(
-            annotations["_via_img_metadata"].values(),
-            itertools.repeat(scan_distance),
-            itertools.repeat(line_rate),
-            itertools.repeat(max_dist),
-            itertools.repeat(supplementary_figures),
-        ),
-        10,
+    tot_annotations = 0
+    for results in (
+        pb := tqdm(
+            pool.imap(
+                process_annotations,
+                zip(
+                    annotations["_via_img_metadata"].values(),
+                    itertools.repeat(scan_distance),
+                    itertools.repeat(line_rate),
+                    itertools.repeat(max_dist),
+                    itertools.repeat(supplementary_figures),
+                ),
+                5,
+            ),
+            desc="Processing annotations",
+            total=len(annotations["_via_img_metadata"]),
+            unit="img",
+            smoothing=0.0,
+        )
     ):
         for result in results:
             if result[2] is not np.nan:  # Check if snr is not np.nan
                 print("\t".join(str(val) for val in result))
+                tot_annotations += 1
+        pb.set_postfix(refresh=False, tot_annotations=tot_annotations)
+
+    pool.close()
+    pool.join()
 
 
 if __name__ == "__main__":
