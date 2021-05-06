@@ -3,17 +3,7 @@
 
 # Requirements
 
-Camfi (and all analyses presented in this repository) has been tested with:
-
-- bces 1.0.3
-- fire 0.2.1
-- imageio 2.6.1
-- matplotlib 3.1.1
-- numpy 1.19
-- pandas 1.1.4
-- scikit-image 0.16.2
-- scikit-learn 0.23.2
-- scipy 1.3.1
+See [requirements.txt](requirements.txt) for concrete dependencies.
 
 # A. Setting up the cameras
 
