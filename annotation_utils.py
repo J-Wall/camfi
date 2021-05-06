@@ -5,11 +5,11 @@ import json
 from math import inf
 from multiprocessing import Pool
 import sys
-from tqdm import tqdm
 from zipfile import ZipFile
 
 import fire
 import imageio
+from tqdm import tqdm
 
 
 def get_metadata(image_file):
