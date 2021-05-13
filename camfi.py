@@ -9,6 +9,7 @@ import os
 import sys
 from zipfile import ZipFile
 
+import exif
 import fire
 import imageio
 from matplotlib import pyplot as plt
@@ -381,7 +382,7 @@ def process_annotations(args):
     return results
 
 
-def get_metadata(image_file):
+def get_metadata(image_file, exif_tags):
     """
     Parameters
     ----------
@@ -389,24 +390,27 @@ def get_metadata(image_file):
     image_file : str
         Path to image file
 
+    exif_tags : list
+        Metadata tags to include
+
     Returns
     -------
 
     out : dict
         Contains the metadata of the image, with all keys and values coerced to str.
     """
-    with imageio.get_reader(image_file) as img_reader:
-        img = img_reader.get_data(0)
+    with open(image_file, "rb") as img_file:
+        img = exif.Image(img_file)
 
     out = {}
-    for exif_key in img.meta["EXIF_MAIN"].keys():
-        out[str(exif_key)] = str(img.meta["EXIF_MAIN"][exif_key])
+    for exif_key in exif_tags:
+        out[exif_key] = str(img[exif_key])
 
     return out
 
 
 def _get_metadata_with_key(img_tup):
-    return img_tup[0], get_metadata(img_tup[1])
+    return img_tup[0], get_metadata(img_tup[1], img_tup[2])
 
 
 class AnnotationUtils(object):
@@ -458,7 +462,7 @@ class AnnotationUtils(object):
                 annotations = json.load(jf)
         return annotations
 
-    def add_metadata(self):
+    def add_metadata(self, *exif_tags):
         """
         Adds image (EXIF) metadata to VIA project by reading image files. Optionally
         spawns multiple processes (reading the images is usually I/O bound and can take
@@ -470,7 +474,7 @@ class AnnotationUtils(object):
         file_attributes = set()
 
         img_paths = [
-            (img_key, annotation_project["_via_img_metadata"][img_key]["filename"])
+            (img_key, annotation_project["_via_img_metadata"][img_key]["filename"], exif_tags)
             for img_key in annotation_project["_via_img_metadata"].keys()
         ]
 
