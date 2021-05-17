@@ -14,6 +14,8 @@ import fire
 import imageio
 from matplotlib import pyplot as plt
 import numpy as np
+import scipy as sp
+from shapely.geometry import LineString
 from skimage import transform
 from tqdm import tqdm
 
@@ -413,6 +415,70 @@ def _get_metadata_with_key(img_tup):
     return img_tup[0], get_metadata(img_tup[1], img_tup[2])
 
 
+def bb_from_via_shape_attributes(shape):
+    """
+    Get bounding box from VIA shape attributes
+
+    Parameters
+    ----------
+
+    shape: dict
+        "shape_attributes" dict
+
+    Returns
+    -------
+
+    minx, miny, maxx, maxy
+    """
+    if shape["name"] == "polyline":
+        return LineString(zip(shape["all_points_x"], shape["all_points_y"])).bounds
+    elif shape["name"] == "circle":
+        return (
+            shape["cx"] - shape["r"],
+            shape["cy"] - shape["r"],
+            shape["cx"] + shape["r"],
+            shape["cy"] + shape["r"],
+        )
+    elif shape["name"] == "point":
+        return shape["cx"] - 5, shape["cy"] - 5, shape["cx"] + 5, shape["cy"] + 5
+    else:
+        raise NotImplementedError(shape["name"])
+
+
+def bb_intersection_over_union(box0, box1):
+    """
+    Get the intersection over union of two boxes
+
+    Parameters
+    ----------
+
+    box0: floats minx, miny, maxx, maxy
+    box1: floats minx, miny, maxx, maxy
+
+    Returns
+    -------
+
+    iou: float
+        Between 0. and 1.
+    """
+    minx0, miny0, maxx0, maxy0 = box0
+    minx1, miny1, maxx1, maxy1 = box1
+    minx_inter = max(minx0, minx1)
+    miny_inter = max(miny0, miny1)
+    maxx_inter = min(maxx0, maxx1)
+    maxy_inter = min(maxy0, maxy1)
+
+    if maxx_inter < minx_inter or maxy_inter < miny_inter:
+        return 0.0
+
+    area_inter = (maxx_inter - minx_inter) * (maxy_inter - miny_inter)
+    area0 = (maxx0 - minx0) * (maxy0 - miny0)
+    area1 = (maxx1 - minx1) * (maxy1 - miny1)
+    area_union = area0 + area1 - area_inter
+
+    return area_inter / area_union
+
+
 class AnnotationUtils(object):
     """
     Provides utilities for working with camfi projects
@@ -474,7 +540,11 @@ class AnnotationUtils(object):
         file_attributes = set()
 
         img_paths = [
-            (img_key, annotation_project["_via_img_metadata"][img_key]["filename"], exif_tags)
+            (
+                img_key,
+                annotation_project["_via_img_metadata"][img_key]["filename"],
+                exif_tags,
+            )
             for img_key in annotation_project["_via_img_metadata"].keys()
         ]
 
@@ -567,6 +637,82 @@ class AnnotationUtils(object):
                 smoothing=0.1,
             ):
                 outzip.write(img_data["filename"])
+
+    def validate_annotations(self, ground_truth, iou_thresh=0.5):
+        """
+        Compares annotation file against a ground-truth annotation file for automatic
+        annotation validation puposes.
+
+        Parameters
+        ----------
+
+        ground_truth: str
+            Path to ground truth VIA annotations file. Should contain annotations for
+            all images in input annotation file.
+
+        iou_thresh: float
+            Threshold of intersection-over-union of bounding boxes to be considered a
+            match.
+        """
+        annotations = self._load()
+        with open(ground_truth, "r") as f:
+            gt_annotations = json.load(f)
+
+        all_ious = []
+        polyline_hausdorff_distances = []
+        true_positives = []
+        false_positives = []
+        false_negatives = 0
+
+        for img_key, annotation in annotations["_via_img_metadata"].items():
+            gt_annotation = gt_annotations["_via_img_metadata"][img_key]
+            regions = annotation["regions"]
+            gt_regions = gt_annotation["regions"]
+
+            ious = sp.sparse.dok_matrix((len(regions), len(gt_regions)), dtype="f8")
+
+            for i, j in itertools.product(range(len(regions)), range(len(gt_regions))):
+                shape = regions[i]["shape_attributes"]
+                bb = bb_from_via_shape_attributes(shape)
+                gt_shape = gt_regions[j]["shape_attributes"]
+                gt_bb = bb_from_via_shape_attributes(gt_shape)
+
+                iou = bb_intersection_over_union(bb, gt_bb)
+                if iou >= iou_thresh:
+                    ious[i, j] = iou
+
+            ious = ious.tocsr()
+            matches = sp.sparse.csgraph.maximum_bipartite_matching(ious, "column")
+            false_negatives += len(gt_regions) - np.count_nonzero(matches >= 0)
+
+            for i, match in enumerate(matches):
+                score = regions[i]["region_attributes"]["score"]
+                if match >= 0:
+                    true_positives.append(score)
+                    all_ious.append((ious[i, match], score))
+                    shape = regions[i]["shape_attributes"]
+                    gt_shape = gt_regions[match]["shape_attributes"]
+                    if shape["name"] == gt_shape["name"] == "polyline":
+                        linestring = LineString(
+                            zip(shape["all_points_x"], shape["all_points_y"])
+                        )
+                        gt_linestring = LineString(
+                            zip(gt_shape["all_points_x"], gt_shape["all_points_y"])
+                        )
+                        h_dist = linestring.hausdorff_distance(gt_linestring)
+                        polyline_hausdorff_distances.append((h_dist, score))
+
+                else:
+                    false_positives.append(score)
+
+        output_dict = {
+            "all_ious": all_ious,
+            "polyline_hausdorff_distances": polyline_hausdorff_distances,
+            "true_positives": true_positives,
+            "false_positives": false_positives,
+            "false_negatives": false_negatives,
+        }
+        self._output(json.dumps(output_dict, separators=(",", ":")))
 
     def filter(self, by, minimum=-inf, maximum=inf, mode="warn"):
         """
