@@ -14,7 +14,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="camfi",
-    version="0.2",
+    version="0.3.1",
     description="Camera-based Analysis and Monitoring of Flying Insects",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -60,7 +60,7 @@ setup(
     # the `py_modules` argument instead as follows, which will expect a file
     # called `my_module.py` to exist:
     #
-    py_modules=["camfi"],
+    py_modules=["camfi", "camfiutils"],
     #
     # packages=find_packages(where='src'),  # Required
     # Specify which Python versions you support. In contrast to the
@@ -80,9 +80,12 @@ setup(
         "imageio",
         "matplotlib",
         "numpy",
+        "Pillow",
         "scikit-image",
         "scipy",
         "Shapely",
+        "torch",
+        "torchvision",
         "tqdm",
     ],
     # To provide executable scripts, use entry points in preference to the
@@ -95,6 +98,8 @@ setup(
     entry_points={  # Optional
         "console_scripts": [
             "camfi=camfi:main",
+            "traincamfiannotator=camfi:_cli_train",
+            "camfiannotate=camfi:_cli_annotate",
         ],
     },
 )
