@@ -131,4 +131,4 @@ dmypy.json
 # vim swap files
 *.swp
 
-models/
+models/*.pth
