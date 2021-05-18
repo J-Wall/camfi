@@ -643,6 +643,37 @@ class AnnotationUtils(object):
         Compares annotation file against a ground-truth annotation file for automatic
         annotation validation puposes.
 
+        Validation data is output to a json dict, which includes:
+
+        all_ious: list of [iou, score] pairs
+            iou is the Intersection over Union of the bounding boxes of true positives
+            to their matched ground truth annotation. All matched annotations are
+            included.
+            score is the prediction score of the automatic annotation
+
+        polyline_hausdorff_distances: list of [h_dist, score] pairs
+            h_dist is the hausdorff distance of a true positive polyline annotation,
+            where the annotation is matched to a polyline ground truth annotation. Only
+            polyline annotations which matched to a polyline ground truth annotation are
+            included.
+            score is the prediction score of the automatic annotation
+
+        length_differences: list of [l_diff, score] pairs
+            l_diff is calculated as the length of a true positive polyline annotation
+            minus the length of it's matched ground truth annotation. Only polyline
+            annotations which matched to a polyline ground truth annotation are
+            included.
+            score is the prediction score of the automatic annotation
+
+        true_positives: list of scores
+            score is the prediction score of the automatic annotation
+
+        false_positives: list of scores
+            score is the prediction score of the automatic annotation
+
+        false_negatives: int
+            number of false negative annotations
+
         Parameters
         ----------
 
@@ -660,11 +691,16 @@ class AnnotationUtils(object):
 
         all_ious = []
         polyline_hausdorff_distances = []
+        length_differences = []
         true_positives = []
         false_positives = []
         false_negatives = 0
 
-        for img_key, annotation in annotations["_via_img_metadata"].items():
+        for img_key, annotation in tqdm(
+            annotations["_via_img_metadata"].items(),
+            desc="Validating annotations",
+            unit="img",
+        ):
             gt_annotation = gt_annotations["_via_img_metadata"][img_key]
             regions = annotation["regions"]
             gt_regions = gt_annotation["regions"]
@@ -701,6 +737,8 @@ class AnnotationUtils(object):
                         )
                         h_dist = linestring.hausdorff_distance(gt_linestring)
                         polyline_hausdorff_distances.append((h_dist, score))
+                        l_diff = linestring.length - gt_linestring.length
+                        length_differences.append((l_diff, score))
 
                 else:
                     false_positives.append(score)
@@ -708,6 +746,7 @@ class AnnotationUtils(object):
         output_dict = {
             "all_ious": all_ious,
             "polyline_hausdorff_distances": polyline_hausdorff_distances,
+            "length_differences": length_differences,
             "true_positives": true_positives,
             "false_positives": false_positives,
             "false_negatives": false_negatives,
