@@ -1873,6 +1873,36 @@ class AnnotationUtils(object):
         pool.close()
         pool.join()
 
+    def filelist(self, sort=True, shuffle=False):
+        """
+        Lists the images in the input VIA project
+
+        Parameters
+        ----------
+
+        sort: bool
+            If True, output is sorted lexigraphically. If False, order is arbitrary
+
+        shuffle: bool or int
+            If int, then the output is shuffled using `shuffle` as the seed.
+            If True, then the output is shuffled using the system time as the seed.
+            If False (default), do not shuffle.
+            Shuffling occurs after sorting. For reproducability, set `sort=True`.
+        """
+        annotations = self._load()
+        filenames = [a["filename"] for a in annotations["_via_img_metadata"].values()]
+        if sort:
+            filenames.sort()
+
+        if isinstance(shuffle, int):
+            random.seed(shuffle)
+            random.shuffle(filenames)
+        elif shuffle is True:
+            random.seed()
+            random.shuffle(filenames)
+
+        self._output("\n".join(filenames))
+
 
 def _cli_train():
     fire.Fire(train_model)
