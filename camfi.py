@@ -69,6 +69,7 @@ class CamfiDataset(object):
         inference_mode=False,
         labels=DefaultDict(1),
         mask_dilate=5,
+        exclude=set(),
     ):
         self.root = root
         self.transforms = transforms
@@ -87,7 +88,9 @@ class CamfiDataset(object):
 
             for img_key, img_data in via_annotations.items():
                 # Only load images with annotations (but not too many)
-                if min_annotations < len(img_data["regions"]) < max_annotations:
+                if (min_annotations < len(img_data["regions"]) < max_annotations) and (
+                    img_data["filename"] not in exclude
+                ):
                     self.imgs.append(img_data["filename"])
                     self.annotation_data.append(img_data["regions"])
                     self.img_keys.append(img_key)
@@ -354,6 +357,7 @@ def train_model(
     mask_dilate=5,
     min_annotations=0,
     max_annotations=np.inf,
+    exclude=None,
     device="cpu",
     num_classes=2,
     batch_size=5,
@@ -396,6 +400,10 @@ def train_model(
         Skip images which have more than max_annotations annotations. Set this if you
         are running into memory issues when training on a GPU.
 
+    exclude: str
+        Path to file containing list of images to exclude (one per line). E.g. to
+        exclude a test set
+
     device: str
         E.g. "cpu" or "cuda"
 
@@ -427,6 +435,11 @@ def train_model(
         img_dir = os.path.dirname(via_projects[0])
     if model_name is None:
         model_name = dt.now().strftime("%Y%m%d")
+    if exclude is not None:
+        with open(exclude, "r") as f:
+            exclude_set = set(line.strip() for line in f)
+    else:
+        exclude_set = set()
 
     # Define dataset and data loader
     dataset = CamfiDataset(
@@ -438,6 +451,7 @@ def train_model(
         mask_dilate=mask_dilate,
         min_annotations=min_annotations,
         max_annotations=max_annotations,
+        exclude=exclude_set,
     )
     data_loader = torch.utils.data.DataLoader(
         dataset,
