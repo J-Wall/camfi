@@ -9,6 +9,8 @@ from multiprocessing import Pool
 import os
 import random
 import sys
+from urllib.parse import urlparse
+from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
 
 import exif
@@ -28,6 +30,8 @@ from torchvision.transforms import functional as F
 from tqdm import tqdm, trange
 
 import camfiutils as utils
+
+RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/0.3.1/20210504_model.pth"
 
 
 class DefaultDict(dict):
@@ -541,11 +545,13 @@ class Annotator:
     Parameters
     ----------
 
-    model
-        Path to state dict file which defines the segmentation model
-
     via_project
         Path to via project json file
+
+    model
+        Either a path to state dict file which defines the segmentation model, or a url
+        pointing to a model to download from the internet, or "release" or "latest".
+        See `camfi download-model --help` for more information.
 
     num_classes : int
         Number of classes in the model. Must correspond with how model was trained
@@ -592,8 +598,8 @@ class Annotator:
 
     def __init__(
         self,
-        model,
         via_project,
+        model="release",
         num_classes=2,
         img_dir=None,
         crop=None,
@@ -609,7 +615,8 @@ class Annotator:
     ):
         print(f"Loading model: {model}", file=sys.stderr)
         self.model = get_model_instance_segmentation(num_classes, pretrained=False)
-        self.model.load_state_dict(torch.load(model))
+        model_path = AnnotationUtils().download_model(model=model)
+        self.model.load_state_dict(torch.load(model_path))
 
         self.via_project = via_project
 
@@ -639,7 +646,7 @@ class Annotator:
             self.backup_model = get_model_instance_segmentation(
                 num_classes, pretrained=False
             )
-            self.backup_model.load_state_dict(torch.load(model))
+            self.backup_model.load_state_dict(torch.load(model_path))
             self.backup_device = torch.device(backup_device)
             self.backup_model.to(self.backup_device)
             self.backup_model.eval()
@@ -1431,6 +1438,55 @@ class AnnotationUtils(object):
             with open(self.i, "r") as jf:
                 annotations = json.load(jf)
         return annotations
+
+    def download_model(self, model="release"):
+        """
+        Downloads a pretrained image annotation model, returning the path to the model
+
+        Parameters
+        ----------
+
+        model: str
+            Name of model. Can be one of {"release", "latest"} or a url pointing to the
+            model file on the internet. Alternatively, a path to an existing local file
+            can be given, in which case the path is returned and nothing else is done.
+
+        Returns
+        -------
+
+        model_path: str
+            Location that model is saved.
+        """
+        if model == "release":
+            model_url = RLS_MODEL
+        elif model == "latest":
+            with urlopen(
+                "https://raw.githubusercontent.com/J-Wall/camfi/main/models/latest"
+            ) as f:
+                model_url = f.readline().decode().strip()
+        elif os.path.exists(model):
+            return model
+        else:
+            model_url = model
+
+        model_path = os.path.expanduser(
+            os.path.join("~/.camfi", os.path.basename(urlparse(model_url).path))
+        )
+
+        if os.path.exists(model_path):
+            print(
+                f"Model already downloaded.\nLocated at: {model_path}.", file=sys.stderr
+            )
+
+        else:
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            print(
+                f"Downloading model from {model_url}. Saving to {model_path}",
+                file=sys.stderr,
+            )
+            urlretrieve(model_url, model_path)
+
+        return model_path
 
     def add_metadata(self, *exif_tags):
         """
