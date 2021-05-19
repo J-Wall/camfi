@@ -349,21 +349,22 @@ annotate your images. Sample usage:
 ```
 $ camfiannotate via_annotation_project_file.json \
     --o autoannotated.json \
+    --model release \
     --crop=0,0,4608,3312 \  # To crop out trailcamera info overlay
     --device cuda \
     --backup-device cpu \
     --score-thresh 0.4
 ```
 
-This will annotate all the images in the input VIA project file, outputting a
-new VIA project file. The above options tell `camfiannotate` to crop the images
-before running inference on them, and to use cuda (a GPU) to run the inference.
-By setting `--backup-device cpu`, we tell the annotator to run inference on the
-CPU for images with fail on the GPU due to memory constraints (inference on
-images with lots of motion blurs in them takes up more memory). Finally, only
-annotations which have a score of at least 0.4 will be output. For model
-validation, it is recommended to set this to 0. Besides, you can always filter
-these later, for example:
+This will annotate all the images in the input VIA project file using the
+release model, outputting a new VIA project file. The above options tell
+`camfiannotate` to crop the images before running inference on them, and to use
+cuda (a GPU) to run the inference.  By setting `--backup-device cpu`, we tell
+the annotator to run inference on the CPU for images with fail on the GPU due to
+memory constraints (inference on images with lots of motion blurs in them takes
+up more memory). Finally, only annotations which have a score of at least 0.4
+will be output. For model validation, it is recommended to set this to 0.
+Besides, you can always filter these later, for example:
 
 ```
 $ camfi filter \
@@ -372,6 +373,10 @@ $ camfi filter \
     --by score \
     --minimum 0.9
 ```
+
+If you want to use a different model, you can set `--model <filepath>`, where
+`<filepath>` is the path to the model you want to use. Alternatively you can set
+`--model latest`, which will check github for the latest released model.
 
 ## Training
 
