@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from functools import wraps
 import itertools
 import json
-from math import inf, sqrt
+from math import inf, isfinite, sqrt
 from multiprocessing import Pool
 import os
 import random
@@ -332,7 +332,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         loss_value = losses_reduced.item()
 
-        if not math.isfinite(loss_value):
+        if not isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
             print(loss_dict_reduced)
             sys.exit(1)
