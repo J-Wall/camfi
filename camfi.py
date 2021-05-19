@@ -1469,8 +1469,10 @@ class AnnotationUtils(object):
         else:
             model_url = model
 
-        model_path = os.path.expanduser(
-            os.path.join("~/.camfi", os.path.basename(urlparse(model_url).path))
+        model_path = os.path.normpath(
+            os.path.expanduser(
+                os.path.join("~/.camfi", os.path.basename(urlparse(model_url).path))
+            )
         )
 
         if os.path.exists(model_path):
