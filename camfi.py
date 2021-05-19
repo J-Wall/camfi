@@ -746,7 +746,8 @@ class Annotator:
         # Remove worst overlapping instances until there are no above-threshold overlaps
         keep = set(range(n_predictions))
 
-        while np.any(overlap_mask := mask_overlaps.max(axis=1) >= self.overlap_thresh):
+        overlap_mask = mask_overlaps.max(axis=1) >= self.overlap_thresh
+        while np.any(overlap_mask):
             # Figure out which overlapping annotation has the worst score
             overlap_annotations = np.where(overlap_mask)[0]
             to_discard = overlap_annotations[
@@ -756,6 +757,8 @@ class Annotator:
             keep.remove(to_discard)
             mask_overlaps[to_discard, :] = 0.0
             mask_overlaps[:, to_discard] = 0.0
+
+            overlap_mask = mask_overlaps.max(axis=1) >= self.overlap_thresh
 
         keep = np.array(list(keep))
         return {key: val[keep] for key, val in prediction.items()}
@@ -863,9 +866,8 @@ class Annotator:
             mask = prediction["masks"][i, 0, ...]
             score = prediction["scores"][i]
             all_points_x, all_points_y = self.fit_poly(box, mask)
-            if cx_cy_r := self.convert_to_circle(
-                all_points_x, all_points_y, mask.shape
-            ):
+            cx_cy_r = self.convert_to_circle(all_points_x, all_points_y, mask.shape)
+            if cx_cy_r:
                 cx, cy, r = cx_cy_r
                 regions.append(
                     {
@@ -903,9 +905,8 @@ class Annotator:
 
         tot_annotations = 0
 
-        for img_idx in (
-            pb := trange(len(self.dataset), desc="Annotating images", unit="img")
-        ):
+        pb = trange(len(self.dataset), desc="Annotating images", unit="img")
+        for img_idx in pb:
             img_key = self.dataset.img_keys[img_idx]
             regions = self.annotate_img(img_idx)
             project["_via_img_metadata"][img_key]["regions"] = regions
@@ -1830,25 +1831,25 @@ class AnnotationUtils(object):
         pool = Pool(self.processes)
 
         tot_annotations = 0
-        for results in (
-            pb := tqdm(
-                pool.imap(
-                    process_annotations,
-                    zip(
-                        annotations["_via_img_metadata"].values(),
-                        itertools.repeat(scan_distance),
-                        itertools.repeat(line_rate),
-                        itertools.repeat(max_dist),
-                        itertools.repeat(supplementary_figures),
-                    ),
-                    5,
+        pb = tqdm(
+            pool.imap(
+                process_annotations,
+                zip(
+                    annotations["_via_img_metadata"].values(),
+                    itertools.repeat(scan_distance),
+                    itertools.repeat(line_rate),
+                    itertools.repeat(max_dist),
+                    itertools.repeat(supplementary_figures),
                 ),
-                desc="Processing annotations",
-                total=len(annotations["_via_img_metadata"]),
-                unit="img",
-                smoothing=0.0,
-            )
-        ):
+                5,
+            ),
+            desc="Processing annotations",
+            total=len(annotations["_via_img_metadata"]),
+            unit="img",
+            smoothing=0.0,
+        )
+
+        for results in pb:
             for result in results:
                 if result[2] is not np.nan:  # Check if snr is not np.nan
                     self._output("\t".join(str(val) for val in result), mode="a")

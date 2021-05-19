@@ -17,7 +17,7 @@ $ camfi <command> <flags>
 
 # Requirements
 
-Camfi requires python 3.9 or greater.
+Camfi requires python 3.7 or greater.
 
 See [requirements.txt](requirements.txt) for concrete dependencies.
 
