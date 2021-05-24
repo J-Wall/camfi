@@ -21,6 +21,17 @@ Camfi requires python 3.7 or greater.
 
 See [requirements.txt](requirements.txt) for concrete dependencies.
 
+Note: Installing using `$ pip install camfi` will only install the dependencies
+for the command line tools. The example notebooks have some additional
+dependencies, which can be installed by cloning the repository, and installing
+from the requirements file:
+
+```
+$ git clone https://github.com/J-Wall/camfi.git
+$ cd camfi
+$ pip install -r requirements.txt
+```
+
 # A. Setting up the cameras
 
 ## Rolling shutter calibration measurements
