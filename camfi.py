@@ -27,7 +27,7 @@ from tqdm import tqdm, trange
 
 import camfiutils as utils
 
-RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/1.0/20210519_4_model.pth
+RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/1.0/20210519_4_model.pth"
 
 
 class DefaultDict(dict):
