@@ -1,15 +1,53 @@
+"""
+The code contained in this file has been adapted from the pytorch vision reference
+training scripts, available from:
+https://github.com/pytorch/vision/tree/v0.3.0/references/detection
+
+BSD 3-Clause License
+
+Copyright (c) Soumith Chintala 2016,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 from __future__ import print_function
 
 from collections import defaultdict, deque
 import datetime
+import os
 import pickle
+import random
 import time
 
 import torch
 import torch.distributed as dist
-
-import errno
-import os
+import torchvision
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.transforms import functional as F
 
 
 class SmoothedValue(object):
@@ -36,7 +74,7 @@ class SmoothedValue(object):
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device='cuda')
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -71,7 +109,8 @@ class SmoothedValue(object):
             avg=self.avg,
             global_avg=self.global_avg,
             max=self.max,
-            value=self.value)
+            value=self.value,
+        )
 
 
 def all_gather(data):
@@ -105,7 +144,9 @@ def all_gather(data):
     for _ in size_list:
         tensor_list.append(torch.empty((max_size,), dtype=torch.uint8, device="cuda"))
     if local_size != max_size:
-        padding = torch.empty(size=(max_size - local_size,), dtype=torch.uint8, device="cuda")
+        padding = torch.empty(
+            size=(max_size - local_size,), dtype=torch.uint8, device="cuda"
+        )
         tensor = torch.cat((tensor, padding), dim=0)
     dist.all_gather(tensor_list, tensor)
 
@@ -161,15 +202,14 @@ class MetricLogger(object):
             return self.meters[attr]
         if attr in self.__dict__:
             return self.__dict__[attr]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, attr))
+        raise AttributeError(
+            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+        )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append(
-                "{}: {}".format(name, str(meter))
-            )
+            loss_str.append("{}: {}".format(name, str(meter)))
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -182,21 +222,23 @@ class MetricLogger(object):
     def log_every(self, iterable, print_freq, header=None):
         i = 0
         if not header:
-            header = ''
+            header = ""
         start_time = time.time()
         end = time.time()
-        iter_time = SmoothedValue(fmt='{avg:.4f}')
-        data_time = SmoothedValue(fmt='{avg:.4f}')
-        space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
-        log_msg = self.delimiter.join([
-            header,
-            '[{0' + space_fmt + '}/{1}]',
-            'eta: {eta}',
-            '{meters}',
-            'time: {time}',
-            'data: {data}',
-            'max mem: {memory:.0f}'
-        ])
+        iter_time = SmoothedValue(fmt="{avg:.4f}")
+        data_time = SmoothedValue(fmt="{avg:.4f}")
+        space_fmt = ":" + str(len(str(len(iterable)))) + "d"
+        log_msg = self.delimiter.join(
+            [
+                header,
+                "[{0" + space_fmt + "}/{1}]",
+                "eta: {eta}",
+                "{meters}",
+                "time: {time}",
+                "data: {data}",
+                "max mem: {memory:.0f}",
+            ]
+        )
         MB = 1024.0 * 1024.0
         for obj in iterable:
             data_time.update(time.time() - end)
@@ -205,17 +247,26 @@ class MetricLogger(object):
             if i % print_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
-                print(log_msg.format(
-                    i, len(iterable), eta=eta_string,
-                    meters=str(self),
-                    time=str(iter_time), data=str(data_time),
-                    memory=torch.cuda.max_memory_allocated() / MB))
+                print(
+                    log_msg.format(
+                        i,
+                        len(iterable),
+                        eta=eta_string,
+                        meters=str(self),
+                        time=str(iter_time),
+                        data=str(data_time),
+                        memory=torch.cuda.max_memory_allocated() / MB,
+                    )
+                )
             i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('{} Total time: {} ({:.4f} s / it)'.format(
-            header, total_time_str, total_time / len(iterable)))
+        print(
+            "{} Total time: {} ({:.4f} s / it)".format(
+                header, total_time_str, total_time / len(iterable)
+            )
+        )
 
 
 def collate_fn(batch):
@@ -223,7 +274,6 @@ def collate_fn(batch):
 
 
 def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
-
     def f(x):
         if x >= warmup_iters:
             return 1
@@ -231,29 +281,6 @@ def warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor):
         return warmup_factor * (1 - alpha) + alpha
 
     return torch.optim.lr_scheduler.LambdaLR(optimizer, f)
-
-
-def mkdir(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-
-def setup_for_distributed(is_master):
-    """
-    This function disables printing when not in master process
-    """
-    import builtins as __builtin__
-    builtin_print = __builtin__.print
-
-    def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
-        if is_master or force:
-            builtin_print(*args, **kwargs)
-
-    __builtin__.print = print
 
 
 def is_dist_avail_and_initialized():
@@ -276,35 +303,104 @@ def get_rank():
     return dist.get_rank()
 
 
-def is_main_process():
-    return get_rank() == 0
+class TransformCompose(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, image, target):
+        for t in self.transforms:
+            image, target = t(image, target)
+        return image, target
 
 
-def save_on_master(*args, **kwargs):
-    if is_main_process():
-        torch.save(*args, **kwargs)
+class TransformRandomHorizontalFlip(object):
+    def __init__(self, prob):
+        self.prob = prob
+
+    def __call__(self, image, target):
+        if random.random() < self.prob:
+            height, width = image.shape[-2:]
+            image = image.flip(-1)
+            bbox = target["boxes"]
+            bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
+            target["boxes"] = bbox
+            if "masks" in target:
+                target["masks"] = target["masks"].flip(-1)
+        return image, target
 
 
-def init_distributed_mode(args):
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
-        args.rank = int(os.environ["RANK"])
-        args.world_size = int(os.environ['WORLD_SIZE'])
-        args.gpu = int(os.environ['LOCAL_RANK'])
-    elif 'SLURM_PROCID' in os.environ:
-        args.rank = int(os.environ['SLURM_PROCID'])
-        args.gpu = args.rank % torch.cuda.device_count()
-    else:
-        print('Not using distributed mode')
-        args.distributed = False
-        return
+class TransformToTensor(object):
+    def __call__(self, image, target):
+        image = F.to_tensor(image)
+        return image, target
 
-    args.distributed = True
 
-    torch.cuda.set_device(args.gpu)
-    args.dist_backend = 'nccl'
-    print('| distributed init (rank {}): {}'.format(
-        args.rank, args.dist_url), flush=True)
-    torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
-                                         world_size=args.world_size, rank=args.rank)
-    torch.distributed.barrier()
-    setup_for_distributed(args.rank == 0)
+def get_transform(train=False):
+    transforms = []
+    transforms.append(TransformToTensor())
+    if train:
+        transforms.append(TransformRandomHorizontalFlip(0.5))
+    return TransformCompose(transforms)
+
+
+def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
+    model.train()
+    metric_logger = MetricLogger(delimiter="  ")
+    metric_logger.add_meter("lr", SmoothedValue(window_size=1, fmt="{value:.6f}"))
+    header = "Epoch: [{}]".format(epoch)
+
+    lr_scheduler = None
+    if epoch == 0:
+        warmup_factor = 1.0 / 1000
+        warmup_iters = min(1000, len(data_loader) - 1)
+
+        lr_scheduler = warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
+
+    for images, targets in metric_logger.log_every(data_loader, print_freq, header):
+        images = list(image.to(device) for image in images)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        loss_dict = model(images, targets)
+
+        losses = sum(loss for loss in loss_dict.values())
+
+        # reduce losses over all GPUs for logging purposes
+        loss_dict_reduced = reduce_dict(loss_dict)
+        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+        loss_value = losses_reduced.item()
+
+        if not isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            print(loss_dict_reduced)
+            sys.exit(1)
+
+        optimizer.zero_grad()
+        losses.backward()
+        optimizer.step()
+
+        if lr_scheduler is not None:
+            lr_scheduler.step()
+
+        metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
+        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+
+def get_model_instance_segmentation(num_classes, pretrained=True):
+    # load an instance segmentation model pre-trained pre-trained on COCO
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=pretrained)
+
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    # now get the number of input features for the mask classifier
+    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+    hidden_layer = 256
+    # and replace the mask predictor with a new one
+    model.roi_heads.mask_predictor = MaskRCNNPredictor(
+        in_features_mask, hidden_layer, num_classes
+    )
+
+    return model

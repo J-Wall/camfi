@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from functools import wraps
 import itertools
 import json
-from math import inf, isfinite, sqrt
+from math import inf, sqrt
 from multiprocessing import Pool
 import os
 import random
@@ -23,10 +23,6 @@ import scipy as sp
 from shapely.geometry import LineString
 from skimage import draw, transform
 import torch
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-from torchvision.transforms import functional as F
 from tqdm import tqdm, trange
 
 import camfiutils as utils
@@ -56,7 +52,7 @@ class UniqueDict(DefaultDict):
         return self[key]
 
 
-class CamfiDataset(object):
+class CamfiDataset:
     def __init__(
         self,
         root,
@@ -69,7 +65,7 @@ class CamfiDataset(object):
         inference_mode=False,
         labels=DefaultDict(1),
         mask_dilate=5,
-        exclude=set(),
+        exclude=None,
     ):
         self.root = root
         self.transforms = transforms
@@ -82,6 +78,10 @@ class CamfiDataset(object):
         self.imgs = []
         self.annotation_data = []
         self.img_keys = []
+
+        if exclude is None:
+            exclude = set()
+
         for f in via_project_files:
             with open(f, "r") as jf:
                 via_annotations = json.load(jf)["_via_img_metadata"]
@@ -245,109 +245,6 @@ def dilate_idx(rr, cc, d, img_shape=None):
     return rr_dilated[mask], cc_dilated[mask]
 
 
-def get_model_instance_segmentation(num_classes, pretrained=True):
-    # load an instance segmentation model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=pretrained)
-
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-    # now get the number of input features for the mask classifier
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-    hidden_layer = 256
-    # and replace the mask predictor with a new one
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(
-        in_features_mask, hidden_layer, num_classes
-    )
-
-    return model
-
-
-class TransformCompose(object):
-    def __init__(self, transforms):
-        self.transforms = transforms
-
-    def __call__(self, image, target):
-        for t in self.transforms:
-            image, target = t(image, target)
-        return image, target
-
-
-class TransformRandomHorizontalFlip(object):
-    def __init__(self, prob):
-        self.prob = prob
-
-    def __call__(self, image, target):
-        if random.random() < self.prob:
-            height, width = image.shape[-2:]
-            image = image.flip(-1)
-            bbox = target["boxes"]
-            bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
-            target["boxes"] = bbox
-            if "masks" in target:
-                target["masks"] = target["masks"].flip(-1)
-        return image, target
-
-
-class TransformToTensor(object):
-    def __call__(self, image, target):
-        image = F.to_tensor(image)
-        return image, target
-
-
-def get_transform(train=False):
-    transforms = []
-    transforms.append(TransformToTensor())
-    if train:
-        transforms.append(TransformRandomHorizontalFlip(0.5))
-    return TransformCompose(transforms)
-
-
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
-    model.train()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
-    header = "Epoch: [{}]".format(epoch)
-
-    lr_scheduler = None
-    if epoch == 0:
-        warmup_factor = 1.0 / 1000
-        warmup_iters = min(1000, len(data_loader) - 1)
-
-        lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
-
-    for images, targets in metric_logger.log_every(data_loader, print_freq, header):
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-        loss_dict = model(images, targets)
-
-        losses = sum(loss for loss in loss_dict.values())
-
-        # reduce losses over all GPUs for logging purposes
-        loss_dict_reduced = utils.reduce_dict(loss_dict)
-        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
-        loss_value = losses_reduced.item()
-
-        if not isfinite(loss_value):
-            print("Loss is {}, stopping training".format(loss_value))
-            print(loss_dict_reduced)
-            sys.exit(1)
-
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-
-        if lr_scheduler is not None:
-            lr_scheduler.step()
-
-        metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
-        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
-
-
 def train_model(
     *via_projects,
     load_pretrained_model=None,
@@ -444,7 +341,7 @@ def train_model(
     # Define dataset and data loader
     dataset = CamfiDataset(
         img_dir,
-        get_transform(train=True),
+        utils.get_transform(train=True),
         *via_projects,
         crop=crop,
         point_r=point_r,
@@ -462,7 +359,7 @@ def train_model(
     )
 
     # Initialise model
-    model = get_model_instance_segmentation(num_classes)
+    model = utils.get_model_instance_segmentation(num_classes)
     if load_pretrained_model is not None:
         model.load_state_dict(torch.load(load_pretrained_model))
     model.to(device)
@@ -473,7 +370,9 @@ def train_model(
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        utils.train_one_epoch(
+            model, optimizer, data_loader, device, epoch, print_freq=10
+        )
         # update the learning rate
         lr_scheduler.step()
 
@@ -628,7 +527,9 @@ class Annotator:
         o=None,
     ):
         print(f"Loading model: {model}", file=sys.stderr)
-        self.model = get_model_instance_segmentation(num_classes, pretrained=False)
+        self.model = utils.get_model_instance_segmentation(
+            num_classes, pretrained=False
+        )
         model_path = AnnotationUtils().download_model(model=model)
         self.model.load_state_dict(torch.load(model_path))
 
@@ -642,7 +543,7 @@ class Annotator:
         print(f"Loading dataset: {self.via_project}", file=sys.stderr)
         self.dataset = CamfiDataset(
             self.img_dir,
-            get_transform(train=False),
+            utils.get_transform(train=False),
             self.via_project,
             crop=crop,
             min_annotations=-1,
@@ -657,7 +558,7 @@ class Annotator:
         if backup_device is not None:
             print(f"Loading backup model on device: {backup_device}", file=sys.stderr)
             self.backup = True
-            self.backup_model = get_model_instance_segmentation(
+            self.backup_model = utils.get_model_instance_segmentation(
                 num_classes, pretrained=False
             )
             self.backup_model.load_state_dict(torch.load(model_path))
@@ -1234,8 +1135,6 @@ def make_supplementary_figure(
 
     plt.close(fig)
 
-    return None
-
 
 def process_annotations(args):
     """
@@ -1405,7 +1304,7 @@ def bb_intersection_over_union(box0, box1):
     return area_inter / area_union
 
 
-class AnnotationUtils(object):
+class AnnotationUtils:
     """
     Provides utilities for working with camfi projects
 
