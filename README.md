@@ -19,7 +19,9 @@ $ camfi <command> <flags>
 
 Camfi requires python 3.7 or greater.
 
-See [requirements.txt](requirements.txt) for concrete dependencies.
+See
+[requirements.txt](https://github.com/J-Wall/camfi/blob/main/requirements.txt)
+for concrete dependencies.
 
 Note: Installing using `$ pip install camfi` will only install the dependencies
 for the command line tools. The example notebooks have some additional
@@ -68,7 +70,8 @@ it:
    bumped while taking the photos.
 
 6. Load the images onto your computer and follow the steps in the [camera
-   calibration notebook](examples/camera_calibration.ipynb).
+   calibration
+   notebook](https://github.com/J-Wall/camfi/blob/main/examples/camera_calibration.ipynb).
 
 ## Camera settings
 
@@ -324,10 +327,10 @@ to save all incremental versions of the project file, this could become
 cumbersome if the metadata is included from the start.
 
 For insect activity analysis ([see example jupyter
-notebook](examples/activity_analysis.ipynb)), we first need to load the image
-metadata into the annotation project file. This can be done using `camfi
-add-metadata`. Usage is simple, just provide the input file and desired output
-file:
+notebook](https://github.com/J-Wall/camfi/blob/main/examples/activity_analysis.ipynb)),
+we first need to load the image metadata into the annotation project file. This
+can be done using `camfi add-metadata`. Usage is simple, just provide the input
+file and desired output file:
 
 ```
 $ camfi add-metadata \
@@ -432,7 +435,8 @@ $ traincamfiannotator --help
 ```
 
 Alternatively you can train on Colab. Please refer to the [model training
-example notebook](examples/camfi_autoannotator_training.ipynb).
+example
+notebook](https://github.com/J-Wall/camfi/blob/main/examples/camfi_autoannotator_training.ipynb).
 
 ## Validation
 
@@ -471,7 +475,7 @@ $ camfi validate-annotations \
 
 This gives us `validation.json`, which contains the validation data. For an
 example of how to interpret this data see the [automatic annotation evaluation
-notebook](examples/annotation_evaluation.ipynb).
+notebook](https://github.com/J-Wall/camfi/blob/main/examples/annotation_evaluation.ipynb).
 
 # D. Data analysis
 
@@ -562,11 +566,13 @@ with the following columns:
 
 Once `camfi.py` has been run, the output can be used for further analysis of
 wingbeat frequency. For an example of such analysis, please refer to the
-[wingbeat analysis example notebook](examples/wingbeat_analysis.ipynb).
+[wingbeat analysis example
+notebook](https://github.com/J-Wall/camfi/blob/main/examples/wingbeat_analysis.ipynb).
 
 ## Insect activity analysis
 
 The annotation file with image metadata produced in section B of this manual can
 be used directly for analysis of insect activity levels. Please refer to the
-[activity analysis example notebook](examples/activity_analysis.ipynb) for
-guidance on how this analysis could be conducted.
+[activity analysis example
+notebook](https://github.com/J-Wall/camfi/blob/main/examples/activity_analysis.ipynb)
+for guidance on how this analysis could be conducted.
