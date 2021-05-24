@@ -6,6 +6,3 @@ include LICENSE
 
 # Include setup.py
 include setup.py
-
-# Include images for README
-include manual_figures/*
