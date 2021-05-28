@@ -1,3 +1,4 @@
+from collections.abc import Hashable
 from datetime import datetime as dt
 from functools import wraps
 import itertools
@@ -7,6 +8,7 @@ from multiprocessing import Pool
 import os
 import random
 import sys
+from typing import Any
 from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
@@ -29,11 +31,44 @@ RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/1.0/20210519_4_mo
 
 
 class DefaultDict(dict):
-    def __init__(self, default, *args, **kwargs):
+    """Subclass of the builtin `dict` class. Behaves like a normal `dict` but returns
+    a default value (instead of raising a KeyError) when a key is missing.
+
+    Parameters
+    ----------
+    default: Any
+        default value to return and insert.
+
+    Examples
+    --------
+    >>> d = DefaultDict("foo")
+    >>> d["bar"]
+    'foo'
+
+    Can be manipulated in the same way as a `dict`:
+    >>> d = DefaultDict(1)
+    >>> d[5] = 10
+    >>> d[5]
+    10
+
+    Once a default value is obtained, it will be stored in the dict:
+    >>> d = DefaultDict(1)
+    >>> d["foo"]
+    1
+    >>> "foo" in d.keys()
+    True
+
+    But not before it is gotten:
+    >>> d = DefaultDict(1)
+    >>> "foo" in d.keys()
+    False
+    """
+
+    def __init__(self, default: Any, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default = default
 
-    def __missing__(self, key):
+    def __missing__(self, key: Hashable):
         self[key] = self.default
         return self.default
 
@@ -42,6 +77,28 @@ class DefaultDict(dict):
 
 
 class UniqueDict(DefaultDict):
+    """Subclass of DefaultDict. Instead of inserting a default value, inserts a unique
+    value (these will be integers in ascending order). `default` should be an integer.
+
+    Parameters
+    ----------
+    default: int
+        default value to return and insert. Should be an `int`.
+
+    Examples
+    --------
+    >>> d = UniqueDict(1)
+    >>> d[1]
+    1
+    >>> d["foo"]
+    2
+    >>> d[1]
+    1
+    """
+
+    def __init__(self, default: int, *args, **kwargs):
+        super().__init__(default, *args, **kwargs)
+
     def __missing__(self, key):
         while self.default in self.values():
             self.default += 1
