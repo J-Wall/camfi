@@ -8,7 +8,7 @@ from multiprocessing import Pool
 import os
 import random
 import sys
-from typing import Any
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
@@ -110,17 +110,17 @@ class UniqueDict(DefaultDict):
 class CamfiDataset:
     def __init__(
         self,
-        root,
-        transforms,
-        *via_project_files,
-        crop=None,
-        point_r=10,
-        min_annotations=0,
-        max_annotations=np.inf,
-        inference_mode=False,
-        labels=DefaultDict(1),
-        mask_dilate=5,
-        exclude=None,
+        root: Union[str, bytes, os.PathLike],
+        transforms: utils.TransformCompose,
+        *via_project_files: Union[str, bytes, os.PathLike],
+        crop: Optional[Tuple[int, int, int, int]] = None,
+        point_r: int = 10,
+        min_annotations: int = 0,
+        max_annotations: float = np.inf,
+        inference_mode: bool = False,
+        labels: dict = DefaultDict(1),
+        mask_dilate: int = 5,
+        exclude: set = None,
     ):
         self.root = root
         self.transforms = transforms
@@ -150,7 +150,7 @@ class CamfiDataset:
                     self.annotation_data.append(img_data["regions"])
                     self.img_keys.append(img_key)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[Image.Image, Dict[str, torch.Tensor]]:
         img_path = os.path.join(self.root, self.imgs[idx])
         img = Image.open(img_path).convert("RGB")
         if self.crop is not None:
@@ -184,10 +184,10 @@ class CamfiDataset:
     def __len__(self):
         return len(self.imgs)
 
-    def get_keypoints(self, idx):
+    def get_keypoints(self, idx: int):
         raise NotImplementedError
 
-    def get_masks(self, idx, img_shape):
+    def get_masks(self, idx: int, img_shape: Tuple[int, int]) -> torch.Tensor:
         n_objects = len(self.annotation_data[idx])
         masks = np.zeros((n_objects, img_shape[0], img_shape[1]), dtype="u1")
 
@@ -211,11 +211,9 @@ class CamfiDataset:
             else:
                 raise NotImplementedError
 
-        masks = torch.as_tensor(masks, dtype=torch.uint8)
+        return torch.as_tensor(masks, dtype=torch.uint8)
 
-        return masks
-
-    def get_boxes(self, idx, img_shape):
+    def get_boxes(self, idx: int, img_shape: Tuple[int, int]) -> torch.Tensor:
         boxes = []
         for region in self.annotation_data[idx]:
             if region["shape_attributes"]["name"] == "polyline":
@@ -251,23 +249,20 @@ class CamfiDataset:
             else:
                 raise NotImplementedError
 
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        return boxes
+        return torch.as_tensor(boxes, dtype=torch.float32)
 
-    def get_labels(self, idx):
+    def get_labels(self, idx: int) -> torch.Tensor:
         labels = []
         for region in self.annotation_data[idx]:
             labels.append(self.labels[region["shape_attributes"]["name"]])
 
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        return labels
+        return torch.as_tensor(labels, dtype=torch.int64)
 
 
-def dilate_idx(rr, cc, d, img_shape=None):
+def dilate_idx(rr, cc, d: int, img_shape=None):
     """
     Parameters
     ----------
-
     rr : array or int
         row indices
     cc : array or int
@@ -279,7 +274,6 @@ def dilate_idx(rr, cc, d, img_shape=None):
 
     Returns
     -------
-
     rr_dilated : array
     cc_dilated : array
     """
