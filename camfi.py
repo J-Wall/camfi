@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from datetime import datetime as dt
 from functools import wraps
 import itertools
@@ -1813,7 +1811,3 @@ def _cli_annotate():
 
 def main():
     fire.Fire(AnnotationUtils)
-
-
-if __name__ == "__main__":
-    main()
