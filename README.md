@@ -1,4 +1,7 @@
 # camfi
+
+![travis-ci](https://travis-ci.com/github/J-Wall/camfi)
+
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
 # Installation
