@@ -259,8 +259,15 @@ class CamfiDataset:
         return torch.as_tensor(labels, dtype=torch.int64)
 
 
-def dilate_idx(rr, cc, d: int, img_shape=None):
-    """
+def dilate_idx(
+    rr: Union[np.ndarray, int],
+    cc: Union[np.ndarray, int],
+    d: int,
+    img_shape: Optional[Tuple[int, int]] = None,
+):
+    """Takes index arrays rr and cc and performs a morphological dilation of size d on
+    them.
+
     Parameters
     ----------
     rr : array or int
@@ -276,7 +283,16 @@ def dilate_idx(rr, cc, d: int, img_shape=None):
     -------
     rr_dilated : array
     cc_dilated : array
+
+    Examples
+    --------
+    >>> rr, cc = np.array([50]), np.array([50])
+    >>> dilate_idx(rr, cc, 1, (100, 100))
+    (array([49, 50, 50, 50, 51]), array([50, 49, 50, 51, 50]))
     """
+    if d < 1:
+        raise ValueError(f"{d=}. Should be positive.")
+
     d2 = d * d
     offset_r, offset_c = zip(
         *itertools.filterfalse(
@@ -287,9 +303,10 @@ def dilate_idx(rr, cc, d: int, img_shape=None):
     rr_dilated = np.stack([rr + i for i in offset_r]).ravel()
     cc_dilated = np.stack([cc + i for i in offset_c]).ravel()
     mask = rr_dilated >= 0
-    mask[rr_dilated >= img_shape[0]] = False
     mask[cc_dilated < 0] = False
-    mask[cc_dilated >= img_shape[1]] = False
+    if img_shape is not None:
+        mask[rr_dilated >= img_shape[0]] = False
+        mask[cc_dilated >= img_shape[1]] = False
 
     return rr_dilated[mask], cc_dilated[mask]
 
