@@ -1,6 +1,6 @@
 # camfi
 
-![travis-ci](https://travis-ci.com/github/J-Wall/camfi.svg)
+[![Build Status](https://travis-ci.com/J-Wall/camfi.svg?branch=main)](https://travis-ci.com/J-Wall/camfi)
 
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
