@@ -291,7 +291,7 @@ def dilate_idx(
     (array([49, 50, 50, 50, 51]), array([50, 49, 50, 51, 50]))
     """
     if d < 1:
-        raise ValueError(f"{d=}. Should be positive.")
+        raise ValueError(f"d={d}. Should be positive.")
 
     d2 = d * d
     offset_r, offset_c = zip(
