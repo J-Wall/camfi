@@ -630,77 +630,64 @@ def smallest_enclosing_circle(
 
 
 class Annotator:
-    """
+    """Provides a cli for automatic annotation of camfi images.
+
     Parameters
     ----------
-
     via_project
         Path to via project json file
-
     model
         Either a path to state dict file which defines the segmentation model, or a url
         pointing to a model to download from the internet, or "release" or "latest".
         See `camfi download-model --help` for more information.
-
     num_classes : int
         Number of classes in the model. Must correspond with how model was trained
-
     img_dir
         Path to direcotry containing images. By default inferred from via_project
-
     crop : x0,y0,x1,y1
         Crop images before processing. By default no crop. Original camfi data uses
         --crop=0,0,4608,3312
-
     device : str
         Specifies device to run inference on. Set to cuda to use gpu.
-
     backup_device : str
         Specifies device to run inference on when a runtime error occurs while using
         device. Probably only makes sense to set this to cpu if device=cuda
-
     split_angle : float
         Approximate maximum angle between polyline segments in degrees.
-
     poly_order : int
         Order of polynomial used for fitting motion blur paths.
-
     endpoint_method : str[,method_argument,...]
         Method to find endpoints of motion blurs. Currently implemented:
             --endpoint_method=truncate,n  (where n is a positive int)
             --endpoint_method=quantile,q  (where q is a float between 0. and 1.)
-
     score_thresh : float
         Score threshold between 0. and 1. for annotations
-
     overlap_thresh : float
         Minimum proportion of overlap between two instance segmentation masks to
         infer that one of the masks should be discarded
-
     edge_thresh : int
         Minimum distance an annotation has to be from the edge of the image before it is
         converted from polyline to circle
-
     o : str
         Path to output file. Default is to output to stdout
     """
 
     def __init__(
         self,
-        via_project,
-        model="release",
-        num_classes=2,
-        img_dir=None,
-        crop=None,
-        device="cpu",
-        backup_device=None,
-        split_angle=15.0,
-        poly_order=2,
-        endpoint_method=("truncate", 10),
-        score_thresh=0.4,
-        overlap_thresh=0.4,
-        edge_thresh=10,
-        o=None,
+        via_project: Union[str, os.PathLike],
+        model: Union[str, os.PathLike] = "release",
+        num_classes: int = 2,
+        img_dir: Optional[Union[str, os.PathLike]] = None,
+        crop: Optional[Tuple[int, int, int, int]] = None,
+        device: str = "cpu",
+        backup_device: Optional[str] = None,
+        split_angle: float = 15.0,
+        poly_order: int = 2,
+        endpoint_method: Tuple[str, Any] = ("truncate", 10),
+        score_thresh: float = 0.4,
+        overlap_thresh: float = 0.4,
+        edge_thresh: int = 10,
+        o: Optional[Union[str, os.PathLike]] = None,
     ):
         print(f"Loading model: {model}", file=sys.stderr)
         self.model = utils.get_model_instance_segmentation(
@@ -756,7 +743,7 @@ class Annotator:
         self.o = o
         print("Initialisation complete", file=sys.stderr)
 
-    def _output(self, out_str):
+    def _output(self, out_str: str) -> None:
         if self.o is None:
             print(out_str)
         else:
