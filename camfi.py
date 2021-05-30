@@ -286,6 +286,87 @@ def dilate_idx(
 
     Examples
     --------
+    >>> a = np.array([[0, 0, 0, 0, 0],
+    ...               [0, 0, 1, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0]])
+    >>> rr, cc = np.nonzero(a)
+    >>> rr_dilated, cc_dilated = dilate_idx(rr, cc, 1)
+    >>> a[rr_dilated, cc_dilated] = 1
+    >>> a
+    array([[0, 0, 1, 0, 0],
+           [0, 1, 1, 1, 0],
+           [0, 0, 1, 0, 0],
+           [0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0]])
+
+    If shape is given, omits indices larger than the dimensions given
+    >>> a = np.array([[0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 1],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0]])
+    >>> rr, cc = np.nonzero(a)
+    >>> rr_dilated, cc_dilated = dilate_idx(rr, cc, 1, a.shape)
+    >>> a[rr_dilated, cc_dilated] = 1
+    >>> a
+    array([[0, 0, 0, 0, 1],
+           [0, 0, 0, 1, 1],
+           [0, 0, 0, 0, 1],
+           [0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0]])
+
+    If we didn't give the shape argument in the above example, we get an IndexError
+    >>> a = np.array([[0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 1],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0]])
+    >>> rr, cc = np.nonzero(a)
+    >>> rr_dilated, cc_dilated = dilate_idx(rr, cc, 1)
+    >>> a[rr_dilated, cc_dilated] = 1
+    Traceback (most recent call last):
+    ...
+    IndexError: index 5 is out of bounds for axis 1 with size 5
+
+    But we don't need the shape parameter to filter out negative indices
+    >>> a = np.array([[1, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0]])
+    >>> rr, cc = np.nonzero(a)
+    >>> rr_dilated, cc_dilated = dilate_idx(rr, cc, 1)
+    >>> a[rr_dilated, cc_dilated] = 1
+    >>> a
+    array([[1, 1, 0, 0, 0],
+           [1, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0]])
+
+    Dilation is based on euclidean distance
+    >>> a = np.array([[0, 0, 0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 1, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0, 0, 0],
+    ...               [0, 0, 0, 0, 0, 0, 0]])
+    >>> rr, cc = np.nonzero(a)
+    >>> rr_dilated, cc_dilated = dilate_idx(rr, cc, 3, a.shape)
+    >>> a[rr_dilated, cc_dilated] = 1
+    >>> a
+    array([[0, 0, 0, 1, 0, 0, 0],
+           [0, 1, 1, 1, 1, 1, 0],
+           [0, 1, 1, 1, 1, 1, 0],
+           [1, 1, 1, 1, 1, 1, 1],
+           [0, 1, 1, 1, 1, 1, 0],
+           [0, 1, 1, 1, 1, 1, 0],
+           [0, 0, 0, 1, 0, 0, 0]])
+
+    If input is sorted, then the ouptut will be too (with precedence rr, cc)
     >>> rr, cc = np.array([50]), np.array([50])
     >>> dilate_idx(rr, cc, 1, (100, 100))
     (array([49, 50, 50, 50, 51]), array([50, 49, 50, 51, 50]))
