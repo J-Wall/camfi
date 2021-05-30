@@ -1,4 +1,4 @@
-from collections.abc import Hashable
+from collections.abc import Iterable, Hashable, Sequence
 from datetime import datetime as dt
 from functools import wraps
 import itertools
@@ -513,15 +513,19 @@ def train_model(
     print(f"Training complete. Model saved at {save_path}")
 
 
-def _sec_trivial_0(points):
+def _sec_trivial_0(points: Tuple[()]) -> Tuple[float, float, float]:
     return 0.0, 0.0, 0.0
 
 
-def _sec_trivial_1(points):
+def _sec_trivial_1(
+    points: Tuple[Tuple[float, float], Tuple[float, float]]
+) -> Tuple[float, float, float]:
     return points[0][0], points[0][1], 0.0
 
 
-def _sec_trivial_2(points):
+def _sec_trivial_2(
+    points: Tuple[Tuple[float, float], Tuple[float, float]]
+) -> Tuple[float, float, float]:
     return (
         0.5 * (points[0][0] + points[1][0]),
         0.5 * (points[0][1] + points[1][1]),
@@ -530,7 +534,9 @@ def _sec_trivial_2(points):
     )
 
 
-def _sec_trivial_3(points):
+def _sec_trivial_3(
+    points: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
+) -> Tuple[float, float, float]:
     (x1, y1), (x2, y2), (x3, y3) = points
     A = np.array([[x3 - x1, y3 - y1], [x3 - x2, y3 - y2]])
     Y = np.array(
@@ -546,26 +552,66 @@ def _sec_trivial_3(points):
     return X[0], X[1], sqrt((X[0] - x1) ** 2 + (X[1] - y1) ** 2)
 
 
-def _sec_trivial(points):
+def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, float]:
     return [_sec_trivial_0, _sec_trivial_1, _sec_trivial_2, _sec_trivial_3][
         len(points)
-    ](points)
+    ](
+        points
+    )  # type: ignore
 
 
-def smallest_enclosing_circle(points):
-    """
-    Performs Welzl's algorithm to find the smallest enclosing circle of a set of points
-    in a cartesian plane.
+def smallest_enclosing_circle(
+    points: Union[Iterable[Tuple[int, int]], np.ndarray]
+) -> Tuple[float, float, float]:
+    """Performs Welzl's algorithm to find the smallest enclosing circle of a set of
+    points in a cartesian plane.
 
     Parameters
     ----------
-
-    points : sequence of 2-tuples or (N, 2)-array
+    points : iterable of 2-tuples or (N, 2)-array
 
     Returns
     -------
+    x, y, r : floats
 
-    x, y, r
+    Examples
+    --------
+    If no points are given, values are still returned:
+    >>> smallest_enclosing_circle([])
+    (0.0, 0.0, 0.0)
+
+    If one point is given, r will be 0.0:
+    >>> smallest_enclosing_circle([(1.0, 2.0)])
+    (1.0, 2.0, 0.0)
+
+    Two points trivial case:
+    >>> smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0)])
+    (1.0, 0.0, 1.0)
+
+    Three points trivial case:
+    >>> np.allclose(
+    ...     smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0), (1.0, sqrt(3))]),
+    ...     (1.0, sqrt(3) / 3, 2 * sqrt(3) / 3)
+    ... )
+    True
+
+    Extra points within the circle don't affect the circle:
+    >>> np.allclose(
+    ...     smallest_enclosing_circle([
+    ...                                (0.0, 0.0),
+    ...                                (2.0, 0.0),
+    ...                                (1.0, sqrt(3)),
+    ...                                (0.5, 0.5)]),
+    ...     (1.0, sqrt(3) / 3, 2 * sqrt(3) / 3)
+    ... )
+    True
+
+    If points are inscribed on a circle, the correct circle is also given:
+    >>> np.allclose(
+    ...     smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (0.0, 2.0)]),
+    ...     (1.0, 1.0, sqrt(2))
+    ... )
+    True
     """
 
     def welzl(P, R):
