@@ -1,4 +1,3 @@
-from collections.abc import Iterable, Hashable, Sequence
 from datetime import datetime as dt
 from functools import wraps
 import itertools
@@ -8,7 +7,7 @@ from multiprocessing import Pool
 import os
 import random
 import sys
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
@@ -513,51 +512,46 @@ def train_model(
     print(f"Training complete. Model saved at {save_path}")
 
 
-def _sec_trivial_0(points: Tuple[()]) -> Tuple[float, float, float]:
-    return 0.0, 0.0, 0.0
-
-
-def _sec_trivial_1(
-    points: Tuple[Tuple[float, float], Tuple[float, float]]
-) -> Tuple[float, float, float]:
-    return points[0][0], points[0][1], 0.0
-
-
-def _sec_trivial_2(
-    points: Tuple[Tuple[float, float], Tuple[float, float]]
-) -> Tuple[float, float, float]:
-    return (
-        0.5 * (points[0][0] + points[1][0]),
-        0.5 * (points[0][1] + points[1][1]),
-        0.5
-        * sqrt((points[0][0] - points[1][0]) ** 2 + (points[0][1] - points[1][1]) ** 2),
-    )
-
-
-def _sec_trivial_3(
-    points: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
-) -> Tuple[float, float, float]:
-    (x1, y1), (x2, y2), (x3, y3) = points
-    A = np.array([[x3 - x1, y3 - y1], [x3 - x2, y3 - y2]])
-    Y = np.array(
-        [
-            (x3 ** 2 + y3 ** 2 - x1 ** 2 - y1 ** 2),
-            (x3 ** 2 + y3 ** 2 - x2 ** 2 - y2 ** 2),
-        ]
-    )
-    if np.linalg.det(A) == 0:
-        return _sec_trivial_2((min(points), max(points)))
-    Ainv = np.linalg.inv(A)
-    X = 0.5 * np.dot(Ainv, Y)
-    return X[0], X[1], sqrt((X[0] - x1) ** 2 + (X[1] - y1) ** 2)
-
-
 def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, float]:
-    return [_sec_trivial_0, _sec_trivial_1, _sec_trivial_2, _sec_trivial_3][
-        len(points)
-    ](
-        points
-    )  # type: ignore
+    if len(points) == 3:
+        (x1, y1), (x2, y2), (x3, y3) = points
+        A = np.array([[x3 - x1, y3 - y1], [x3 - x2, y3 - y2]])
+        Y = np.array(
+            [
+                (x3 ** 2 + y3 ** 2 - x1 ** 2 - y1 ** 2),
+                (x3 ** 2 + y3 ** 2 - x2 ** 2 - y2 ** 2),
+            ]
+        )
+        if np.linalg.det(A) == 0:
+            min_point = min(points)
+            max_point = max(points)
+            return (
+                0.5 * (min_point[0] + max_point[0]),
+                0.5 * (min_point[1] + max_point[1]),
+                0.5
+                * sqrt(
+                    (min_point[0] - max_point[0]) ** 2
+                    + (min_point[1] - max_point[1]) ** 2
+                ),
+            )
+        Ainv = np.linalg.inv(A)
+        X = 0.5 * np.dot(Ainv, Y)
+        return X[0], X[1], sqrt((X[0] - x1) ** 2 + (X[1] - y1) ** 2)
+    elif len(points) == 2:
+        return (
+            0.5 * (points[0][0] + points[1][0]),
+            0.5 * (points[0][1] + points[1][1]),
+            0.5
+            * sqrt(
+                (points[0][0] - points[1][0]) ** 2 + (points[0][1] - points[1][1]) ** 2
+            ),
+        )
+    elif len(points) == 1:
+        return points[0][0], points[0][1], 0.0
+    elif len(points) == 0:
+        return 0.0, 0.0, 0.0
+    else:
+        raise ValueError(f"{len(points)} points given. Maximum for trivial case is 3.")
 
 
 def smallest_enclosing_circle(
