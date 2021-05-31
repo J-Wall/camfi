@@ -1067,31 +1067,28 @@ def annotate(*args, **kwargs):
     annotator.annotate()
 
 
-def extract_rois(regions, image_path, scan_distance):
-    """
-    Extracts regions of interest (ROIs) from an image using polyline annotations
+def extract_rois(
+    regions: List[Dict[str, Any]],
+    image_path: Union[str, os.PathLike],
+    scan_distance: int,
+) -> Tuple[dt, float, List[Tuple[np.ndarray, int]]]:
+    """Extracts regions of interest (ROIs) from an image using polyline annotations
 
     Parameters
     ----------
-
-    regions : dict
-        contains information fopr each annotation
-
+    regions : list
+        contains information for each annotation
     image_path : str
         path to annotated image
-
     scan_distance : int
         half-width of rois for motion blurs
 
     Returns
     -------
-
     capture_time : datetime
         image capture from image metadata
-
     exposure_time : float
        exposure time of image in seconds
-
     blurs : list of tuples [(roi, y_diff), ...]
         roi: rotated and cropped regions of interest
         y_diff: number of rows the blur spans
@@ -1170,44 +1167,50 @@ def extract_rois(regions, image_path, scan_distance):
     return capture_time, exposure_time, blurs
 
 
-def process_blur(roi, exposure_time, y_diff, line_rate, max_dist=None):
-    """
-    Takes a straigtened region of interest image and a y_diff value (from extract_rois)
-    to measure the wingbeat frequency of the moth in the ROI.
+def process_blur(
+    roi: np.ndarray,
+    exposure_time: float,
+    y_diff: int,
+    line_rate: float,
+    max_dist: Optional[int] = None,
+) -> Tuple[float, float, np.ndarray, np.ndarray, np.ndarray, float, float, float, int]:
+    """Takes a straigtened region of interest image and a y_diff value (from
+    extract_rois) to measure the wingbeat frequency of the moth in the ROI.
 
     Parameters
     ----------
-
-    roi : array
+    roi: array
         rotated and cropped regions of interest
-
-    exposure_time : float
+    exposure_time: float
         exposure time of image in seconds
-
-    y_diff : int
+    y_diff: int
         number of rows the blur spans
-
-    line_rate : float or int
+    line_rate: float or int
         the line rate of the rolling shutter
-
-    max_dist : int
+    max_dist: int
         maximum number of columns to calculate autocorrelation over. Defaults to a
         half of the length of the image
 
     Returns
     -------
-
-    spec_density : array
+    et_up: float
+        Exposure time of blur assuming upward movement
+    et_dn: float
+        Exposure time of blur assuming downward movement
+    period_up: array
+        Wingbeat period (in pixels) assuming upward movement
+    period_dn: array
+        Wingbeat period (in pixels) assuming downward movement
+    spec_density: array
         y-values on spectrogram
-
-    snr : float
+    snr: float
         signal to noise ratio
-
-    up_freq : float
+    up_freq: float
         Wingbeat frequency estimate, assuming upward motion
-
-    down_freq : float
+    down_freq: float
         Wingbeat frequency estimate, assuming downward motion
+    best_peak: int
+        Index of best peak in spectrogram
     """
     if max_dist is None:
         max_dist = roi.shape[1] // 2
@@ -1236,7 +1239,7 @@ def process_blur(roi, exposure_time, y_diff, line_rate, max_dist=None):
     )[0][1:]
     sorted_peak_idxs = peak_idxs[np.argsort(total_spectral_density[peak_idxs])][::-1]
     try:
-        snrs = []
+        snrs: List[float] = []
         best_peak = sorted_peak_idxs[0]  # Temporary value
         for peak_idx in sorted_peak_idxs:
             # Find snr
@@ -1289,29 +1292,28 @@ def process_blur(roi, exposure_time, y_diff, line_rate, max_dist=None):
 
 
 def make_supplementary_figure(
-    file_path, annotation_idx, roi, spectral_density, best_peak, snr
-):
-    """
-    Saves supplementary figure for the wingbeat measurement for a particular annotation.
+    file_path: Union[str, os.PathLike],
+    annotation_idx: int,
+    roi: np.ndarray,
+    spectral_density: np.ndarray,
+    best_peak: int,
+    snr: float,
+) -> None:
+    """Saves supplementary figure for the wingbeat measurement for a particular
+    annotation.
 
     Parameters
     ----------
-
-    file_path : str
+    file_path : path-like
         Path supplementary figure file (will be overwritten if it already exists)
-
     annotation_idx : int
         Index of annotation (within the image). Used in plot title.
-
     roi : array
         rotated and cropped regions of interest
-
     spectral_density : array
         y-values on spectrogram
-
     best_peak : int
         period of wingbeat in pixels
-
     snr : float
         signal-to-noise ratio of autocorrelation at best_peak
     """
@@ -1356,7 +1358,11 @@ def make_supplementary_figure(
     plt.close(fig)
 
 
-def process_annotations(args):
+def process_annotations(
+    args: Tuple[Dict[str, Any], int, float, Optional[int], Union[str, os.PathLike]]
+) -> List[
+    Tuple[str, dt, int, int, int, float, float, float, float, float, str, str, str]
+]:
     """
     Passed to worker processes by `AnnotationUtils.extract_wingbeats`. Calls
     `extract_rois`, then `process_blur` on each region. Optionally calls
@@ -1364,13 +1370,12 @@ def process_annotations(args):
 
     Parameters
     ----------
-
-    args : tuple
+    args: tuple
+        Contains: image_metadata, scan_distance, line_rate, max_dist, supplementary_fig
 
     Returns
     -------
-
-    results : list
+    results: list
     """
     image_metadata, scan_distance, line_rate, max_dist, supplementary_fig = args
     results = []
@@ -1429,20 +1434,20 @@ def process_annotations(args):
     return results
 
 
-def get_metadata(image_file, exif_tags):
-    """
+def get_metadata(
+    image_file: Union[str, os.PathLike], exif_tags: List[str]
+) -> Dict[str, str]:
+    """Extract EXIF metadata from an image file
+
     Parameters
     ----------
-
     image_file : str
         Path to image file
-
     exif_tags : list
         Metadata tags to include
 
     Returns
     -------
-
     out : dict
         Contains the metadata of the image, with all keys and values coerced to str.
     """
@@ -1460,19 +1465,18 @@ def _get_metadata_with_key(img_tup):
     return img_tup[0], get_metadata(img_tup[1], img_tup[2])
 
 
-def bb_from_via_shape_attributes(shape):
-    """
-    Get bounding box from VIA shape attributes
+def bb_from_via_shape_attributes(
+    shape: Dict[str, Any]
+) -> Tuple[float, float, float, float]:
+    """Get bounding box from VIA shape attributes
 
     Parameters
     ----------
-
     shape: dict
         "shape_attributes" dict
 
     Returns
     -------
-
     minx, miny, maxx, maxy
     """
     if shape["name"] == "polyline":
@@ -1490,19 +1494,19 @@ def bb_from_via_shape_attributes(shape):
         raise NotImplementedError(shape["name"])
 
 
-def bb_intersection_over_union(box0, box1):
-    """
-    Get the intersection over union of two boxes
+def bb_intersection_over_union(
+    box0: Union[torch.Tensor, np.ndarray, Sequence[float]],
+    box1: Union[torch.Tensor, np.ndarray, Sequence[float]],
+) -> float:
+    """Get the intersection over union of two boxes
 
     Parameters
     ----------
-
     box0: floats minx, miny, maxx, maxy
     box1: floats minx, miny, maxx, maxy
 
     Returns
     -------
-
     iou: float
         Between 0. and 1.
     """
