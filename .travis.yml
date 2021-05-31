@@ -6,8 +6,7 @@ cache: pip
 install:
   - pip install -r requirements.txt
   - pip install .
-  - pip install mypy
+  - pip install pytest-cov pytest-mypy
 # command to run tests
 script:
-  - mypy --ignore-missing-imports camfi.py
-  - python -m doctest camfi.py
+  - pytest
