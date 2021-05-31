@@ -7,7 +7,7 @@ from multiprocessing import Pool
 import os
 import random
 import sys
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
@@ -555,7 +555,7 @@ def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, f
 
 
 def smallest_enclosing_circle(
-    points: Union[Iterable[Tuple[int, int]], np.ndarray]
+    points: Union[Iterable[Tuple[float, float]], np.ndarray]
 ) -> Tuple[float, float, float]:
     """Performs Welzl's algorithm to find the smallest enclosing circle of a set of
     points in a cartesian plane.
@@ -744,21 +744,23 @@ class Annotator:
             with open(self.o, "w") as f:
                 print(out_str, file=f)
 
-    def _set_endpoint_method(self, endpoint_method):
+    def _set_endpoint_method(
+        self, endpoint_method: Union[str, Tuple[str, ...]]
+    ) -> None:
         if isinstance(endpoint_method, tuple):
             self.getendpoints = lambda x: self.__getattribute__(
                 f"_endpoint_{endpoint_method[0]}"
             )(x, *endpoint_method[1:])
         else:
-            self.getendpoints = self.__getattribute__(f"_endpoint_{endpoint_method[0]}")
+            self.getendpoints = self.__getattribute__(f"_endpoint_{endpoint_method}")
 
-    def _endpoint_quantile(self, fit_mask_vals, q):
-        return np.where(fit_mask_vals >= fit_mask_vals.quantile(q))[0][[0, -1]]
+    def _endpoint_quantile(self, fit_mask_vals: np.ndarray, q: float) -> np.ndarray:
+        return np.where(fit_mask_vals >= np.quantile(fit_mask_vals, q))[0][[0, -1]]
 
-    def _endpoint_truncate(self, fit_mask_vals, n):
+    def _endpoint_truncate(self, fit_mask_vals: np.ndarray, n: int) -> np.ndarray:
         return np.array([n, len(fit_mask_vals) - n])
 
-    def get_prediction(self, img_idx):
+    def get_prediction(self, img_idx: int) -> Dict[str, torch.Tensor]:
         img, _ = self.dataset[img_idx]
         with torch.no_grad():
             try:
@@ -771,20 +773,19 @@ class Annotator:
 
         return {key: val.cpu() for key, val in prediction.items()}
 
-    def filter_annotations(self, prediction):
-        """
-        Applies self.score_thresh and self.overlap_thresh to filter out poor quality
+    def filter_annotations(
+        self, prediction: Dict[str, torch.Tensor]
+    ) -> Dict[str, torch.Tensor]:
+        """ Applies self.score_thresh and self.overlap_thresh to filter out poor quality
         annotations.
 
         Parameters
         ----------
-
         prediction : dict
             Output of model inference. Must have keys {"boxes", "scores", "masks"}
 
         Returns
         -------
-
         dict
             Filtered prediction with same keys as prediction
         """
@@ -811,7 +812,8 @@ class Annotator:
             mask_overlaps[i, j] = torch.minimum(
                 prediction["masks"][i, ...], prediction["masks"][j, ...]
             ).sum() / min(
-                prediction["masks"][i, ...].sum(), prediction["masks"][j, ...].sum()
+                float(prediction["masks"][i, ...].sum()),
+                float(prediction["masks"][j, ...].sum()),
             )
             mask_overlaps[j, i] = mask_overlaps[i, j]
 
@@ -835,27 +837,26 @@ class Annotator:
         keep = np.array(list(keep))
         return {key: val[keep] for key, val in prediction.items()}
 
-    def fit_poly(self, box, mask):
-        """
-        Uses polynomial regression to fit a polyline annotation to the provided
+    def fit_poly(
+        self,
+        box: Union[Sequence[float], torch.Tensor, np.ndarray],
+        mask: Union[torch.Tensor, np.ndarray],
+    ) -> Tuple[List[float], List[float]]:
+        """Uses polynomial regression to fit a polyline annotation to the provided
         segmentation mask.
 
         Parameters
         ----------
-
         box : tensor or array [x0, y0, x1, y1]
             Coordinates of bounding box corners (x0, y0) and (x1, y1). Note that y
             refers to row and x refers to column.
-
         mask : tensor or array
             Segmentation mask of instance with shape (image_width, image_height)
 
         Returns
         -------
-
         all_points_x : list
             x-coordinates defining polyline
-
         all_points_y : list
             y-coordinates defining polyline. Will have same length as all_points_x
         """
@@ -893,7 +894,30 @@ class Annotator:
 
         return all_points_x, all_points_y
 
-    def convert_to_circle(self, all_points_x, all_points_y, img_shape):
+    def convert_to_circle(
+        self,
+        all_points_x: List[float],
+        all_points_y: List[float],
+        img_shape: Union[Tuple[int, int], torch.Size],
+    ) -> Optional[Tuple[float, float, float]]:
+        """Checks if a polyline annotation is close to the edge of an image, and if so,
+        convers it to a circle annotation by computing the smallest enclosing circle of
+        all points in the polyline.
+
+        Parameters
+        ----------
+        all_points_x: List[float]
+            x-coordinates of polyline segments
+        all_points_y: list[float]
+            y-coordinates of polyline segments
+        img_shape: Tuple[int, int]
+            height, width of image
+
+        Returns
+        -------
+        cx, cy, r or False
+            coordinates defining the circle annotation or None (leave as polyline)
+        """
         min_x = min(all_points_x)
         max_x = max(all_points_x)
         min_y = min(all_points_y)
@@ -903,28 +927,25 @@ class Annotator:
             min_x < self.edge_thresh
             or min_y < self.edge_thresh
             or max_x > img_shape[1] - self.edge_thresh
-            or max_y > img_shape[1] - self.edge_thresh
+            or max_y > img_shape[0] - self.edge_thresh
         ):
             cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
             return cx, cy, r
 
         else:
-            return False
+            return None
 
-    def annotate_img(self, img_idx):
-        """
-        Calls self.get_prediction, self.filter_annotations, and self.fit_poly to
+    def annotate_img(self, img_idx: int) -> List[Dict[str, Any]]:
+        """Calls self.get_prediction, self.filter_annotations, and self.fit_poly to
         produce annotations for an image specified with img_idx.
 
         Parameters
         ----------
-
         img_idx : int
             Index of image in via project
 
         Returns
         -------
-
         regions : list
             List of annotations in via format
         """
