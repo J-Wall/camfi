@@ -1010,8 +1010,50 @@ class Annotator:
         self._output(json.dumps(project, separators=(",", ":"), sort_keys=True))
 
 
-def bb_overlap(i, j, boxes):
-    return (
+def bb_overlap(i: int, j: int, boxes: Union[torch.Tensor, np.ndarray]) -> bool:
+    """Returns True if two bounding boxes overlap, and False otherwise
+
+    Parameters
+    ----------
+    i: int
+        index of the first box in boxes
+    j: int
+        index of the second box in boxes
+    boxes: torch.Tensor or np.ndarray of shape (N, 4)
+
+    Returns
+    -------
+    bool
+
+    Examples
+    --------
+    >>> boxes = np.array([[0, 0, 1, 1],
+    ...                   [2, 2, 3, 3],
+    ...                   [0, 0, 2, 2],
+    ...                   [1, 1, 3, 3]])
+    >>> bb_overlap(0, 1, boxes)
+    False
+    >>> bb_overlap(2, 3, boxes)
+    True
+
+    Overlaps can happen in either dimension:
+    >>> boxes = np.array([[0, 0, 2, 2],
+    ...                   [0, 1, 1, 3],
+    ...                   [1, 0, 3, 1],
+    ...                   [0, 2, 2, 4],
+    ...                   [2, 0, 4, 2]])
+    >>> bb_overlap(0, 1, boxes)
+    True
+    >>> bb_overlap(0, 2, boxes)
+    True
+
+    Overlaps are not inclusive of edges:
+    >>> bb_overlap(0, 3, boxes)
+    False
+    >>> bb_overlap(0, 4, boxes)
+    False
+    """
+    return bool(
         boxes[i, 0] < boxes[j, 2]
         and boxes[i, 1] < boxes[j, 3]
         and boxes[i, 2] > boxes[j, 0]
