@@ -1359,7 +1359,9 @@ def make_supplementary_figure(
 
 
 def process_annotations(
-    args: Tuple[Dict[str, Any], int, float, Optional[int], Union[str, os.PathLike]]
+    args: Tuple[
+        Dict[str, Any], int, float, Optional[int], Optional[Union[str, os.PathLike]]
+    ]
 ) -> List[
     Tuple[str, dt, int, int, int, float, float, float, float, float, str, str, str]
 ]:
@@ -1435,7 +1437,7 @@ def process_annotations(
 
 
 def get_metadata(
-    image_file: Union[str, os.PathLike], exif_tags: List[str]
+    image_file: Union[str, os.PathLike], exif_tags: Sequence[str]
 ) -> Dict[str, str]:
     """Extract EXIF metadata from an image file
 
@@ -1461,7 +1463,7 @@ def get_metadata(
     return out
 
 
-def _get_metadata_with_key(img_tup):
+def _get_metadata_with_key(img_tup: Tuple[str, Union[str, os.PathLike], Sequence[str]]):
     return img_tup[0], get_metadata(img_tup[1], img_tup[2])
 
 
@@ -1529,31 +1531,31 @@ def bb_intersection_over_union(
 
 
 class AnnotationUtils:
-    """
-    Provides utilities for working with camfi projects
+    """Provides utilities for working with camfi projects
 
     Parameters
     ----------
-
     processes : int
         number of child processes to spawn
-
-    i: str
+    i: path-like
         path to input VIA project json file. Defaults to sys.stdin
-
-    o: str
+    o: path-like
         path to output file. Defaults to sys.stdout
     """
 
-    def __init__(self, processes=1, i=None, o=None):
+    def __init__(
+        self,
+        processes: int = 1,
+        i: Union[str, os.PathLike] = None,
+        o: Union[str, os.PathLike] = None,
+    ):
         self.processes = processes
         self.i = i
         self.o = o
 
-    def _output(self, out_str, mode="w"):
-        """
-        Used by methods on `AnnotationUtils` (rather than print) to output to file or
-        sys.stdout.
+    def _output(self, out_str: str, mode: str = "w") -> None:
+        """Used by methods on `AnnotationUtils` (rather than print) to output to file
+        or sys.stdout.
         """
         if self.o is None:
             print(out_str)
@@ -1561,13 +1563,11 @@ class AnnotationUtils:
             with open(self.o, mode) as f:
                 print(out_str, file=f)
 
-    def _load(self):
-        """
-        Used by methods on `AnnotationUtils` to load json file (or sys.stdin)
+    def _load(self) -> Dict[str, Any]:
+        """Used by methods on `AnnotationUtils` to load json file (or sys.stdin)
 
         Returns
         -------
-
         annotations : dict
         """
         if self.i is None:
@@ -1577,13 +1577,12 @@ class AnnotationUtils:
                 annotations = json.load(jf)
         return annotations
 
-    def download_model(self, model="release"):
-        """
-        Downloads a pretrained image annotation model, returning the path to the model
+    def download_model(self, model: Union[str, os.PathLike] = "release") -> str:
+        """Downloads a pretrained image annotation model, returning the path to the
+        model.
 
         Parameters
         ----------
-
         model: str
             Name of model. Can be one of {"release", "latest"} or a url pointing to the
             model file on the internet. Alternatively, a path to an existing local file
@@ -1591,7 +1590,6 @@ class AnnotationUtils:
 
         Returns
         -------
-
         model_path: str
             Location that model is saved.
         """
@@ -1603,9 +1601,9 @@ class AnnotationUtils:
             ) as f:
                 model_url = f.readline().decode().strip()
         elif os.path.exists(model):
-            return model
+            return str(model)
         else:
-            model_url = model
+            model_url = str(model)
 
         model_path = os.path.normpath(
             os.path.expanduser(
@@ -1628,9 +1626,8 @@ class AnnotationUtils:
 
         return model_path
 
-    def add_metadata(self, *exif_tags):
-        """
-        Adds image (EXIF) metadata to VIA project by reading image files. Optionally
+    def add_metadata(self, *exif_tags: str) -> None:
+        """Adds image (EXIF) metadata to VIA project by reading image files. Optionally
         spawns multiple processes (reading the images is usually I/O bound and can take
         some time).
         """
@@ -1672,9 +1669,8 @@ class AnnotationUtils:
             json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
         )
 
-    def remove_unannotated(self):
-        """
-        Removes image metadata from VIA project file for images which have no
+    def remove_unannotated(self) -> None:
+        """Removes image metadata from VIA project file for images which have no
         annotations.
         """
         annotation_project = self._load()
@@ -1690,14 +1686,12 @@ class AnnotationUtils:
             json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
         )
 
-    def merge_annotations(self, *annotation_files):
-        """
-        Takes a list of VIA project files and merges them into one. Ignores --i in
+    def merge_annotations(self, *annotation_files: str) -> None:
+        """Takes a list of VIA project files and merges them into one. Ignores --i in
         favour of *annotation_files.
 
         Parameters
         ---------
-
         *annotation_files
             list of VIA project json files to merge. Project and VIA settings are taken
             from the first file.
@@ -1712,14 +1706,13 @@ class AnnotationUtils:
 
         self._output(json.dumps(annotations, separators=(",", ":"), sort_keys=True))
 
-    def zip_images(self, **kwargs):
+    def zip_images(self, **kwargs) -> None:
         """
         Makes a zip archive of all the images in the provided VIA project file.
         If --i is set, then the annotation file itself will be included in the zip file.
 
         Parameters
         ----------
-
         **kwargs
             Passed to zipfile.ZipFile
         """
@@ -1738,9 +1731,8 @@ class AnnotationUtils:
             ):
                 outzip.write(img_data["filename"])
 
-    def validate_annotations(self, ground_truth, iou_thresh=0.5):
-        """
-        Compares annotation file against a ground-truth annotation file for automatic
+    def validate_annotations(self, ground_truth: str, iou_thresh: float = 0.5) -> None:
+        """Compares annotation file against a ground-truth annotation file for automatic
         annotation validation puposes.
 
         Validation data is output to a json dict, which includes:
@@ -1750,37 +1742,30 @@ class AnnotationUtils:
             to their matched ground truth annotation. All matched annotations are
             included.
             score is the prediction score of the automatic annotation
-
         polyline_hausdorff_distances: list of [h_dist, score] pairs
             h_dist is the hausdorff distance of a true positive polyline annotation,
             where the annotation is matched to a polyline ground truth annotation. Only
             polyline annotations which matched to a polyline ground truth annotation are
             included.
             score is the prediction score of the automatic annotation
-
         length_differences: list of [l_diff, score] pairs
             l_diff is calculated as the length of a true positive polyline annotation
             minus the length of it's matched ground truth annotation. Only polyline
             annotations which matched to a polyline ground truth annotation are
             included.
             score is the prediction score of the automatic annotation
-
         true_positives: list of scores
             score is the prediction score of the automatic annotation
-
         false_positives: list of scores
             score is the prediction score of the automatic annotation
-
         false_negatives: int
             number of false negative annotations
 
         Parameters
         ----------
-
         ground_truth: str
             Path to ground truth VIA annotations file. Should contain annotations for
             all images in input annotation file.
-
         iou_thresh: float
             Threshold of intersection-over-union of bounding boxes to be considered a
             match.
@@ -1853,25 +1838,22 @@ class AnnotationUtils:
         }
         self._output(json.dumps(output_dict, separators=(",", ":")))
 
-    def filter(self, by, minimum=-inf, maximum=inf, mode="warn"):
-        """
-        Filters VIA annotations by enforcing a minimum and/or maximum value for a
+    def filter(
+        self, by: str, minimum: float = -inf, maximum: float = inf, mode: str = "warn"
+    ) -> None:
+        """Filters VIA annotations by enforcing a minimum and/or maximum value for a
         numerical region attribute (eg. "score" which is defined during automatic
         automatic annotation)
 
         Parameters
         ----------
-
-        by : str
+        by: str
             The region_attributes key to filter annotations by.
-
-        minimum : float
+        minimum: float
             The minimum value of the region attribute to pass the filter
-
-        maximum : float
+        maximum: float
             The maximum value of the region attribute to pass the filter
-
-        mode : str
+        mode: str
             One of {"pass", "fail", "raise", "warn"}. Defines how annotations missing
             the `by` region attribute are handled.
                 "pass": These annotations pass the filter
@@ -1880,10 +1862,10 @@ class AnnotationUtils:
                 "warn": Like "pass" but a warning is printed to sys.stderr
         """
 
-        def _raise(ex):
+        def _raise(ex: Exception):
             raise ex
 
-        def _warn(ex):
+        def _warn(ex: Exception) -> bool:
             print(
                 f"Warning: Missing region_attribute '{by}' for {img_data['filename']}",
                 file=sys.stderr,
@@ -1897,7 +1879,7 @@ class AnnotationUtils:
             "warn": _warn,
         }[mode]
 
-        def _annotation_passes(region):
+        def _annotation_passes(region: Dict[str, Any]) -> bool:
             try:
                 return minimum < float(region["region_attributes"][by]) < maximum
             except KeyError as ex:
@@ -1914,31 +1896,23 @@ class AnnotationUtils:
 
     def extract_wingbeats(
         self,
-        line_rate=inf,
-        scan_distance=100,
-        max_dist=None,
-        supplementary_figures=None,
-    ):
-        """
-        Uses the camfi algorithm to measure the wingbeat frequency of annotated flying
-        insect motion blurs in still images.
+        line_rate: float = inf,
+        scan_distance: int = 100,
+        max_dist: Optional[int] = None,
+        supplementary_figures: Optional[str] = None,
+    ) -> None:
+        """Uses the camfi algorithm to measure the wingbeat frequency of annotated
+        flying insect motion blurs in still images.
 
         Parameters
         ---------
-
         line_rate : int
             The line rate of the rolling shutter
-
         scan_distance : int
             Half width of analysis windows (half width of blurs)
-
         max_dist : int
             Maximum number of columns to calculate autocorrelation over. Defaults to a
             half of the length of the image
-
-        processes : int
-            Number of worker processes to spawn. Default 1
-
         supplementary_figures : str
             Directory in which to put supplementary figures (optional)
         """
@@ -1996,16 +1970,13 @@ class AnnotationUtils:
         pool.close()
         pool.join()
 
-    def filelist(self, sort=True, shuffle=False):
-        """
-        Lists the images in the input VIA project
+    def filelist(self, sort: bool = True, shuffle: Union[bool, int] = False) -> None:
+        """Lists the images in the input VIA project
 
         Parameters
         ----------
-
         sort: bool
             If True, output is sorted lexigraphically. If False, order is arbitrary
-
         shuffle: bool or int
             If int, then the output is shuffled using `shuffle` as the seed.
             If True, then the output is shuffled using the system time as the seed.
