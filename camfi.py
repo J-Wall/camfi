@@ -45,12 +45,14 @@ class DefaultDict(dict):
     'foo'
 
     Can be manipulated in the same way as a `dict`:
+
     >>> d = DefaultDict(1)
     >>> d[5] = 10
     >>> d[5]
     10
 
     Once a default value is obtained, it will be stored in the dict:
+
     >>> d = DefaultDict(1)
     >>> d["foo"]
     1
@@ -58,6 +60,7 @@ class DefaultDict(dict):
     True
 
     But not before it is gotten:
+
     >>> d = DefaultDict(1)
     >>> "foo" in d.keys()
     False
@@ -301,6 +304,7 @@ def dilate_idx(
            [0, 0, 0, 0, 0]])
 
     If shape is given, omits indices larger than the dimensions given
+
     >>> a = np.array([[0, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 1],
     ...               [0, 0, 0, 0, 0],
@@ -317,6 +321,7 @@ def dilate_idx(
            [0, 0, 0, 0, 0]])
 
     If we didn't give the shape argument in the above example, we get an IndexError
+
     >>> a = np.array([[0, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 1],
     ...               [0, 0, 0, 0, 0],
@@ -330,6 +335,7 @@ def dilate_idx(
     IndexError: index 5 is out of bounds for axis 1 with size 5
 
     But we don't need the shape parameter to filter out negative indices
+
     >>> a = np.array([[1, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 0],
@@ -346,6 +352,7 @@ def dilate_idx(
            [0, 0, 0, 0, 0]])
 
     Dilation is based on euclidean distance
+
     >>> a = np.array([[0, 0, 0, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 0, 0, 0],
     ...               [0, 0, 0, 0, 0, 0, 0],
@@ -366,6 +373,7 @@ def dilate_idx(
            [0, 0, 0, 1, 0, 0, 0]])
 
     If input is sorted, then the ouptut will be too (with precedence rr, cc)
+
     >>> rr, cc = np.array([50]), np.array([50])
     >>> dilate_idx(rr, cc, 1, (100, 100))
     (array([49, 50, 50, 50, 51]), array([50, 49, 50, 51, 50]))
@@ -571,18 +579,22 @@ def smallest_enclosing_circle(
     Examples
     --------
     If no points are given, values are still returned:
+
     >>> smallest_enclosing_circle([])
     (0.0, 0.0, 0.0)
 
     If one point is given, r will be 0.0:
+
     >>> smallest_enclosing_circle([(1.0, 2.0)])
     (1.0, 2.0, 0.0)
 
     Two points trivial case:
+
     >>> smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0)])
     (1.0, 0.0, 1.0)
 
     Three points trivial case:
+
     >>> np.allclose(
     ...     smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0), (1.0, sqrt(3))]),
     ...     (1.0, sqrt(3) / 3, 2 * sqrt(3) / 3)
@@ -590,6 +602,7 @@ def smallest_enclosing_circle(
     True
 
     Extra points within the circle don't affect the circle:
+
     >>> np.allclose(
     ...     smallest_enclosing_circle([
     ...                                (0.0, 0.0),
@@ -601,6 +614,7 @@ def smallest_enclosing_circle(
     True
 
     If points are inscribed on a circle, the correct circle is also given:
+
     >>> np.allclose(
     ...     smallest_enclosing_circle([(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (0.0, 2.0)]),
     ...     (1.0, 1.0, sqrt(2))
@@ -1037,6 +1051,7 @@ def bb_overlap(i: int, j: int, boxes: Union[torch.Tensor, np.ndarray]) -> bool:
     True
 
     Overlaps can happen in either dimension:
+
     >>> boxes = np.array([[0, 0, 2, 2],
     ...                   [0, 1, 1, 3],
     ...                   [1, 0, 3, 1],
@@ -1048,6 +1063,7 @@ def bb_overlap(i: int, j: int, boxes: Union[torch.Tensor, np.ndarray]) -> bool:
     True
 
     Overlaps are not inclusive of edges:
+
     >>> bb_overlap(0, 3, boxes)
     False
     >>> bb_overlap(0, 4, boxes)
@@ -1688,11 +1704,11 @@ class AnnotationUtils:
 
     def merge_annotations(self, *annotation_files: str) -> None:
         """Takes a list of VIA project files and merges them into one. Ignores --i in
-        favour of *annotation_files.
+        favour of annotation_files.
 
         Parameters
         ---------
-        *annotation_files
+        annotation_files
             list of VIA project json files to merge. Project and VIA settings are taken
             from the first file.
         """
@@ -1855,11 +1871,10 @@ class AnnotationUtils:
             The maximum value of the region attribute to pass the filter
         mode: str
             One of {"pass", "fail", "raise", "warn"}. Defines how annotations missing
-            the `by` region attribute are handled.
-                "pass": These annotations pass the filter
-                "fail": These annotations are removed
-                "raise": A KeyError is raised if an annotation is missing the attribute
-                "warn": Like "pass" but a warning is printed to sys.stderr
+            the `by` region attribute are handled. "pass": These annotations pass the
+            filter. "fail": These annotations are removed. "raise": A KeyError is raised
+            if an annotation is missing the attribute. "warn": Like "pass" but a
+            warning is printed to sys.stderr.
         """
 
         def _raise(ex: Exception):
