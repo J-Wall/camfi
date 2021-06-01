@@ -76,9 +76,7 @@ using the ``traincamfiannotator`` command. For help on how to use this, run::
    $ traincamfiannotator --help
 
 Alternatively you can train on Colab. Please refer to the example model
-training `colab notebook`_.
-
-.. _`colab notebook`: https://github.com/J-Wall/camfi/blob/main/examples/camfi_autoannotator_training.ipynb
+training notebook :doc:`notebooks/camfi_autoannotator_training`.
 
 
 Validation
@@ -114,7 +112,5 @@ This gives us the automatic annotations. To validate these against
        --o validation.json
 
 This gives us ``validation.json``, which contains the validation data. For an
-example of how to interpret this data see the example
-`automatic annotation evaluation notebook`_.
-
-.. _`automatic annotation evaluation notebook`: https://github.com/J-Wall/camfi/blob/main/examples/annotation_evaluation.ipynb
+example of how to interpret this data see the example notebook
+:doc:`notebooks/annotation_evaluation`.

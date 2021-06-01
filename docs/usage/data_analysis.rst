@@ -94,17 +94,12 @@ Wingbeat analysis
 
 Once ``camfi.py`` has been run, the output can be used for further analysis of
 wingbeat frequency. For an example of such analysis, please refer to the
-example `wingbeat analysis notebook`_.
-
-.. _`wingbeat analysis notebook`: https://github.com/J-Wall/camfi/blob/main/examples/wingbeat_analysis.ipynb
+example :doc:`notebooks/wingbeat_analysis` notebook.
 
 Insect activity analysis
 ------------------------
 
 The annotation file with image metadata produced in section B of this manual
 can be used directly for analysis of insect activity levels. Please refer to
-the example `activity analysis notebook`_ for guidance on how this analysis
-could be conducted.
-
-.. _`activity analysis notebook`: https://github.com/J-Wall/camfi/blob/main/examples/activity_analysis.ipynb
-
+the example :doc:`notebooks/activity_analysis` notebook for guidance on how
+this analysis could be conducted.

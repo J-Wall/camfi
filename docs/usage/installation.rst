@@ -30,7 +30,9 @@ Requirements
 
 Camfi requires python 3.7 or greater.
 
-See requirements.txt_ for concrete dependencies.
+Concrete dependencies for camfi are provided in requirements.txt_. They are:
+
+.. literalinclude:: ../../requirements.txt
 
 .. _requirements.txt: https://github.com/J-Wall/camfi/blob/main/requirements.txt
 

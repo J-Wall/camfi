@@ -21,6 +21,7 @@ If using this method and/or associated software in your research, please cite
    usage/automatic_image_annotation
    usage/data_analysis
    usage/cli
+   usage/notebooks/notebooks.rst
    api/modules
 
 

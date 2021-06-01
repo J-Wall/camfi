@@ -17,12 +17,14 @@ doing it:
    blades of a small desk fan. The inertia of the cardboard tube helped ensure
    that the line would rotate at a constant rotational velocity.
 
+   .. _fig-calibration_setup:
+
    .. figure:: figures/calibration_setup.jpg
       :alt: Apparatus for measuring rolling shutter line rate
       :width: 100 %
       :align: center
 
-      Figure A1. Apparatus for measuring rolling shutter line rate.
+      Apparatus for measuring rolling shutter line rate.
 
       ..
 
@@ -38,11 +40,10 @@ doing it:
    to do this buy using the camera's timed capture setting, so that it is not
    bumped while taking the photos.
 
-6. Load the images onto your computer and follow the steps in the `camera calibration notebook`_
+6. Load the images onto your computer and follow the steps in the
+   :doc:`notebooks/camera_calibration` notebook.
 
 .. _Strobily: https://play.google.com/store/apps/details?id=com.tp77.StrobeAd
-
-.. _`camera calibration notebook`: https://github.com/J-Wall/camfi/blob/main/examples/camera_calibration.ipynb
 
 
 Camera settings

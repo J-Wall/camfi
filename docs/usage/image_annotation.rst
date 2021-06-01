@@ -82,8 +82,8 @@ Setting up the VIA project file
    to be annotated (``annotation_project`` in the above example), then open it
    in you web browser by double-clicking it.
 
-4. In VIA, under "Project" in the top menu bar (see Fig. B1), select "Add url
-   or path from text file".
+4. In VIA, under "Project" in the top menu bar (see
+   :numref:`fig-navigating_via`), select "Add url or path from text file".
 
 5. Navigate to the project directory, and select the file list we generated in
    step 2. The images should appear in the project pane on the left-hand side
@@ -103,13 +103,16 @@ Performing the annotations in VIA
    images to be annotated.
 
 2. In the top menu, click on Project, then choose Load (see the red oval to the
-   left in below Fig. B1). Find your VIA project file, and click Open.
+   left in below :numref:`fig-navigating_via`). Find your VIA project file, and
+   click Open.
+
+   .. _fig-navigating_via:
 
    .. figure:: figures/navigating_via.png
       :width: 100 %
       :alt: Loading and navigating VIA
 
-      Figure B1. Loading and navigating VIA.
+      Loading and navigating VIA.
 
       ..
 
@@ -119,104 +122,120 @@ Performing the annotations in VIA
    and click on it. You can now start working from that image.
 
 4. You move between images (backwards and forwards) with the sideways arrows in
-   the top menu (see the blue oval to the right in Fig. B1), or you can use the
-   sideways arrows on your keyboard.
+   the top menu (see the blue oval to the right in
+   :numref:`fig-navigating_via`), or you can use the sideways arrows on your
+   keyboard.
 
 5. To zoom in and out, use the magnifying glass (+ or -, see the yellow oval in
-   the upper right corner in Fig. B1).
+   the upper right corner in :numref:`fig-navigating_via`).
 
-6. To the left, you can find different Region shapes (see the red oval in Fig.
-   B2). The only ones I have been using are the “Circular region shape”, the
-   “Point region shape”, and the “Polyline region shape”.
+6. To the left, you can find different Region shapes (see the red oval in
+   :numref:`fig-region_shapes`). The only ones I have been using are the
+   “Circular region shape”, the “Point region shape”, and the “Polyline region
+   shape”.
+
+   .. _fig-region_shapes:
 
    .. figure:: figures/region_shapes.png
       :width: 100 %
       :alt: Region shapes in VIA
 
-      Figure B2. Region shapes in VIA
+      Region shapes in VIA
 
       ..
 
    * Circular region shape: This shape can be used when you cannot see the
      whole moth (or the whole motion blur), e.g., when the moth is going out
-     the edge of the image (see the moth in the upper right corner in Fig. B3),
-     if another moth or object is covering it, or if you find it hard to see
-     where the motion blur starts and ends. To draw a circle region, simply
-     press single click and drag the mouse.
+     the edge of the image (see the moth in the upper right corner in
+     :numref:`fig-circle_annotation`), if another moth or object is covering
+     it, or if you find it hard to see where the motion blur starts and ends.
+     To draw a circle region, simply press single click and drag the mouse.
+
+     .. _fig-circle_annotation:
 
      .. figure:: figures/circle_annotation.png
         :width: 100 %
         :alt: Example of circle annotation
 
-        Figure B3. Example of circle annotation.
+        Example of circle annotation.
 
         ..
 
    * Point region shape: This shape can be used when the moth is visible as a
-     point (usually in brighter conditions; see the two moths in Fig. B4).
-     There is not as much motion blur, because the sun has not set yet, meaning
-     the camera used a shorter exposure time. It can also be used when the area
-     of the moth is too small for the circular region shape to function. When
-     this is the case, an error message will show up at the bottom of the
-     screen. To define a point, press single click.
+     point (usually in brighter conditions; see the two moths in
+     :numref:`fig-point_annotation`). There is not as much motion blur, because
+     the sun has not set yet, meaning the camera used a shorter exposure time.
+     It can also be used when the area of the moth is too small for the
+     circular region shape to function. When this is the case, an error message
+     will show up at the bottom of the screen. To define a point, press single
+     click.
+
+     .. _fig-point_annotation:
 
      .. figure:: figures/point_annotation.png
         :width: 100 %
         :alt: Example of point annotations
 
-        Figure B4. Example of point annotations.
+        Example of point annotations.
 
         ..
 
    * Polyline region shape: This shape should be used when the moth is visible
      as a line (due to motion blur). Often, you can see the flapping of the
-     wings (see Fig. B3). To draw a polyline, single click on the start of the
-     motion blur, and then at the end of the motion blur. To finish drawing the
-     polyline, press “Enter” on the keyboard. It is important to make sure that
-     the ends of the polyline annotations match up with the ends of the motion
-     blur. Also important is to follow the line carefully - by clicking along
-     the line several times - so that a bend is properly annotated (see the
-     polyline in Fig. B5).
+     wings (see :numref:`fig-circle_annotation`). To draw a polyline, single
+     click on the start of the motion blur, and then at the end of the motion
+     blur. To finish drawing the polyline, press “Enter” on the keyboard. It is
+     important to make sure that the ends of the polyline annotations match up
+     with the ends of the motion blur. Also important is to follow the line
+     carefully - by clicking along the line several times - so that a bend is
+     properly annotated (see the polyline in
+     :numref:`fig-polyline_annotation`).
+
+     .. _fig-polyline_annotation:
 
      .. figure:: figures/polyline_annotation.png
         :width: 100 %
         :alt: Example of polyline annotation
 
-        Figure B5. Example of polyline annotation.
+        Example of polyline annotation.
 
         ..
 
 7. In the bottom left corner, you can find different Keyboard Shortcuts (see
-   Fig. B6). There is an explanation to the right of each shortcut. Some of
-   them can be quite helpful, e.g. how to “Delete selected regions”. You
-   basically just click on the region shape and it becomes selected. Then you
-   can delete it by clicking on the letter “d”. Some shapes can be harder than
-   others to delete, e.g. polylines, simply because the lines are so thin. Just
-   be patient, it will work eventually.
+   :numref:`fig-keyboard_shortcuts`). There is an explanation to the right of
+   each shortcut. Some of them can be quite helpful, e.g. how to “Delete
+   selected regions”. You basically just click on the region shape and it
+   becomes selected. Then you can delete it by clicking on the letter “d”. Some
+   shapes can be harder than others to delete, e.g. polylines, simply because
+   the lines are so thin. Just be patient, it will work eventually.
+
+   .. _fig-keyboard_shortcuts:
 
    .. figure:: figures/keyboard_shortcuts.png
       :width: 100 %
       :alt: Button to view keyboard shortcuts in VIA
 
-      Figure B6. Button to view keyboard shortcuts in VIA.
+      Button to view keyboard shortcuts in VIA.
 
       ..
 
 8. Do not forget to save. Do this regularly, about every 30 min. You can find
-   "Save" in the top menu under "Project" (see Fig. B1). It is recommended to
-   save each time to a new file, with a file name based on which image in the
-   project you are up to. This will mitigate the risk of file corruption
-   problems and will aid in keeping track of progress.
+   "Save" in the top menu under "Project" (see :numref:`fig-navigating_via`).
+   It is recommended to save each time to a new file, with a file name based on
+   which image in the project you are up to. This will mitigate the risk of
+   file corruption problems and will aid in keeping track of progress.
 
 
 Examples of problematic images and FAQ
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. _fig-problematic_busy:
+
 .. figure:: figures/problematic_busy.png
    :width: 100 %
    :alt: Extremely busy image
 
-   Figure B7. Extremely busy image.
+   Extremely busy image.
 
    ..
 
@@ -226,11 +245,13 @@ moths apart?
 **A:** Make a note of it and do not spend too long trying to get it exactly
 right.  Make some judgement calls.
 
+.. _fig-problematic_background_moths_endpoints:
+
 .. figure:: figures/problematic_background_moths_endpoints.png
    :width: 100 %
    :alt: Endpoints are hard to see in faint blurs of moths in the background
 
-   Figure B8. Endpoints are hard to see in faint blurs of moths in the background.
+   Endpoints are hard to see in faint blurs of moths in the background.
 
    ..
 
@@ -242,11 +263,13 @@ are not confident about the start and end point you could use a circle
 annotation (then it will be included in the abundance analysis, but not the
 wingbeat analysis).
 
+.. _fig-problematic_background_moths_wingbeats:
+
 .. figure:: figures/problematic_background_moths_wingbeats.png
    :width: 100 %
    :alt: Faint blurs of moths in the background have no obviously visible wingbeat
 
-   Figure B9. Faint blurs of moths in the background have no obviously visible wingbeat.
+   Faint blurs of moths in the background have no obviously visible wingbeat.
 
    ..
 
@@ -273,10 +296,10 @@ file increases the size of the file substantially, and since it is recommended
 to save all incremental versions of the project file, this could become
 cumbersome if the metadata is included from the start.
 
-For insect activity analysis (see example `activity analysis notebook`_) we
-first need to load the image metadata into the annotation project file. This
-can be done using ``$ camfi add-metadata``. Usage is simple, just provide the
-input file and desired output file::
+For insect activity analysis (see example :doc:`notebooks/activity_analysis`
+notebook) we first need to load the image metadata into the annotation project
+file. This can be done using ``$ camfi add-metadata``. Usage is simple, just
+provide the input file and desired output file::
 
    $ camfi add-metadata \
        --i via_annotation_project_file.json \
@@ -292,5 +315,3 @@ to extract the metadata). For example, to run with 8 cores::
        --i via_annotation_project_file.json \
        --o via_annotation_project_file_with_metadata.json \
        --processes 8
-
-.. _`activity analysis notebook`: https://github.com/J-Wall/camfi/blob/main/examples/activity_analysis.ipynb

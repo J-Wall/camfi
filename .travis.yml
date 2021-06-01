@@ -5,6 +5,7 @@ python:
 cache: pip
 install:
   - pip install -r requirements.txt
+  - pip install -r docs/requirements.txt
   - pip install .
   - pip install pytest-cov pytest-mypy
 # command to run tests
