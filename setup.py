@@ -14,7 +14,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="camfi",
-    version="1.0.4",
+    version="1.1",
     description="Camera-based Analysis and Monitoring of Flying Insects",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -775,6 +775,20 @@ class Annotator:
         return np.array([n, len(fit_mask_vals) - n])
 
     def get_prediction(self, img_idx: int) -> Dict[str, torch.Tensor]:
+        """Run predicion on a single image. First tries to use the model on self.device,
+        and falls back to the model on self.backup_device if a RuntimeError is caught
+        (if set).
+
+        Parameters
+        ----------
+        img_idx: int
+            Index of image in via project
+
+        Returns
+        -------
+        prediction: Dict[str, torch.Tensor]
+            Output of model prediction
+        """
         img, _ = self.dataset[img_idx]
         with torch.no_grad():
             try:
@@ -955,12 +969,12 @@ class Annotator:
 
         Parameters
         ----------
-        img_idx : int
+        img_idx: int
             Index of image in via project
 
         Returns
         -------
-        regions : list
+        regions: list
             List of annotations in via format
         """
         prediction = self.get_prediction(img_idx)

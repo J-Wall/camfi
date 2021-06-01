@@ -133,3 +133,4 @@ dmypy.json
 
 models/*.pth
 docs/api
+docs/usage/helppages
