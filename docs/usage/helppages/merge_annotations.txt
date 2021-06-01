@@ -1,0 +1,16 @@
+NAME
+    build_cli.py merge_annotations - Takes a list of VIA project files and
+    merges them into one. Ignores --i in favour of annotation_files.
+
+SYNOPSIS
+    build_cli.py merge_annotations [ANNOTATION_FILES]...
+
+DESCRIPTION
+    Takes a list of VIA project files and merges them into one. Ignores
+    --i in favour of annotation_files.
+
+POSITIONAL ARGUMENTS
+    ANNOTATION_FILES
+        Type: str
+        list of VIA project json files to merge. Project and VIA settings
+        are taken from the first file.

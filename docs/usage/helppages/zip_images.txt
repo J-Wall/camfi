@@ -1,0 +1,15 @@
+NAME
+    build_cli.py zip_images - Makes a zip archive of all the images in the
+    provided VIA project file. If --i is set, then the annotation file
+    itself will be included in the zip file.
+
+SYNOPSIS
+    build_cli.py zip_images <flags>
+
+DESCRIPTION
+    Makes a zip archive of all the images in the provided VIA project
+    file. If --i is set, then the annotation file itself will be included
+    in the zip file.
+
+FLAGS
+    Flags are accepted.

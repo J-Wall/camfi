@@ -1,0 +1,19 @@
+NAME
+    build_cli.py download_model - Downloads a pretrained image annotation
+    model, returning the path to the model.
+
+SYNOPSIS
+    build_cli.py download_model <flags>
+
+DESCRIPTION
+    Downloads a pretrained image annotation model, returning the path to
+    the model.
+
+FLAGS
+    --model=MODEL
+        Type: typing.Union[str, os.PathLike]
+        Default: 'release'
+        Name of model. Can be one of {"release", "latest"} or a url
+        pointing to the model file on the internet. Alternatively, a path
+        to an existing local file can be given, in which case the path is
+        returned and nothing else is done.

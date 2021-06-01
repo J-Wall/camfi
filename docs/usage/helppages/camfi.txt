@@ -1,0 +1,28 @@
+NAME
+    build_cli.py - Provides utilities for working with camfi projects.
+    Available subcommands are: add_metadata, download_model,
+    extract_wingbeats, filelist, filter, merge_annotations,
+    remove_unannotated, validate_annotations, zip_images
+
+SYNOPSIS
+    build_cli.py <flags>
+
+DESCRIPTION
+    Provides utilities for working with camfi projects. Available
+    subcommands are: add_metadata, download_model, extract_wingbeats,
+    filelist, filter, merge_annotations, remove_unannotated,
+    validate_annotations, zip_images
+
+FLAGS
+    --processes=PROCESSES
+        Type: int
+        Default: 1
+        number of child processes to spawn
+    --i=I
+        Type: Optional[typing.U...
+        Default: None
+        path to input VIA project json file. Defaults to sys.stdin
+    --o=O
+        Type: Optional[typing.U...
+        Default: None
+        path to output file. Defaults to sys.stdout

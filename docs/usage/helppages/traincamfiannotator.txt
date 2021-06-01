@@ -1,0 +1,70 @@
+NAME
+    build_cli.py
+
+SYNOPSIS
+    build_cli.py <flags> [VIA_PROJECTS]...
+
+POSITIONAL ARGUMENTS
+    VIA_PROJECTS
+        Type: typing.Union[str, os.PathLike]
+        Path(s) to VIA project files with annotated motion blurs for
+        training on
+
+FLAGS
+    --load_pretrained_model=LOAD_PRETRAINED_MODEL
+        Type: typing.Union[str,...
+        Path to model parameters file. If set, will load the pretrained
+        parameters
+    --img_dir=IMG_DIR
+        Type: typing.Union[str,...
+        Path to direcotry containing images. By default inferred from
+        first element in
+    --crop=CROP
+        Type: t...
+        Crop images before processing. By default no crop. Original camfi
+        data uses --crop=0,0,4608,3312
+    --point_r=POINT_R
+        Type: int
+        Margin added to the coordinates of annotations to determine the
+        bounding box of the annotation
+    --mask_dilate=MASK_DILATE
+        Type: int
+        Radius of dilation to apply to training masks
+    --min_annotations=MIN_ANNOTATIONS
+        Type: int
+        Skip images which have fewer than min_annotations annotations.
+        E.g. to only train on images with at least one annotation set
+        `min_annotations=1`
+    --max_annotations=MAX_ANNOTATIONS
+        Type: float
+        Skip images which have more than max_annotations annotations. Set
+        this if you are running into memory issues when training on a GPU.
+    --exclude=EXCLUDE
+        Type: typing.Union[str,...
+        Path to file containing list of images to exclude (one per line).
+        E.g. to exclude a test set
+    --device=DEVICE
+        Type: str
+        E.g. "cpu" or "cuda"
+    --num_classes=NUM_CLASSES
+        Type: int
+        Number of target classes (including background)
+    --batch_size=BATCH_SIZE
+        Type: int
+        Number of images to load at once
+    --num_workers=NUM_WORKERS
+        Type: int
+        Number of worker processes for data loader to spawn
+    --num_epochs=NUM_EPOCHS
+        Type: int
+        Number of epochs to train
+    --outdir=OUTDIR
+        Type: typing.Union[str, os.PathLike]
+        Path to directory where to save model(s)
+    --model_name=MODEL_NAME
+        Type: typing.Union[str, NoneType]
+        Identifier to include in model save file. By default the current
+        date in YYYYmmdd format
+    --save_intermediate=SAVE_INTERMEDIATE
+        Type: bool
+        If True, model is saved after each epoch

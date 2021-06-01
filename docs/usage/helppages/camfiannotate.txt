@@ -1,0 +1,85 @@
+NAME
+    build_cli.py - Provides a cli for automatic annotation of camfi
+    images.
+
+SYNOPSIS
+    build_cli.py VIA_PROJECT <flags>
+
+DESCRIPTION
+    Provides a cli for automatic annotation of camfi images.
+
+POSITIONAL ARGUMENTS
+    VIA_PROJECT
+        Type: typing.Union[str, os.PathLike]
+        Path to via project json file
+
+FLAGS
+    --model=MODEL
+        Type: typing.Union[str, os.PathLike]
+        Default: 'release'
+        Either a path to state dict file which defines the segmentation
+        model, or a url pointing to a model to download from the internet,
+        or "release" or "latest". See `camfi download-model --help` for
+        more information.
+    --num_classes=NUM_CLASSES
+        Type: int
+        Default: 2
+        Number of classes in the model. Must correspond with how model was
+        trained
+    --img_dir=IMG_DIR
+        Type: Optiona...
+        Default: None
+        Path to direcotry containing images. By default inferred from
+        via_project
+    --crop=CROP
+        Type: Optional[typing.Union[typing.Tuple[int, int, int, int],
+        NoneType]]
+        Default: None
+        Crop images before processing. By default no crop. Original camfi
+        data uses --crop=0,0,4608,3312
+    --device=DEVICE
+        Type: str
+        Default: 'cpu'
+        Specifies device to run inference on. Set to cuda to use gpu.
+    --backup_device=BACKUP_DEVICE
+        Type: Optional[typing.Unio...
+        Default: None
+        Specifies device to run inference on when a runtime error occurs
+        while using device. Probably only makes sense to set this to cpu
+        if device=cuda
+    --split_angle=SPLIT_ANGLE
+        Type: float
+        Default: 15.0
+        Approximate maximum angle between polyline segments in degrees.
+    --poly_order=POLY_ORDER
+        Type: int
+        Default: 2
+        Order of polynomial used for fitting motion blur paths.
+    --endpoint_method=ENDPOINT_METHOD
+        Type: typing.Tuple[str, typing.Any]
+        Default: ('truncate', 10)
+        Method to find endpoints of motion blurs. Currently implemented:
+        --endpoint_method=truncate,n (where n is a positive int)
+        --endpoint_method=quantile,q (where q is a float between 0. and
+        1.)
+    --score_thresh=SCORE_THRESH
+        Type: float
+        Default: 0.4
+        Score threshold between 0. and 1. for annotations
+    --overlap_thresh=OVERLAP_THRESH
+        Type: float
+        Default: 0.4
+        Minimum proportion of overlap between two instance segmentation
+        masks to infer that one of the masks should be discarded
+    --edge_thresh=EDGE_THRESH
+        Type: int
+        Default: 10
+        Minimum distance an annotation has to be from the edge of the
+        image before it is converted from polyline to circle
+    --o=O
+        Type: Optiona...
+        Default: None
+        Path to output file. Default is to output to stdout
+
+NOTES
+    You can also use flags syntax for POSITIONAL ARGUMENTS

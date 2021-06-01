@@ -1,0 +1,22 @@
+NAME
+    build_cli.py filelist - Lists the images in the input VIA project
+
+SYNOPSIS
+    build_cli.py filelist <flags>
+
+DESCRIPTION
+    Lists the images in the input VIA project
+
+FLAGS
+    --sort=SORT
+        Type: bool
+        Default: True
+        If True, output is sorted lexigraphically. If False, order is
+        arbitrary
+    --shuffle=SHUFFLE
+        Type: typing.Union[bool, int]
+        Default: False
+        If int, then the output is shuffled using `shuffle` as the seed.
+        If True, then the output is shuffled using the system time as the
+        seed. If False (default), do not shuffle. Shuffling occurs after
+        sorting. For reproducability, set `sort=True`.

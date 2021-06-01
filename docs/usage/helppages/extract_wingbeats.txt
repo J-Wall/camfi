@@ -1,0 +1,30 @@
+NAME
+    build_cli.py extract_wingbeats - Uses the camfi algorithm to measure
+    the wingbeat frequency of annotated flying insect motion blurs in
+    still images.
+
+SYNOPSIS
+    build_cli.py extract_wingbeats <flags>
+
+DESCRIPTION
+    Uses the camfi algorithm to measure the wingbeat frequency of
+    annotated flying insect motion blurs in still images.
+
+FLAGS
+    --line_rate=LINE_RATE
+        Type: float
+        Default: inf
+        The line rate of the rolling shutter
+    --scan_distance=SCAN_DISTANCE
+        Type: int
+        Default: 100
+        Half width of analysis windows (half width of blurs)
+    --max_dist=MAX_DIST
+        Type: Optional[typing.Unio...
+        Default: None
+        Maximum number of columns to calculate autocorrelation over.
+        Defaults to a half of the length of the image
+    --supplementary_figures=SUPPLEMENTARY_FIGURES
+        Type: Optional[typing.Unio...
+        Default: None
+        Directory in which to put supplementary figures (optional)
