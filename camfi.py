@@ -1547,18 +1547,6 @@ def bb_intersection_over_union(
 
 
 class AnnotationUtils:
-    """Provides utilities for working with camfi projects
-
-    Parameters
-    ----------
-    processes : int
-        number of child processes to spawn
-    i: path-like
-        path to input VIA project json file. Defaults to sys.stdin
-    o: path-like
-        path to output file. Defaults to sys.stdout
-    """
-
     def __init__(
         self,
         processes: int = 1,
@@ -2011,6 +1999,24 @@ class AnnotationUtils:
             random.shuffle(filenames)
 
         self._output("\n".join(filenames))
+
+
+# Hacking together a better docstring for AnnotationUtils
+_annotation_utils_attr_docstring = ", ".join(
+    [a for a in dir(AnnotationUtils) if not a.startswith("_")]
+)
+AnnotationUtils.__doc__ = f"""Provides utilities for working with camfi projects.
+    Available subcommands are: {_annotation_utils_attr_docstring}
+
+    Parameters
+    ----------
+    processes : int
+        number of child processes to spawn
+    i: path-like
+        path to input VIA project json file. Defaults to sys.stdin
+    o: path-like
+        path to output file. Defaults to sys.stdout
+    """
 
 
 def _cli_train():

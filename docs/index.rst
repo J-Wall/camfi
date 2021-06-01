@@ -17,9 +17,15 @@ If using this method and/or associated software in your research, please cite
 (Wallace *et al.*, in prep).
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
+   usage/installation
+   usage/camera_setup
+   usage/image_annotation
+   usage/automatic_image_annotation
+   usage/data_analysis
+   usage/cli
    api/modules
 
 
