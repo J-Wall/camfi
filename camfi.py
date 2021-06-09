@@ -627,7 +627,7 @@ def smallest_enclosing_circle(
             return _sec_trivial(R)
         p = P[0]
         D = welzl(P[1:], R)
-        if sqrt((D[0] - p[0]) ** 2 + (D[1] - p[1]) ** 2) <= D[1]:
+        if (D[0] - p[0]) ** 2 + (D[1] - p[1]) ** 2 < D[2] ** 2:
             return D
 
         return welzl(P[1:], R + (p,))
@@ -635,6 +635,51 @@ def smallest_enclosing_circle(
     P = [tuple(p) for p in points]
     random.shuffle(P)
     return welzl(tuple(P), ())
+
+
+def convert_to_circle(
+    edge_thresh: int,
+    all_points_x: List[float],
+    all_points_y: List[float],
+    img_shape: Union[Tuple[int, int], torch.Size],
+) -> Optional[Tuple[float, float, float]]:
+    """Checks if a polyline annotation is close to the edge of an image, and if so,
+    convers it to a circle annotation by computing the smallest enclosing circle of
+    all points in the polyline.
+
+    Parameters
+    ----------
+    edge_thresh: int
+        Minimum distance an annotation has to be from the edge of the image before it is
+        converted from polyline to circle
+    all_points_x: List[float]
+        x-coordinates of polyline segments
+    all_points_y: list[float]
+        y-coordinates of polyline segments
+    img_shape: Tuple[int, int]
+        height, width of image
+
+    Returns
+    -------
+    cx, cy, r or False
+        coordinates defining the circle annotation or None (leave as polyline)
+    """
+    min_x = min(all_points_x)
+    max_x = max(all_points_x)
+    min_y = min(all_points_y)
+    max_y = max(all_points_y)
+
+    if (
+        min_x < edge_thresh
+        or min_y < edge_thresh
+        or max_x > img_shape[1] - edge_thresh
+        or max_y > img_shape[0] - edge_thresh
+    ):
+        cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
+        return cx, cy, r
+
+    else:
+        return None
 
 
 class Annotator:
@@ -694,7 +739,7 @@ class Annotator:
         endpoint_method: Tuple[str, Any] = ("truncate", 10),
         score_thresh: float = 0.4,
         overlap_thresh: float = 0.4,
-        edge_thresh: int = 10,
+        edge_thresh: int = 20,
         o: Optional[Union[str, os.PathLike]] = None,
     ):
         print(f"Loading model: {model}", file=sys.stderr)
@@ -946,22 +991,9 @@ class Annotator:
         cx, cy, r or False
             coordinates defining the circle annotation or None (leave as polyline)
         """
-        min_x = min(all_points_x)
-        max_x = max(all_points_x)
-        min_y = min(all_points_y)
-        max_y = max(all_points_y)
-
-        if (
-            min_x < self.edge_thresh
-            or min_y < self.edge_thresh
-            or max_x > img_shape[1] - self.edge_thresh
-            or max_y > img_shape[0] - self.edge_thresh
-        ):
-            cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
-            return cx, cy, r
-
-        else:
-            return None
+        return convert_to_circle(
+            self.edge_thresh, all_points_x, all_points_y, img_shape
+        )
 
     def annotate_img(self, img_idx: int) -> List[Dict[str, Any]]:
         """Calls self.get_prediction, self.filter_annotations, and self.fit_poly to
@@ -1704,7 +1736,9 @@ class AnnotationUtils:
             json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
         )
 
-    def merge_annotations(self, *annotation_files: str) -> None:
+    def merge_annotations(
+        self, *annotation_files: str, preserve_all_regions: bool = False
+    ) -> None:
         """Takes a list of VIA project files and merges them into one. Ignores --i in
         favour of annotation_files.
 
@@ -1713,6 +1747,11 @@ class AnnotationUtils:
         annotation_files
             list of VIA project json files to merge. Project and VIA settings are taken
             from the first file.
+        preserve_all_regions: bool
+            If True, instead of overwriting all annotations for duplicate images
+            (default behaviour), regions are appended to each images' annotations.
+            The default behaviour is somewhat faster than the preserving behaviour, so
+            only use if necessary.
         """
         with open(annotation_files[0], "r") as jf:
             annotations = json.load(jf)
@@ -1720,7 +1759,16 @@ class AnnotationUtils:
         for f in annotation_files[1:]:
             with open(f, "r") as jf:
                 next_anns = json.load(jf)
-            annotations["_via_img_metadata"].update(next_anns["_via_img_metadata"])
+            if not preserve_all_regions:
+                annotations["_via_img_metadata"].update(next_anns["_via_img_metadata"])
+            else:
+                for key, value in next_anns["_via_img_metadata"].items():
+                    if key in annotations["_via_img_metadata"]:
+                        annotations["_via_img_metadata"][key]["regions"].extend(
+                            value["regions"]
+                        )
+                    else:
+                        annotations["_via_img_metadata"][key] = value
 
         self._output(json.dumps(annotations, separators=(",", ":"), sort_keys=True))
 
@@ -2013,6 +2061,44 @@ class AnnotationUtils:
             random.shuffle(filenames)
 
         self._output("\n".join(filenames))
+
+    def apply_edge_thresh(self, edge_thresh: int = 20):
+        """Checks if polyline annotations are close to the edge of an image, and if so,
+        convers them to circle annotations by computing the smallest enclosing circle of
+        all points in the polyline.
+
+        Parameters
+        ----------
+        edge_thresh: int
+            Minimum distance an annotation has to be from the edge of the image before
+            it is converted from polyline to circle
+        """
+        annotations = self._load()
+        for img_data in annotations["_via_img_metadata"].values():
+            img_shape = (
+                int(img_data["file_attributes"]["pixel_y_dimension"]),
+                int(img_data["file_attributes"]["pixel_x_dimension"]),
+            )
+            for i, region in enumerate(img_data["regions"]):
+                if region["shape_attributes"]["name"] == "polyline":
+                    circle = convert_to_circle(
+                        edge_thresh,
+                        region["shape_attributes"]["all_points_x"],
+                        region["shape_attributes"]["all_points_y"],
+                        img_shape,
+                    )
+                    if circle:
+                        img_data["regions"][i] = {
+                            "region_attributes": region["region_attributes"],
+                            "shape_attributes": {
+                                "cx": circle[0],
+                                "cy": circle[1],
+                                "r": circle[2],
+                                "name": "circle",
+                            },
+                        }
+
+        self._output(json.dumps(annotations, separators=(",", ":"), sort_keys=True))
 
 
 # Hacking together a better docstring for AnnotationUtils
