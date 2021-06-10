@@ -176,7 +176,7 @@ Performing the annotations in VIA
         :width: 100 %
         :alt: Example of point annotations
 
-        Example of point annotations.
+        Example of image where point annotations would be appropriate.
 
         ..
 
