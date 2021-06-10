@@ -530,13 +530,17 @@ Putting together one figure
     phd_xlabel = "Hausdorff Distance (px)"
     l_diff_xlabel = "Length Difference (px)"
     
-    iou_title = "a. "
-    phd_title = "b. "
-    l_diff_title = "c. "
+    iou_title = "(a) "
+    phd_title = "(b) "
+    l_diff_title = "(c) "
+    pr_title = "(d) "
+    
+    fig_width = 180  # mm
+    fig_width /= 25.4  # inches
+    fig_height = fig_width * 3 / 4
     
     fig = plt.figure(
-        figsize=(7.5, 5.2),
-        #dpi=1000.0,
+        figsize=(fig_width, fig_height),
         tight_layout=True,
     )
     
@@ -629,7 +633,7 @@ Putting together one figure
         label="Annotated set",
     )
     t4 = ax4.set_title(
-        "d. ",
+        pr_title,
         fontdict=fontdict,
         loc=tloc,
         y=ty,
@@ -667,4 +671,4 @@ Putting together one figure
 
 .. code:: ipython3
 
-    fig.savefig("autoannotation_evaluation_figure.pdf", dpi=1000.0, bbox_inches="tight")
+    fig.savefig("autoannotation_evaluation_figure.pdf", dpi=600.0, bbox_inches="tight")

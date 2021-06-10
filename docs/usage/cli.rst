@@ -42,6 +42,13 @@ The help page of each subcommand is provided below
 .. literalinclude:: helppages/add_metadata.txt
 
 
+``camfi apply_edge_thresh``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``$ camfi apply_edge_thresh -- --help``:
+
+.. literalinclude:: helppages/apply_edge_thresh.txt
+
 ``camfi download_model``
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

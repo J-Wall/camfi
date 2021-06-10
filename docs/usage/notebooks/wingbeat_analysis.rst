@@ -102,7 +102,7 @@ Visualising the data, with the SNR threshold indicated:
     # Plotting preliminary wingbeat frequency data with marginal distributions
     ax = fig.add_axes(
         rect_scatter,
-        xlabel="Preliminary wingbeat frequency (s⁻¹)",
+        xlabel="Preliminary wingbeat frequency (Hz)",
         ylabel="SNR",
         xscale="log",
     )
@@ -417,15 +417,18 @@ the GMM and EM classification
         1. - bottom - height - spacing_regression,
     ]
     
+    fig_width = 180  # mm
+    fig_width /= 25.4  # inches
+    fig_height = fig_width * 3 / 4
+    
     fig = plt.figure(
-        figsize=(7.5, 5.2),
-        #dpi=1000.0,
+        figsize=(fig_width, fig_height),
     )
     
     # Plotting preliminary wingbeat frequency data with marginal distributions
     ax = fig.add_axes(
         rect_scatter,
-        xlabel="Preliminary wingbeat frequency (s⁻¹)",
+        xlabel="Preliminary wingbeat frequency (Hz)",
         ylabel="SNR",
         xscale="log",
         xlim=(10, 1000),
@@ -506,8 +509,9 @@ the GMM and EM classification
     ax_histx.plot(
         pdf_x0,
         scaling * gmm.weights_[0] * norm.pdf(np.log10(pdf_x0), loc=gmm.means_[0][0], scale=math.sqrt(gmm.covariances_[0][0])),
-        c='g',
+        c='tab:green',
         label="0",
+        linewidth=3,
     )
     
     pdf_x1 = np.logspace(
@@ -519,8 +523,9 @@ the GMM and EM classification
     ax_histx.plot(
         pdf_x1,
         scaling * gmm.weights_[1] * norm.pdf(np.log10(pdf_x1), loc=gmm.means_[1][0], scale=math.sqrt(gmm.covariances_[1][0])),
-        c='b',
+        c='tab:blue',
         label="2",
+        linewidth=3,
     )
     
     # Plotting vertical marginal
@@ -562,7 +567,7 @@ the GMM and EM classification
     )
     
     # Define colours for each class
-    cmap = np.array(["b", "g", "r", "k"])
+    cmap = np.array(["tab:blue", "tab:green", "r", "k"])
     assert len(cmap) >= n_classes, "Need to define more colours"
     
     for i in range(len(estimates)):
@@ -592,13 +597,13 @@ the GMM and EM classification
     # Add titles
     title_y = 0.88
     a_title = ax.set_title(
-        " a.",
+        " (a)",
         fontdict={"fontweight": "bold"},
         loc="left",
         y=title_y
     )
     b_title = ax_regression.set_title(
-        " b.",
+        " (b)",
         fontdict={"fontweight": "bold"},
         loc="left",
         y=title_y
@@ -611,4 +616,4 @@ the GMM and EM classification
 
 .. code:: ipython3
 
-    fig.savefig("wingbeat_frequency_figure.pdf", dpi=1000.0, pad_inches=0.0)
+    fig.savefig("wingbeat_frequency_figure.pdf", dpi=600.0, pad_inches=0.0)

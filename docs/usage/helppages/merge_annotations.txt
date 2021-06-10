@@ -1,9 +1,9 @@
 NAME
-    build_cli.py merge_annotations - Takes a list of VIA project files and
-    merges them into one. Ignores --i in favour of annotation_files.
+    camfi merge_annotations - Takes a list of VIA project files and merges
+    them into one. Ignores --i in favour of annotation_files.
 
 SYNOPSIS
-    build_cli.py merge_annotations [ANNOTATION_FILES]...
+    camfi merge_annotations <flags> [ANNOTATION_FILES]...
 
 DESCRIPTION
     Takes a list of VIA project files and merges them into one. Ignores
@@ -14,3 +14,11 @@ POSITIONAL ARGUMENTS
         Type: str
         list of VIA project json files to merge. Project and VIA settings
         are taken from the first file.
+
+FLAGS
+    --preserve_all_regions=PRESERVE_ALL_REGIONS
+        Type: bool
+        If True, instead of overwriting all annotations for duplicate
+        images (default behaviour), regions are appended to each images'
+        annotations. The default behaviour is somewhat faster than the
+        preserving behaviour, so only use if necessary.

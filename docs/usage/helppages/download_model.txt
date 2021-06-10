@@ -1,9 +1,9 @@
 NAME
-    build_cli.py download_model - Downloads a pretrained image annotation
-    model, returning the path to the model.
+    camfi download_model - Downloads a pretrained image annotation model,
+    returning the path to the model.
 
 SYNOPSIS
-    build_cli.py download_model <flags>
+    camfi download_model <flags>
 
 DESCRIPTION
     Downloads a pretrained image annotation model, returning the path to

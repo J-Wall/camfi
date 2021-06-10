@@ -781,7 +781,7 @@ Now we can plot these data:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7fac48cf8490>]
+    [<matplotlib.lines.Line2D at 0x7f900b97a5d0>]
 
 
 
@@ -936,7 +936,7 @@ Finally, we can combine the above plots into a single figure:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7fac48c18a30>]
+    [<matplotlib.lines.Line2D at 0x7f900b760b10>]
 
 
 
@@ -1089,7 +1089,7 @@ and plotting the effect:
     )
     res = mod.fit()
     print(res.summary())
-    print(f"{res.aic=}")
+    print(f"res.aic={res.aic}")
     
     ordering = np.argsort(res.tvalues)
     coloring = np.array(["r", "b"])[(res.pvalues[ordering] < 0.05).astype("u1")]
@@ -1114,8 +1114,8 @@ and plotting the effect:
     Model Family:                 Poisson   Df Model:                            7
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -51.152
-    Date:                Thu, 13 May 2021   Deviance:                       39.053
-    Time:                        16:47:04   Pearson chi2:                     37.8
+    Date:                Tue, 08 Jun 2021   Deviance:                       39.053
+    Time:                        16:03:33   Pearson chi2:                     37.8
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ===============================================================================================
@@ -1154,7 +1154,7 @@ as “Moth activity level scales with maximum temperature”.
     print(res.summary())
     print("p-values (t-test):", res.pvalues, sep="\n")
     print("t-values:", res.tvalues, sep="\n")
-    print(f"{res.aic=}")
+    print(f"res.aic={res.aic}")
     print(res.wald_test("(temperature_maximum_degC = 0)"))
 
 
@@ -1167,8 +1167,8 @@ as “Moth activity level scales with maximum temperature”.
     Model Family:                 Poisson   Df Model:                            1
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -99.853
-    Date:                Thu, 13 May 2021   Deviance:                       131.06
-    Time:                        16:47:04   Pearson chi2:                     130.
+    Date:                Tue, 08 Jun 2021   Deviance:                       131.06
+    Time:                        16:03:33   Pearson chi2:                     130.
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ============================================================================================
@@ -1204,7 +1204,7 @@ leaving the locale):
     print(res.summary())
     print("p-values (t-test):", res.pvalues, sep="\n")
     print("t-values:", res.tvalues, sep="\n")
-    print(f"{res.aic=}")
+    print(f"res.aic={res.aic}")
     print(res.wald_test("(temperature_maximum_degC = 0), (dayofyear = 0)"))
 
 
@@ -1217,8 +1217,8 @@ leaving the locale):
     Model Family:                 Poisson   Df Model:                            2
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -65.144
-    Date:                Thu, 13 May 2021   Deviance:                       61.639
-    Time:                        16:47:04   Pearson chi2:                     58.5
+    Date:                Tue, 08 Jun 2021   Deviance:                       61.639
+    Time:                        16:03:33   Pearson chi2:                     58.5
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ============================================================================================
@@ -1347,7 +1347,7 @@ including the predicted values for ``n_annotations``.
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7fac449cff40>
+    <matplotlib.legend.Legend at 0x7f9009ce0a50>
 
 
 
@@ -1359,9 +1359,12 @@ Putting it all together for the publication:
 
 .. code:: ipython3
 
+    fig_width = 180  # mm
+    fig_width /= 25.4  # inches
+    fig_height = fig_width * 3 / 4
+    
     fig = plt.figure(
-        figsize=(7.5, 5.2),
-        #dpi=1000.0,
+        figsize=(fig_width, fig_height),
         tight_layout=True,
     )
     title_y = 0.88
@@ -1371,7 +1374,7 @@ Putting it all together for the publication:
         xlabel="Day of Year",
         ylabel="Number of annotations",
     )
-    ax1.set_title(" a.", fontdict={"fontweight": "bold"}, loc="left", y=title_y)
+    ax1.set_title(" (a)", fontdict={"fontweight": "bold"}, loc="left", y=title_y)
     ax1.plot(b_midpoints, n_annotations_per10min, c="k", lw=0.75)
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
     
@@ -1449,7 +1452,7 @@ Putting it all together for the publication:
     )
     
     ax2.legend(loc=b_legend_loc)
-    ax2.set_title(" b.", fontdict={"fontweight": "bold"}, loc="left", y=title_y, zorder=10)
+    ax2.set_title(" (b)", fontdict={"fontweight": "bold"}, loc="left", y=title_y, zorder=10)
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
     
     ax3 = fig.add_subplot(
@@ -1457,7 +1460,7 @@ Putting it all together for the publication:
         xlabel="Day of Year",
         ylabel="Number of annotations\nbetween 20:20 and 21:20",    
     )
-    ax3.set_title(" c.", fontdict={"fontweight": "bold"}, loc="left", y=title_y)
+    ax3.set_title(" (c)", fontdict={"fontweight": "bold"}, loc="left", y=title_y)
     ax3.plot(
         maelstrom_weather["dayofyear"],
         maelstrom_weather["n_annotations"],
@@ -1518,7 +1521,7 @@ Putting it all together for the publication:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7fac44801640>]
+    [<matplotlib.lines.Line2D at 0x7f9009ed78d0>]
 
 
 
@@ -1528,4 +1531,4 @@ Putting it all together for the publication:
 
 .. code:: ipython3
 
-    fig.savefig("activity_levels_figure.pdf", dpi=1000.0, pad_inches=0.0)
+    fig.savefig("activity_levels_figure.pdf", dpi=600.0, pad_inches=0.0)

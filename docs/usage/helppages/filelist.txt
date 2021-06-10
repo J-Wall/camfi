@@ -1,8 +1,8 @@
 NAME
-    build_cli.py filelist - Lists the images in the input VIA project
+    camfi filelist - Lists the images in the input VIA project
 
 SYNOPSIS
-    build_cli.py filelist <flags>
+    camfi filelist <flags>
 
 DESCRIPTION
     Lists the images in the input VIA project

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import re
+import sys
 from typing import List
 
 import camfi
@@ -49,6 +51,14 @@ def wrap_file(filename, n):
             print(line, file=f)
 
 
+def fix_commandname(filename, commandname, to_replace=os.path.basename(sys.argv[0])):
+    with open(filename, "r") as f:
+        help_str = f.read()
+
+    with open(filename, "w") as f:
+        f.write(re.sub(to_replace, commandname, help_str))
+
+
 def main():
     wrap = 74
     os.makedirs("usage/helppages", exist_ok=True)
@@ -69,6 +79,7 @@ def main():
             fire.Fire(camfi.AnnotationUtils, command)
         except fire.core.FireExit:
             pass
+        fix_commandname(filename, "camfi")
         wrap_file(filename, wrap)
 
     os.environ[
@@ -78,6 +89,7 @@ def main():
         fire.Fire(camfi.train_model, "-- --help")
     except fire.core.FireExit:
         pass
+    fix_commandname("usage/helppages/traincamfiannotator.txt", "traincamfiannotator")
     wrap_file("usage/helppages/traincamfiannotator.txt", wrap)
 
     os.environ[
@@ -87,7 +99,9 @@ def main():
         fire.Fire(camfi.annotate, "-- --help")
     except fire.core.FireExit:
         pass
+    fix_commandname("usage/helppages/camfiannotate.txt", "camfiannotate")
     wrap_file("usage/helppages/camfiannotate.txt", wrap)
+
 
 if __name__ == "__main__":
     main()

@@ -20,6 +20,7 @@ reflect/rotate the image until it matches this assumption.
     
     #%matplotlib notebook
     
+    from itertools import chain
     import math
     
     import numpy as np
@@ -232,3 +233,115 @@ this worked very well.
 
 Once satisfied that your measurement is accurate, you can proceed onto
 the other analysis steps.
+
+.. code:: ipython3
+
+    fig_width = 180  # mm
+    fig_width /= 25.4  # inches
+    fig_height = fig_width * 3 / 4
+    
+    # Calculate cropping limits
+    d_scale = 1.1
+    d = 0
+    
+    centre = points[0]["C"]
+    
+    for p in chain.from_iterable(point_dict.values() for point_dict in points):
+        d_pE = (p[0] - centre[0]) ** 2 + (p[1] - centre[1]) ** 2
+        d = max(d, d_pE)
+    d = math.sqrt(d) * d_scale
+    
+    xlim = (centre[0] - d, centre[0] + d)
+    ylim = (centre[1] + d, centre[1] - d)
+    
+    # Plot figure
+    fig = plt.figure(
+        figsize=(fig_width, fig_height),
+        tight_layout=True,
+    )
+    
+    fontsize = 17
+    markersize = 200
+    point_names = [
+        {
+            "C": "C",
+            "A0": "A₀",
+            "B0": "B₀",
+            "A1": "A₂",
+            "B1": "B₂",
+        },
+        {
+            "C": "C",
+            "A0": "A₁",
+            "B0": "B₁",
+            "A1": "A₃",
+            "B1": "B₃",
+        },
+    ]
+    
+    for i in range(2):
+        ax = fig.add_subplot(222 + i * 2, xlim=xlim, ylim=ylim, ylabel="Pixel row")
+        ax.imshow(calibration_imgs[i])
+        ax.scatter(*zip(*points[i].values()), marker='x',c='r', s=markersize)
+        ax.annotate(point_names[i]["B0"], points[i]["B0"], fontsize=fontsize)
+        ax.annotate(point_names[i]["A1"], points[i]["A1"], fontsize=fontsize)
+        ax.annotate(point_names[i]["A0"], points[i]["A0"], fontsize=fontsize)
+        ax.annotate(point_names[i]["B1"], points[i]["B1"], fontsize=fontsize)
+        ax.annotate("C", points[i]["C"], fontsize=fontsize)
+        ax.plot(*zip(
+            points[i][f"B{1 - i}"],
+            points[i]["C"],
+            points[i][f"A{1 - i}"]
+        ), c='k', linestyle="dashed")
+    
+        arc_r = 500
+    
+        arc = patches.Arc(
+            points[0]["C"],
+            arc_r,
+            arc_r,
+            theta2=(180 / np.pi) * np.arctan2(
+                points[i][f"B{1 - i}"][1] - points[i]["C"][1],
+                points[i][f"B{1 - i}"][0] - points[i]["C"][0]
+            ),
+            theta1=(180 / np.pi) * np.arctan2(
+                points[i][f"A{1 - i}"][1] - points[i]["C"][1],
+                points[i][f"A{1 - i}"][0] - points[i]["C"][0]
+            ),
+            color="b",
+        )
+        ax.add_patch(arc)
+        ax.annotate(
+            ["∠A₂CB₂", "∠A₁CB₁"][i],
+            [(2100, 1400), (2400, 2050)][i],
+            fontsize=fontsize,
+            verticalalignment="top",
+            horizontalalignment="center",
+            color="b",
+        )
+        ax.set_xticks([])
+    #ax0.set_yticks([])
+    
+    
+    calibration_setup_img = imread("data/calibration_setup.jpg")
+    ax3 = fig.add_subplot(121)
+    ax3.imshow(calibration_setup_img)
+    
+    ax3.annotate("a", (100, 1500), c="r")
+    ax3.annotate("a", (1750, 1500), c="r")
+    ax3.annotate("b", (1250, 250), c="r")
+    ax3.annotate("c", (1175, 550), c="r")
+    ax3.annotate("d", (1000, 2600), c="r")
+    ax3.annotate("e", (750, 2750), c="r")
+    
+    ax3.set_xticks([])
+    _ = ax3.set_yticks([])
+
+
+
+.. image:: camera_calibration_files/camera_calibration_11_0.png
+
+
+.. code:: ipython3
+
+    fig.savefig("rolling_shutter_calibration.pdf", dpi=600.0, pad_inches=0.0)

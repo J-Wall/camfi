@@ -1,10 +1,10 @@
 NAME
-    build_cli.py extract_wingbeats - Uses the camfi algorithm to measure
-    the wingbeat frequency of annotated flying insect motion blurs in
-    still images.
+    camfi extract_wingbeats - Uses the camfi algorithm to measure the
+    wingbeat frequency of annotated flying insect motion blurs in still
+    images.
 
 SYNOPSIS
-    build_cli.py extract_wingbeats <flags>
+    camfi extract_wingbeats <flags>
 
 DESCRIPTION
     Uses the camfi algorithm to measure the wingbeat frequency of

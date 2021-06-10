@@ -27,7 +27,7 @@ $(notebooks): usage/notebooks/%.rst: ../examples/%.ipynb
 	jupyter nbconvert --to rst usage/notebooks/$*.ipynb
 	rm usage/notebooks/$*.ipynb
 
-usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rst usage/automatic_image_annotation.rst usage/data_analysis.rst usage/cli.rst
+usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rst usage/automatic_image_annotation.rst usage/data_analysis.rst usage/cli.rst usage/helppages/camfi.txt
 
 # Catch-all target: route multiple targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

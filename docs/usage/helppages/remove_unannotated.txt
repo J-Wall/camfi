@@ -1,9 +1,9 @@
 NAME
-    build_cli.py remove_unannotated - Removes image metadata from VIA
-    project file for images which have no annotations.
+    camfi remove_unannotated - Removes image metadata from VIA project
+    file for images which have no annotations.
 
 SYNOPSIS
-    build_cli.py remove_unannotated -
+    camfi remove_unannotated -
 
 DESCRIPTION
     Removes image metadata from VIA project file for images which have no

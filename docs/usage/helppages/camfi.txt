@@ -1,17 +1,17 @@
 NAME
-    build_cli.py - Provides utilities for working with camfi projects.
-    Available subcommands are: add_metadata, download_model,
+    camfi - Provides utilities for working with camfi projects. Available
+    subcommands are: add_metadata, apply_edge_thresh, download_model,
     extract_wingbeats, filelist, filter, merge_annotations,
     remove_unannotated, validate_annotations, zip_images
 
 SYNOPSIS
-    build_cli.py <flags>
+    camfi <flags>
 
 DESCRIPTION
     Provides utilities for working with camfi projects. Available
-    subcommands are: add_metadata, download_model, extract_wingbeats,
-    filelist, filter, merge_annotations, remove_unannotated,
-    validate_annotations, zip_images
+    subcommands are: add_metadata, apply_edge_thresh, download_model,
+    extract_wingbeats, filelist, filter, merge_annotations,
+    remove_unannotated, validate_annotations, zip_images
 
 FLAGS
     --processes=PROCESSES

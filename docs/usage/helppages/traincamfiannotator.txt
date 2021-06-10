@@ -1,8 +1,8 @@
 NAME
-    build_cli.py
+    traincamfiannotator
 
 SYNOPSIS
-    build_cli.py <flags> [VIA_PROJECTS]...
+    traincamfiannotator <flags> [VIA_PROJECTS]...
 
 POSITIONAL ARGUMENTS
     VIA_PROJECTS

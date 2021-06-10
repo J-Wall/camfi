@@ -1,10 +1,10 @@
 NAME
-    build_cli.py filter - Filters VIA annotations by enforcing a minimum
-    and/or maximum value for a numerical region attribute (eg. "score"
-    which is defined during automatic automatic annotation)
+    camfi filter - Filters VIA annotations by enforcing a minimum and/or
+    maximum value for a numerical region attribute (eg. "score" which is
+    defined during automatic automatic annotation)
 
 SYNOPSIS
-    build_cli.py filter BY <flags>
+    camfi filter BY <flags>
 
 DESCRIPTION
     Filters VIA annotations by enforcing a minimum and/or maximum value

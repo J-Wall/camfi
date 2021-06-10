@@ -1,10 +1,10 @@
 NAME
-    build_cli.py validate_annotations - Compares annotation file against a
+    camfi validate_annotations - Compares annotation file against a
     ground-truth annotation file for automatic annotation validation
     puposes.
 
 SYNOPSIS
-    build_cli.py validate_annotations GROUND_TRUTH <flags>
+    camfi validate_annotations GROUND_TRUTH <flags>
 
 DESCRIPTION
     Validation data is output to a json dict, which includes:
