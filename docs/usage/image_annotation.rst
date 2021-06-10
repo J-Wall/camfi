@@ -240,7 +240,7 @@ Examples of problematic images and FAQ
    ..
 
 **Q:** What to do when an image is extremely busy and it is difficult to tell
-moths apart?
+moths apart (:numref:`fig-problematic_busy`)?
 
 **A:** Make a note of it and do not spend too long trying to get it exactly
 right.  Make some judgement calls.
@@ -255,7 +255,8 @@ right.  Make some judgement calls.
 
    ..
 
-**Q:** In this image, there are faint moths in the background, but it is hard
+**Q:** In this image (:numref:`fig-problematic_background_moths_endpoints`),
+there are faint moths in the background, but it is hard
 to see exactly where the image blur starts and ends. What to do?
 
 **A:** The main thing is to be as consistent across images as possible. If you
@@ -273,7 +274,8 @@ wingbeat analysis).
 
    ..
 
-**Q:** In this image, the flapping of the wings is not very obvious for some of
+**Q:** In this image (:numref:`fig-problematic_background_moths_wingbeats`),
+the flapping of the wings is not very obvious for some of
 the moths in the background. Should I track them anyway?
 
 **A:** It is a bit of a judgement call. Ideally, we mark all moths and only

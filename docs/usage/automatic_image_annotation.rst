@@ -77,7 +77,9 @@ using the ``traincamfiannotator`` command. For help on how to use this, run::
 
 Alternatively you can train on Colab. Please refer to the example model
 training notebook :doc:`notebooks/camfi_autoannotator_training`.
+An interactive version of this notebook is available on Colab_.
 
+.. _Colab: https://colab.research.google.com/github/J-Wall/camfi/blob/main/examples/camfi_autoannotator_training.ipynb
 
 Validation
 ----------
