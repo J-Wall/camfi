@@ -22,7 +22,7 @@ If using this method and/or associated software in your research, please cite
    usage/data_analysis
    usage/cli
    usage/notebooks/notebooks.rst
-   api/modules
+   source/modules
 
 
 Indices and tables

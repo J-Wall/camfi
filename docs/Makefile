@@ -14,8 +14,8 @@ help:
 
 .PHONY: help Makefile
 
-api/modules.rst: Makefile
-	sphinx-apidoc -f -H API -o api .. ../setup.py ../camfiutils.py
+source/modules.rst: Makefile
+	sphinx-apidoc -f -H API -o source .. ../setup.py ../camfiutils.py
 
 usage/helppages/camfi.txt: Makefile build_cli.py
 	python build_cli.py
@@ -31,5 +31,5 @@ usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rs
 
 # Catch-all target: route multiple targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-html latexpdf: Makefile conf.py ../requirements.txt api/modules.rst usage/notebooks/notebooks.rst $(usages) $(notebooks)
+html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst $(usages) $(notebooks)
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
