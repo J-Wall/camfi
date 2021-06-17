@@ -1,8 +1,8 @@
 # camfi
 
 [![Build Status](https://travis-ci.com/J-Wall/camfi.svg?branch=main)](https://travis-ci.com/J-Wall/camfi)
-
 [![Documentation Status](https://readthedocs.org/projects/camfi/badge/?version=latest)](https://camfi.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/309541834.svg)](https://zenodo.org/badge/latestdoi/309541834)
 
 **C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
 
