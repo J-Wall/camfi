@@ -38,6 +38,7 @@ from __future__ import print_function
 
 from collections import defaultdict, deque
 import datetime
+from math import isfinite
 import os
 import pickle
 import random
@@ -371,7 +372,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         loss_value = losses_reduced.item()
 
-        if not torch.isfinite(loss_value):
+        if not isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
             print(loss_dict_reduced)
             sys.exit(1)
