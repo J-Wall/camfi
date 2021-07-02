@@ -1024,7 +1024,9 @@ class Annotator:
                 x0, y0, x1, y1 = [int(e) for e in box]
                 all_points_x = [x0, x0, x1, x1]
                 all_points_y = [y0, y1, y0, y1]
-                cx_cy_r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
+                cx_cy_r: Optional[
+                    Tuple[float, float, float]
+                ] = smallest_enclosing_circle(zip(all_points_x, all_points_y))
             else:
                 cx_cy_r = self.convert_to_circle(all_points_x, all_points_y, mask.shape)
             if cx_cy_r:
