@@ -2053,11 +2053,13 @@ class AnnotationUtils:
         if sort:
             filenames.sort()
 
-        if isinstance(shuffle, int):
-            random.seed(shuffle)
-            random.shuffle(filenames)
-        elif shuffle is True:
+        if shuffle is True:
             random.seed()
+            random.shuffle(filenames)
+        elif shuffle is False:
+            pass
+        elif isinstance(shuffle, int):
+            random.seed(shuffle)
             random.shuffle(filenames)
 
         self._output("\n".join(filenames))
