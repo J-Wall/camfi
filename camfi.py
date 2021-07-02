@@ -1049,8 +1049,8 @@ class Annotator:
 
     def annotate(self):
         """
-        Calls self.annotate on all images and outputs a VIA project json file, specified
-        with the --output program parameter.
+        Calls self.annotate_img on all images and outputs a VIA project json file,
+        specified with the --output program parameter.
         Copies the contents of self.via_project, and just replaces region information.
         """
         with open(self.via_project, "r") as f:
