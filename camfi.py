@@ -1020,7 +1020,8 @@ class Annotator:
             score = prediction["scores"][i]
             try:
                 all_points_x, all_points_y = self.fit_poly(box, mask)
-            except ValueError:  # If there is a problem fitting a polyline, use circle
+            except (ValueError, IndexError):
+                # If there is a problem fitting a polyline, use circle
                 x0, y0, x1, y1 = [int(e) for e in box]
                 all_points_x = [x0, x0, x1, x1]
                 all_points_y = [y0, y1, y0, y1]
