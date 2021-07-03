@@ -834,7 +834,17 @@ class Annotator:
         prediction: Dict[str, torch.Tensor]
             Output of model prediction
         """
-        img, _ = self.dataset[img_idx]
+        try:
+            img, _ = self.dataset[img_idx]
+        except OSError as e:
+            print(
+                f"Error loading {self.dataset.imgs[img_idx]}. {e}. Skipping.",
+                file=sys.stderr,
+            )
+            return {
+                key: torch.Tensor([]) for key in ["boxes", "labels", "scores", "masks"]
+            }
+
         with torch.no_grad():
             try:
                 prediction = self.model([img.to(self.device)])[0]
