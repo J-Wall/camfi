@@ -14,7 +14,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="camfi",
-    version="1.3.5",
+    version="1.4",
     description="Camera-based Analysis and Monitoring of Flying Insects",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -80,6 +80,7 @@ setup(
         "imageio",
         "matplotlib",
         "numpy",
+        "pandas",
         "Pillow",
         "scikit-image",
         "scipy",

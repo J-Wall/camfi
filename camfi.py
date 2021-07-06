@@ -1,3 +1,4 @@
+import datetime
 from datetime import datetime as dt
 from functools import wraps
 import itertools
@@ -17,7 +18,9 @@ import fire
 import imageio
 from matplotlib import pyplot as plt
 import numpy as np
+import pandas as pd
 from PIL import Image
+import pytz
 import scipy as sp
 from shapely.geometry import LineString
 from skimage import draw, transform
@@ -107,6 +110,46 @@ class UniqueDict(DefaultDict):
         self[key] = self.default
         self.default += 1
         return self[key]
+
+
+class SubDirDict(dict):
+    """A dict subclass which returns self['foo/bar'] if self['foo/bar/baz'] is missing
+    from the dict.
+
+    Examples
+    --------
+    >>> d = SubDirDict()
+    >>> d["foo"] = "foo"
+    >>> d["foo"]
+    'foo'
+    >>> d["foo/bar"]
+    'foo'
+    >>> d["foo/bar/baz"]
+    'foo'
+    >>> d["bar"]
+    Traceback (most recent call last):
+    ...
+    KeyError: "'bar' not in SubDirDict({'foo': 'foo'})"
+    """
+
+    def __init__(self, *args, **kwargs):
+        self._lastkey = None
+        self._prevkey = None
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, key):
+        self._prevkey = self._lastkey
+        self._lastkey = key
+        return super().__getitem__(key)
+
+    def __missing__(self, key):
+        if len(key) == 0:
+            raise KeyError(f"'{self._prevkey}' not in {str(self)}")
+
+        return self[os.path.dirname(key)]
+
+    def __repr__(self):
+        return f"{str(type(self)).split('.')[-1][:-2]}({super().__repr__()})"
 
 
 class CamfiDataset(torch.utils.data.Dataset):
@@ -1734,6 +1777,110 @@ class AnnotationUtils:
             annotation_project["_via_attributes"]["file"][str(file_attribute)] = dict(
                 type="text", description="", default_value=""
             )
+
+        self._output(
+            json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
+        )
+
+    def correct_timestamps(
+        self, time_correction_data: Union[str, os.PathLike] = None, tz: float = 0
+    ):
+        """Adds a metadata field called 'datetime_corrected' to each image in a VIA
+        project file. 'datetime_corrected' is calculated by infering the speed of the
+        camera's internal clock from time correction data.
+
+        Parameters
+        ----------
+        time_correction_data: Union[str, os.PathLike]
+            Path to a comma separated file with fields dir, start_time,
+            actual_start_time, end_time, actual_end_time. This must contain one row for
+            each image directory (ie. one for each period of one camera capturing
+            images), and should minimally contain data in the 'dir' and 'start_time'
+            columns. If data is missing in the other colmuns, they will be inferred from
+            the other data present (at least some of the rows must have data in the the
+            'end_time' and 'actual_end_time' columns to be able to make this inference).
+        tz: float
+            Output timezone (defaults to utc). Eg. for AEST you would set tz=10
+        """
+        annotation_project = self._load()
+
+        tz_out = pytz.FixedOffset(int(tz * 60))
+
+        # Load and fill missing time correction data
+        times_df = pd.read_csv(time_correction_data)
+        times_df["tz"] = times_df["start_time"].apply(
+            lambda x: pytz.FixedOffset(int(x[-3:]) * 60)
+        )
+        for dt_header in [
+            "start_time",
+            "actual_start_time",
+            "end_time",
+            "actual_end_time",
+        ]:
+            times_df[dt_header] = pd.to_datetime(times_df[dt_header], utc=True)
+
+        times_df["actual_start_time"].fillna(times_df["start_time"], inplace=True)
+
+        times_df["camera_time_elapsed"] = times_df["end_time"] - times_df["start_time"]
+        times_df["actual_time_elapsed"] = (
+            times_df["actual_end_time"] - times_df["actual_start_time"]
+        )
+
+        times_df["camera_clock_speed"] = (
+            times_df["camera_time_elapsed"] / times_df["actual_time_elapsed"]
+        )
+        times_df["camera_clock_speed"].fillna(
+            times_df["camera_clock_speed"].mean(), inplace=True
+        )
+
+        # Use a SubDirDict for simpler data access
+
+        times_dict = SubDirDict()
+        for i in range(len(times_df)):
+            times_dict[times_df.loc[i, "dir"]] = tuple(
+                times_df.loc[i, colname]
+                for colname in [
+                    "start_time",
+                    "actual_start_time",
+                    "tz",
+                    "camera_clock_speed",
+                ]
+            )
+
+        # Calculate corrected time for each image
+        for img_key in annotation_project["_via_img_metadata"].keys():
+            filename = annotation_project["_via_img_metadata"][img_key]["filename"]
+
+            start_time, actual_start_time, tzinfo, camera_clock_speed = times_dict[
+                os.path.dirname(filename)
+            ]
+            datetime_original = dt.strptime(
+                annotation_project["_via_img_metadata"][img_key]["file_attributes"][
+                    "datetime_original"
+                ],
+                "%Y:%m:%d %H:%M:%S",
+            )
+            # Convert datetime_original to utc
+            datetime_original = pd.to_datetime(
+                datetime_original.replace(tzinfo=tzinfo).astimezone(tz=pytz.utc)
+            )
+
+            # Calculate datetime_corrected off start_time
+            camera_timedelta = datetime_original - start_time
+            actual_timedelta = camera_timedelta / camera_clock_speed
+            datetime_corrected = (actual_start_time + actual_timedelta).astimezone(
+                tz=tz_out
+            )
+
+            annotation_project["_via_img_metadata"][img_key]["file_attributes"][
+                "datetime_corrected"
+            ] = datetime_corrected.isoformat()
+
+        annotation_project["_via_attributes"]["file"]["datetime_corrected"] = {
+            "type": "text",
+            "description": "",
+            "default_value": "",
+        }
 
         self._output(
             json.dumps(annotation_project, separators=(",", ":"), sort_keys=True)
