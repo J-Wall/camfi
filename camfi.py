@@ -1793,12 +1793,13 @@ class AnnotationUtils:
         ----------
         time_correction_data: Union[str, os.PathLike]
             Path to a comma separated file with fields dir, start_time,
-            actual_start_time, end_time, actual_end_time. This must contain one row for
-            each image directory (ie. one for each period of one camera capturing
-            images), and should minimally contain data in the 'dir' and 'start_time'
-            columns. If data is missing in the other colmuns, they will be inferred from
-            the other data present (at least some of the rows must have data in the the
-            'end_time' and 'actual_end_time' columns to be able to make this inference).
+            actual_start_time, end_time, actual_end_time, location. This must contain
+            one row for each image directory (ie. one for each period of one camera
+            capturing images), and should minimally contain data in the 'dir' and
+            'start_time' columns. If data is missing in the other colmuns, they will be
+            inferred from the other data present (at least some of the rows must have
+            data in the the 'end_time' and 'actual_end_time' columns to be able to make
+            this inference).
         tz: float
             Output timezone (defaults to utc). Eg. for AEST you would set tz=10
         """
@@ -1844,6 +1845,7 @@ class AnnotationUtils:
                     "actual_start_time",
                     "tz",
                     "camera_clock_speed",
+                    "location",
                 ]
             )
 
@@ -1851,9 +1853,13 @@ class AnnotationUtils:
         for img_key in annotation_project["_via_img_metadata"].keys():
             filename = annotation_project["_via_img_metadata"][img_key]["filename"]
 
-            start_time, actual_start_time, tzinfo, camera_clock_speed = times_dict[
-                os.path.dirname(filename)
-            ]
+            (
+                start_time,
+                actual_start_time,
+                tzinfo,
+                camera_clock_speed,
+                location,
+            ) = times_dict[os.path.dirname(filename)]
             datetime_original = dt.strptime(
                 annotation_project["_via_img_metadata"][img_key]["file_attributes"][
                     "datetime_original"
@@ -1875,8 +1881,16 @@ class AnnotationUtils:
             annotation_project["_via_img_metadata"][img_key]["file_attributes"][
                 "datetime_corrected"
             ] = datetime_corrected.isoformat()
+            annotation_project["_via_img_metadata"][img_key]["file_attributes"][
+                "location"
+            ] = location
 
         annotation_project["_via_attributes"]["file"]["datetime_corrected"] = {
+            "type": "text",
+            "description": "",
+            "default_value": "",
+        }
+        annotation_project["_via_attributes"]["file"]["location"] = {
             "type": "text",
             "description": "",
             "default_value": "",
