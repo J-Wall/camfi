@@ -27,7 +27,7 @@ from skimage import draw, transform
 import torch
 from tqdm import tqdm, trange
 
-import camfiutils as utils
+from camfi import torchutils
 
 RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/1.0/20210519_4_model.pth"
 
@@ -156,7 +156,7 @@ class CamfiDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         root: Union[str, os.PathLike],
-        transforms: utils.TransformCompose,
+        transforms: torchutils.TransformCompose,
         *via_project_files: Union[str, os.PathLike],
         crop: Optional[Tuple[int, int, int, int]] = None,
         point_r: int = 10,
@@ -521,7 +521,7 @@ def train_model(
     # Define dataset and data loader
     dataset = CamfiDataset(
         img_dir,
-        utils.get_transform(train=True),
+        torchutils.get_transform(train=True),
         *via_projects,
         crop=crop,
         point_r=point_r,
@@ -535,11 +535,11 @@ def train_model(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        collate_fn=utils.collate_fn,
+        collate_fn=torchutils.collate_fn,
     )
 
     # Initialise model
-    model = utils.get_model_instance_segmentation(num_classes)
+    model = torchutils.get_model_instance_segmentation(num_classes)
     if load_pretrained_model is not None:
         model.load_state_dict(torch.load(load_pretrained_model))
     model.to(torchdevice)
@@ -550,7 +550,7 @@ def train_model(
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        utils.train_one_epoch(
+        torchutils.train_one_epoch(
             model, optimizer, data_loader, torchdevice, epoch, print_freq=10
         )
         # update the learning rate
@@ -786,7 +786,7 @@ class Annotator:
         o: Optional[Union[str, os.PathLike]] = None,
     ):
         print(f"Loading model: {model}", file=sys.stderr)
-        self.model = utils.get_model_instance_segmentation(
+        self.model = torchutils.get_model_instance_segmentation(
             num_classes, pretrained=False
         )
         model_path = AnnotationUtils().download_model(model=model)
@@ -802,7 +802,7 @@ class Annotator:
         print(f"Loading dataset: {self.via_project}", file=sys.stderr)
         self.dataset = CamfiDataset(
             self.img_dir,
-            utils.get_transform(train=False),
+            torchutils.get_transform(train=False),
             self.via_project,
             crop=crop,
             min_annotations=-1,
@@ -817,7 +817,7 @@ class Annotator:
         if backup_device is not None:
             print(f"Loading backup model on device: {backup_device}", file=sys.stderr)
             self.backup = True
-            self.backup_model = utils.get_model_instance_segmentation(
+            self.backup_model = torchutils.get_model_instance_segmentation(
                 num_classes, pretrained=False
             )
             self.backup_model.load_state_dict(torch.load(model_path))

@@ -10,7 +10,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import codecs
 import os
+import pathlib
 import sys
 sys.path.insert(0, os.path.abspath('../'))
 
@@ -22,7 +24,20 @@ copyright = '2021, Jesse Wallace'
 author = 'Jesse Wallace'
 
 # The full version, including alpha/beta/rc tags
-release = '1.4'
+def read(rel_path):
+    here = pathlib.Path(__file__).parent.resolve()
+    with codecs.open(here.joinpath(rel_path), 'r') as fp:
+        return fp.read()
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+    else:
+        raise RuntimeError("Unable to find version string.")
+
+release = get_version("../camfi/__init__.py")
 
 
 # -- General configuration ---------------------------------------------------

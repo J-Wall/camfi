@@ -4,17 +4,31 @@ See:
 https://github.com/J-Wall/camfi
 """
 
-from setuptools import setup
+import codecs
+from setuptools import setup, find_packages
 import pathlib
 
 here = pathlib.Path(__file__).parent.resolve()
+
+def read(rel_path):
+    here = pathlib.Path(__file__).parent.resolve()
+    with codecs.open(here.joinpath(rel_path), 'r') as fp:
+        return fp.read()
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+    else:
+        raise RuntimeError("Unable to find version string.")
 
 # Get the long description from the README file
 long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="camfi",
-    version="1.4",
+    version=get_version("camfi/__init__.py"),
     description="Camera-based Analysis and Monitoring of Flying Insects",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -60,7 +74,8 @@ setup(
     # the `py_modules` argument instead as follows, which will expect a file
     # called `my_module.py` to exist:
     #
-    py_modules=["camfi", "camfiutils"],
+    packages=find_packages(),
+    # py_modules=["camfi"],
     #
     # packages=find_packages(where='src'),  # Required
     # Specify which Python versions you support. In contrast to the
@@ -82,6 +97,7 @@ setup(
         "numpy",
         "pandas",
         "Pillow",
+        "pydantic",
         "scikit-image",
         "scipy",
         "Shapely",
@@ -94,13 +110,11 @@ setup(
     # `pip` to create the appropriate form of executable for the target
     # platform.
     #
-    # For example, the following would provide a command called `sample` which
-    # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         "console_scripts": [
-            "camfi=camfi:main",
-            "traincamfiannotator=camfi:_cli_train",
-            "camfiannotate=camfi:_cli_annotate",
+            "camfi=camfi.camfi:main",
+            "traincamfiannotator=camfi.camfi:_cli_train",
+            "camfiannotate=camfi.camfi:_cli_annotate",
         ],
     },
 )
