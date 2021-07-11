@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from math import inf
@@ -5,19 +7,26 @@ from pathlib import Path
 import random
 from typing import Dict, List, Optional, Tuple, Union
 
+from multimethod import multimethod
 from pydantic import (
     BaseModel,
     Field,
+    NonNegativeFloat,
+    NonNegativeInt,
     PositiveFloat,
     PositiveInt,
+    root_validator,
     validator,
     constr,
     conint,
     confloat,
 )
-from torch import Tensor
+from skimage import draw
+from torch import stack, tensor, Tensor, zeros
 from torch.utils.data import Dataset
 from torchvision.io import read_image
+
+from camfi.transform import ImageTransform, smallest_enclosing_circle, dilate_idx
 
 
 class ViaFileAttributes(BaseModel):
@@ -38,10 +47,40 @@ class ViaShapeAttributes(BaseModel, ABC):
 
     name: str
 
+    @abstractmethod
+    def get_bounding_box(self) -> BoundingBox:
+        """Returns a BoundingBox object which contains the coordinates in self.
+        Note that CircleShapeAttributes are treated like PointShapeAttributes (i.e. r is
+        ignored)."""
+
+
+class PointShapeAttributes(ViaShapeAttributes):
+    cx: NonNegativeFloat
+    cy: NonNegativeFloat
+    name: str = Field("point", regex=r"^point$")
+
+    def get_bounding_box(self) -> BoundingBox:
+        return BoundingBox(
+            x0=int(self.cx), y0=int(self.cy), x1=int(self.cx) + 1, y1=int(self.cy) + 1
+        )
+
+
+class CircleShapeAttributes(ViaShapeAttributes):
+    cx: NonNegativeFloat
+    cy: NonNegativeFloat
+    name: str = Field("circle", regex=r"^circle$")
+    r: NonNegativeFloat
+
+    def as_point(self):
+        return PointShapeAttributes(cx=self.cx, cy=self.cy)
+
+    def get_bounding_box(self) -> BoundingBox:
+        return self.as_point().get_bounding_box()
+
 
 class PolylineShapeAttributes(ViaShapeAttributes):
-    all_points_x: List[float]
-    all_points_y: List[float]
+    all_points_x: List[NonNegativeFloat]
+    all_points_y: List[NonNegativeFloat]
     name: str = Field("polyline", regex=r"^polyline$")
 
     best_peak: Optional[float] = Field(
@@ -78,18 +117,21 @@ class PolylineShapeAttributes(ViaShapeAttributes):
             raise ValueError("must have same number of y points as x points")
         return v
 
+    def as_circle(self) -> CircleShapeAttributes:
+        """Returns a CircleShapeAttributes object from the smallest enclosing circle
+        of the points in self."""
+        cx, cy, r = smallest_enclosing_circle(zip(self.all_points_x, self.all_points_y))
+        return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
-class CircleShapeAttributes(ViaShapeAttributes):
-    cx: float = Field(..., ge=0)
-    cy: float = Field(..., ge=0)
-    name: str = Field("circle", regex=r"^circle$")
-    r: float = Field(..., ge=0)
+    def get_bounding_box(self) -> BoundingBox:
+        x_min = min(self.all_points_x)
+        x_max = max(self.all_points_x)
+        y_min = min(self.all_points_y)
+        y_max = max(self.all_points_y)
 
-
-class PointShapeAttributes(ViaShapeAttributes):
-    cx: float = Field(..., ge=0)
-    cy: float = Field(..., ge=0)
-    name: str = Field("point", regex=r"^point$")
+        return BoundingBox(
+            x0=int(x_min), y0=int(y_min), x1=int(x_max) + 1, y1=int(y_max) + 1
+        )
 
 
 class ViaRegion(BaseModel):
@@ -119,53 +161,151 @@ class ViaProject(BaseModel):
         }
 
 
-class ImageTransform(BaseModel, ABC):
-    """Abstract base class for transforms on images with segmentation data."""
-
-    @abstractmethod
-    def __call__(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        pass
-
-
-class TransformCompose(ImageTransform):
-    def __init__(self, transforms: List[ImageTransform]):
-        self.transforms = transforms
-
-    def __call__(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        for transform in self.transforms:
-            image, target = transform(image, target)
-        return image, target
-
-
-class TransformRandomHorizontalFlip(ImageTransform):
-    def __init__(self, prob):
-        self.prob = prob
-
-    def __call__(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        if random.random() < self.prob:
-            height, width = image.shape[-2:]
-            image = image.flip(-1)
-            bbox = target["boxes"]
-            bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
-            target["boxes"] = bbox
-            if "masks" in target:
-                target["masks"] = target["masks"].flip(-1)
-        return image, target
-
-
-class MaskMaker(BaseModel, ABC):
-    def __init__(self, shape: Tuple[int, int]):
+class MaskMaker:
+    def __init__(
+        self, shape: Tuple[PositiveInt, PositiveInt], mask_dilate: Optional[PositiveInt]
+    ):
         self.shape = shape
+        self.mask_dilate = mask_dilate
 
-    @abstractmethod
-    def get_mask(self, shape: ViaShapeAttributes) -> Tensor:
-        pass
+    @multimethod
+    def get_mask(self, point: PointShapeAttributes) -> Tensor:
+        """Produces a mask Tensor for a given point.
+        Raises a ValueError if point lies outise self.shape"""
+        cx = int(point.cx)
+        cy = int(point.cy)
+
+        if cx >= self.shape[1] or cy >= self.shape[0]:
+            raise ValueError(
+                f"point ({cy}, {cx}) lies outside image with shape {self.shape}"
+            )
+
+        mask = zeros(self.shape)
+        if self.mask_dilate is None:
+            rr, cc = cy, cx
+        else:
+            rr, cc = dilate_idx(cy, cx, self.mask_dilate, img_shape=self.shape)
+
+        mask[rr, cc] = 1
+
+        return mask
+
+    @multimethod  # type: ignore[no-redef]
+    def get_mask(self, circle: CircleShapeAttributes) -> Tensor:
+        """Produces a mask Tensor for a given circle.
+        Raises a ValueError if centre lies outise self.shape"""
+        return self.get_mask(circle.as_point())
+
+    @multimethod  # type: ignore[no-redef]
+    def get_mask(self, polyline: PolylineShapeAttributes) -> Tensor:
+        """Produces a mask Tensor for a given polyline.
+        Raises a ValueError if any point lies outise self.shape"""
+        x = polyline.all_points_x
+        y = polyline.all_points_y
+        mask = zeros(self.shape)
+
+        for i in range(len(x) - 1):
+            if x[i] >= self.shape[1] or y[i] >= self.shape[0]:
+                raise ValueError(
+                    f"point ({x[i]}, {y[i]}) lies outside image with shape {self.shape}"
+                )
+
+            rr, cc = draw.line(int(y[i]), int(x[i]), int(y[i + 1]), int(x[i + 1]))
+            if self.mask_dilate is not None:
+                rr, cc = dilate_idx(rr, cc, self.mask_dilate, img_shape=self.shape)
+
+            mask[rr, cc] = 1
+
+        return mask
+
+
+class BoundingBox(BaseModel):
+    x0: NonNegativeInt
+    y0: NonNegativeInt
+    x1: NonNegativeInt
+    y1: NonNegativeInt
+
+    @validator("x1")
+    def x1_gt_x0(cls, v, values):
+        if "x0" in values and v <= values["x0"]:
+            raise ValueError("x1 and y1 must be larger than x0 and y0")
+        return v
+
+    @validator("y1")
+    def y1_gt_y0(cls, v, values):
+        if "y0" in values and v <= values["y0"]:
+            raise ValueError("x1 and y1 must be larger than x0 and y0")
+        return v
+
+    def add_margin(
+        self,
+        margin: NonNegativeInt,
+        shape: Optional[Tuple[PositiveInt, PositiveInt]] = None,
+    ):
+        """Expands self by a fixed margin. Operates in-place.
+
+        Parameters
+        ----------
+        margin: PositiveInt
+            Margin to add to self
+        shape: Optional[Tuple[PositiveInt, PositiveInt]] = (height, width)
+            Shape of image. If set, will constrain self to image shape
+        """
+        self.x0 = max(0, self.x0 - margin)
+        self.y0 = max(0, self.y0 - margin)
+
+        self.x1 += margin
+        self.y1 += margin
+
+        if shape is not None:
+            self.x0 = min(shape[1], self.x0)
+            self.y0 = min(shape[0], self.y0)
+            self.x1 = min(shape[1], self.x1)
+            self.y1 = min(shape[0], self.y1)
+
+
+class Target(BaseModel):
+    boxes: List[BoundingBox]
+    labels: List[PositiveInt]
+    image_id: NonNegativeInt
+    area: List[PositiveInt]
+    iscrowd: List[int]
+    masks: List[Tensor]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @root_validator
+    def all_fields_have_same_length(cls, values):
+        length = len(values["boxes"])
+        if not all(
+            len(values[k]) == length for k in ["labels", "area", "iscrowd", "masks"]
+        ):
+            raise ValueError("Fields must have same length")
+
+        return values
+
+    @validator("masks")
+    def all_masks_same_shape(cls, v):
+        if len(v) <= 1:
+            return v
+
+        shape = v[0].shape
+        for mask in v[1:]:
+            if mask.shape != shape:
+                raise ValueError("All masks must have same shape")
+
+        return v
+
+    def to_tensor_dict(self) -> Dict[str, Tensor]:
+        return dict(
+            boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
+            labels=tensor(self.labels),
+            image_id=tensor([self.image_id]),
+            area=tensor(self.area),
+            iscrowd=tensor(self.iscrowd),
+            masks=stack(self.masks),
+        )
 
 
 class CamfiDataset(BaseModel, Dataset):
@@ -178,3 +318,6 @@ class CamfiDataset(BaseModel, Dataset):
     max_annotations: float = inf
     inference_mode: bool = False
     exclude: Optional[set] = None
+
+    class Config:
+        arbitrary_types_allowed = True

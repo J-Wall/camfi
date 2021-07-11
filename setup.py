@@ -94,6 +94,7 @@ setup(
         "fire",
         "imageio",
         "matplotlib",
+        "multimethod",
         "numpy",
         "pandas",
         "Pillow",
