@@ -1,8 +1,8 @@
 from pydantic import ValidationError
 from pytest import approx, fixture, raises
-from torch import tensor, Tensor, ones, zeros
+from torch import tensor, Tensor, zeros
 
-from camfi import data, transform
+from camfi import data, util, transform
 
 
 @fixture(params=[0.0, 50.0, 100.0, 150.0])
@@ -93,7 +93,7 @@ def shape(request):
 
 @fixture
 def boxes():
-    bounding_box_params = [(0, 0, 1, 1), (10, 15, 12, 20)]
+    bounding_box_params = [(0, 0, 1, 1), (0, 1, 1, 2)]
     return [
         data.BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
         for x0, y0, x1, y1 in bounding_box_params
@@ -122,7 +122,7 @@ def iscrowd():
 
 @fixture
 def masks():
-    return [zeros((2, 3)), ones((2, 3))]
+    return [zeros((2, 3)), tensor([[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]])]
 
 
 @fixture
@@ -135,6 +135,11 @@ def target(boxes, labels, image_id, area, iscrowd, masks):
         iscrowd=iscrowd,
         masks=masks,
     )
+
+
+@fixture
+def target_dict(target):
+    return target.to_tensor_dict()
 
 
 class TestPointShapeAttributes:
@@ -195,7 +200,7 @@ class TestPolylineShapeAttributes:
             polyline_shape_attributes.all_points_x,
             polyline_shape_attributes.all_points_y,
         )
-        x, y, r = transform.smallest_enclosing_circle(points)
+        x, y, r = util.smallest_enclosing_circle(points)
 
         circle = polyline_shape_attributes.as_circle()
 
@@ -222,6 +227,15 @@ class TestPolylineShapeAttributes:
             assert (
                 y < bounding_box.y1
             ), f"{polyline_shape_attributes!r} is not bound by {bounding_box!r}"
+
+
+class TestViaRegion:
+    def test_get_bounding_box(self, point_shape_attributes):
+        region = data.ViaRegion(
+            region_attributes=data.ViaRegionAttributes(),
+            shape_attributes=point_shape_attributes,
+        )
+        assert region.get_bounding_box() == point_shape_attributes.get_bounding_box()
 
 
 class TestMaskMaker:
@@ -342,7 +356,7 @@ class TestTarget:
             image_id=0,
             area=[1],
             iscrowd=[0],
-            masks=[Tensor([[0.0, 0.0], [0.0, 0.0]])],
+            masks=[zeros((2, 2))],
         )
         target = data.Target(**kwargs)
         for key, value in kwargs.items():
@@ -355,13 +369,28 @@ class TestTarget:
             image_id=0,
             area=[1],
             iscrowd=[0],
-            masks=[Tensor([[0.0, 0.0], [0.0, 0.0]])],
+            masks=[zeros((2, 2))],
         )
         with raises(ValueError):
             data.Target(**kwargs)
 
-    def test_mask_validator(self):
-        pass
+    def test_mask_validator_fails(self):
+        for s0, s1 in [
+            ((2, 2), (2, 3)),
+            ((2, 2), (3, 2)),
+            ((2, 3), (2, 2)),
+            ((3, 2), (2, 2)),
+        ]:
+            kwargs = dict(
+                boxes=[bounding_box, bounding_box],
+                labels=[1, 1],
+                image_id=0,
+                area=[1, 1],
+                iscrowd=[0, 0],
+                masks=[zeros(s0), zeros(s1)],
+            )
+            with raises(ValueError):
+                data.Target(**kwargs)
 
     def test_to_tensor_dict(self, target):
         target_dict = target.to_tensor_dict()
@@ -375,3 +404,22 @@ class TestTarget:
         ]
         for field in fields:
             assert field in target_dict
+
+    def test_from_tensor_dict(self, target):
+        target_dict = target.to_tensor_dict()
+        fields = [
+            "boxes",
+            "labels",
+            "image_id",
+            "area",
+            "iscrowd",
+            "masks",
+        ]
+        target_from_dict = data.Target.from_tensor_dict(target_dict)
+        assert target_from_dict.boxes == target.boxes
+        assert target_from_dict.labels == target.labels
+        assert target_from_dict.image_id == target.image_id
+        assert target_from_dict.area == target.area
+        assert target_from_dict.iscrowd == target.iscrowd
+        for i in range(len(target_from_dict.masks)):
+            assert target_from_dict.masks[i].allclose(target.masks[i])

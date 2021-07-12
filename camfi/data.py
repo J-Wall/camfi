@@ -17,16 +17,13 @@ from pydantic import (
     PositiveInt,
     root_validator,
     validator,
-    constr,
-    conint,
-    confloat,
 )
 from skimage import draw
 from torch import stack, tensor, Tensor, zeros
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 
-from camfi.transform import ImageTransform, smallest_enclosing_circle, dilate_idx
+from camfi.util import smallest_enclosing_circle, dilate_idx
 
 
 class ViaFileAttributes(BaseModel):
@@ -139,6 +136,9 @@ class ViaRegion(BaseModel):
     shape_attributes: Union[
         PolylineShapeAttributes, CircleShapeAttributes, PointShapeAttributes
     ]
+
+    def get_bounding_box(self):
+        return self.shape_attributes.get_bounding_box()
 
 
 class ViaMetadata(BaseModel):
@@ -277,11 +277,14 @@ class Target(BaseModel):
 
     @root_validator
     def all_fields_have_same_length(cls, values):
-        length = len(values["boxes"])
-        if not all(
-            len(values[k]) == length for k in ["labels", "area", "iscrowd", "masks"]
-        ):
-            raise ValueError("Fields must have same length")
+        try:
+            length = len(values["boxes"])
+            if not all(
+                len(values[k]) == length for k in ["labels", "area", "iscrowd", "masks"]
+            ):
+                raise ValueError("Fields must have same length")
+        except KeyError:
+            raise ValueError("Invalid parameters given to Target")
 
         return values
 
@@ -306,6 +309,35 @@ class Target(BaseModel):
             iscrowd=tensor(self.iscrowd),
             masks=stack(self.masks),
         )
+
+    @classmethod
+    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> Target:
+        return Target(
+            boxes=[
+                BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
+                for x0, y0, x1, y1 in tensor_dict["boxes"]
+            ],
+            labels=[int(v) for v in tensor_dict["labels"]],
+            image_id=int(tensor_dict["image_id"]),
+            area=[int(v) for v in tensor_dict["area"]],
+            iscrowd=[int(v) for v in tensor_dict["iscrowd"]],
+            masks=list(tensor_dict["masks"]),
+        )
+
+
+class ImageTransform(BaseModel, ABC):
+    """Abstract base class for transforms on images with segmentation data."""
+
+    def __call__(self, image: Tensor, target: Target) -> Tuple[Tensor, Target]:
+        image, target_dict = self.apply_to_tensor_dict(image, target.to_tensor_dict())
+        return image, Target.from_tensor_dict(target_dict)
+
+    @abstractmethod
+    def apply_to_tensor_dict(
+        self, image: Tensor, target: Dict[str, Tensor]
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        """Subclasses of ImageTransform should implement this to return a transformed
+        image and target dict."""
 
 
 class CamfiDataset(BaseModel, Dataset):
