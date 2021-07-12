@@ -144,7 +144,7 @@ class ViaRegion(BaseModel):
         PolylineShapeAttributes, CircleShapeAttributes, PointShapeAttributes
     ]
 
-    def get_bounding_box(self):
+    def get_bounding_box(self) -> BoundingBox:
         return self.shape_attributes.get_bounding_box()
 
 
@@ -199,7 +199,9 @@ class ViaProject(BaseModel):
 
 class MaskMaker:
     def __init__(
-        self, shape: Tuple[PositiveInt, PositiveInt], mask_dilate: Optional[PositiveInt]
+        self,
+        shape: Tuple[PositiveInt, PositiveInt],
+        mask_dilate: Optional[PositiveInt] = None,
     ):
         self.shape = shape
         self.mask_dilate = mask_dilate
@@ -430,13 +432,15 @@ def read_image(path: Path) -> Tensor:
 
     Examples
     --------
-    >>> image = read_image("examples/data/calibration_img0.jpg")
+    >>> image = read_image(Path("examples/data/calibration_img0.jpg"))
     >>> image.shape == (3, 3456, 4608)
     True
     >>> image.dtype
     torch.float32
     """
-    image = torchvision.io.read_image(path, mode=torchvision.io.image.ImageReadMode.RGB)
+    image = torchvision.io.read_image(
+        str(path), mode=torchvision.io.image.ImageReadMode.RGB
+    )
     return image / 255  # Converts from uint8 to float32
 
 
@@ -472,23 +476,27 @@ class CamfiDataset(BaseModel, Dataset):
     def only_set_if_not_inference_mode(cls, v, values):
         if "inference_mode" in values and values["inference_mode"] is True:
             assert v in {0, inf, None}, "Only set if inference_mode=False"
+        return v
 
-    @validator("mask_maker")
+    @validator("mask_maker", always=True)
     def set_iff_not_inference_mode(cls, v, values):
         if "inference_mode" in values and values["inference_mode"] is True:
             assert v is None, "Only set if inference_mode=False"
         else:
-            assert isinstance(v, MaskMaker), "Must be set if inference_mode=False"
+            assert isinstance(
+                v, MaskMaker
+            ), "mask_maker must be set if inference_mode=False"
+        return v
 
     @validator("keys", pre=True, always=True)
     def generate_filtered_keys(cls, v, values):
+        min_annotations = values.get("min_annotations", 0)
+        max_annotations = values.get("max_annotations", inf)
         return list(
             dict(
                 filter(
                     lambda e: e[1].filename not in values["exclude"]
-                    and values["min_annotations"]
-                    <= len(e[1].regions)
-                    <= values["max_annotations"],
+                    and min_annotations <= len(e[1].regions) <= max_annotations,
                     values["via_project"].via_img_metadata.items(),
                 )
             )
@@ -518,3 +526,6 @@ class CamfiDataset(BaseModel, Dataset):
                 image, target = self.transform(image, target)
 
         return image, target
+
+    def __len__(self):
+        return len(self.keys)

@@ -1,8 +1,9 @@
 import bz2
+from typing import Dict, Tuple
 
 from pydantic import ValidationError
 from pytest import approx, fixture, raises
-from torch import tensor, Tensor, zeros
+from torch import float32, tensor, Tensor, zeros
 
 from camfi import data, util, transform
 
@@ -144,6 +145,39 @@ def target_dict(target):
     return target.to_tensor_dict()
 
 
+@fixture
+def via_metadata():
+    regions = [
+        data.ViaRegion(
+            region_attributes=data.ViaRegionAttributes(),
+            shape_attributes=data.PointShapeAttributes(cx=1, cy=2),
+        ),
+        data.ViaRegion(
+            region_attributes=data.ViaRegionAttributes(),
+            shape_attributes=data.CircleShapeAttributes(cx=5, cy=10, r=2),
+        ),
+        data.ViaRegion(
+            region_attributes=data.ViaRegionAttributes(),
+            shape_attributes=data.PolylineShapeAttributes(
+                all_points_x=[0, 1, 5], all_points_y=[2, 3, 7]
+            ),
+        ),
+    ]
+    return data.ViaMetadata(
+        file_attributes=data.ViaFileAttributes(),
+        filename="foo/bar.jpg",
+        regions=regions,
+    )
+
+
+@fixture
+def via_project(scope="module"):
+    with open("camfi/test/data/sample_project_no_metadata.json") as f:
+        via_project_raw = f.read()
+
+    return data.ViaProject.parse_raw(via_project_raw)
+
+
 class TestPointShapeAttributes:
     def test_get_bounding_box(self, point_shape_attributes):
         bounding_box = point_shape_attributes.get_bounding_box()
@@ -241,14 +275,25 @@ class TestViaRegion:
 
 
 class TestViaMetadata:
-    def test_get_bounding_boxes(self):
-        pass
+    def test_get_bounding_boxes(self, via_metadata):
+        bounding_boxes = via_metadata.get_bounding_boxes()
+        assert len(bounding_boxes) == len(via_metadata.regions)
+        for item in bounding_boxes:
+            assert isinstance(item, data.BoundingBox)
 
-    def test_get_labels(self):
-        pass
+    def test_get_labels(self, via_metadata):
+        labels = via_metadata.get_labels()
+        assert len(labels) == len(via_metadata.regions)
+        for item in labels:
+            assert isinstance(item, int)
+            assert item > 0
 
-    def test_get_iscrowd(self):
-        pass
+    def test_get_iscrowd(self, via_metadata):
+        iscrowds = via_metadata.get_iscrowd()
+        assert len(iscrowds) == len(via_metadata.regions)
+        for item in iscrowds:
+            assert isinstance(item, int)
+            assert 0 <= item <= 1
 
 
 class TestViaProject:
@@ -353,6 +398,12 @@ class TestMaskMaker:
             with raises(ValueError):
                 mask_maker.get_mask(polyline_shape_attributes)
 
+    def test_get_masks(self, mask_maker, via_metadata):
+        masks = mask_maker.get_masks(via_metadata)
+        assert len(masks) == len(via_metadata.regions)
+        for mask in masks:
+            assert isinstance(mask, Tensor)
+
 
 class TestBoundingBox:
     def test_validator(self, invalid_bounding_box_params):
@@ -392,6 +443,11 @@ class TestBoundingBox:
         assert (
             bounding_box.y1 <= shape[0]
         ), "{bounding_box!r} should not extend past {shape}"
+
+    def test_get_area(self, bounding_box):
+        area = bounding_box.get_area()
+        assert isinstance(area, int)
+        assert area > 0
 
 
 class TestTarget:
@@ -469,3 +525,157 @@ class TestTarget:
         assert target_from_dict.iscrowd == target.iscrowd
         for i in range(len(target_from_dict.masks)):
             assert target_from_dict.masks[i].allclose(target.masks[i])
+
+
+class MockImageTransform(data.ImageTransform):
+    def apply_to_tensor_dict(
+        self, image: Tensor, target: Dict[str, Tensor]
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        image = image + 1.0
+        return image, target
+
+
+class TestCamfiDataset:
+    def test_default_exclude_set(self, via_project):
+        dataset = data.CamfiDataset(
+            root="foo/bar",
+            via_project=via_project,
+            inference_mode=True,
+            exclude={"baz"},
+        )
+        assert dataset.exclude == {"baz"}
+
+    def test_default_exclude_unset(self, via_project):
+        dataset = data.CamfiDataset(
+            root="foo/bar", via_project=via_project, inference_mode=True
+        )
+        assert dataset.exclude == set()
+
+    def test_only_set_if_not_inference_mode_transform_fails(self, via_project):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=True,
+                transform=MockImageTransform(),
+            )
+
+    def test_only_set_if_not_inference_mode_min_annotations(self, via_project):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=True,
+                min_annotations=1,
+            )
+
+    def test_only_set_if_not_inference_mode_max_annotations(self, via_project):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=True,
+                max_annotations=10,
+            )
+
+    def test_set_iff_not_inference_mode_true(self, via_project, mask_maker):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=True,
+                mask_maker=mask_maker,
+            )
+
+    def test_set_iff_not_inference_mode_false_fails(self, via_project):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar", via_project=via_project, inference_mode=False,
+            )
+
+    def test_init_all_set_passes(self, via_project, mask_maker):
+        dataset = data.CamfiDataset(
+            root="foo/bar",
+            via_project=via_project,
+            inference_mode=False,
+            transform=MockImageTransform(),
+            min_annotations=1,
+            max_annotations=5,
+            mask_maker=mask_maker,
+        )
+        assert isinstance(dataset.transform, data.ImageTransform)
+        assert dataset.min_annotations == 1
+        assert dataset.max_annotations == 5
+        assert isinstance(dataset.mask_maker, data.MaskMaker)
+
+    def test_generate_filtered_keys_minmax_unset(self, via_project):
+        dataset = data.CamfiDataset(
+            root="foo/bar", via_project=via_project, inference_mode=True,
+        )
+        assert len(dataset.keys) == 4
+        assert len(dataset) == 4
+
+    def test_generate_filtered_keys_min4_max8(self, via_project, mask_maker):
+        dataset = data.CamfiDataset(
+            root="foo/bar",
+            via_project=via_project,
+            inference_mode=False,
+            min_annotations=4,
+            max_annotations=8,
+            mask_maker=mask_maker,
+        )
+        assert len(dataset.keys) == 2
+        assert len(dataset) == 2
+
+    def test_generate_filtered_keys_min1_max4(self, via_project, mask_maker):
+        dataset = data.CamfiDataset(
+            root="foo/bar",
+            via_project=via_project,
+            inference_mode=False,
+            min_annotations=1,
+            max_annotations=4,
+            mask_maker=mask_maker,
+        )
+        assert len(dataset.keys) == 1
+        assert len(dataset) == 1
+
+    def test_getitem_crop_none_inference_true(self, via_project):
+        dataset = data.CamfiDataset(
+            root="camfi/test/data", via_project=via_project, inference_mode=True,
+        )
+        image, target = dataset[0]
+        assert image.shape == (3, 3456, 4608)
+        assert image.dtype == float32
+
+    def test_getitem_cropped_inference_true(self, via_project):
+        dataset = data.CamfiDataset(
+            root="camfi/test/data",
+            via_project=via_project,
+            inference_mode=True,
+            crop=[5, 10, 55, 50],
+        )
+        image, target = dataset[0]
+        assert image.shape == (3, 40, 50)
+        assert image.dtype == float32
+
+    def test_getitem_cropped_inference_false(self, via_project, mask_maker):
+        dataset = data.CamfiDataset(
+            root="camfi/test/data",
+            via_project=via_project,
+            inference_mode=False,
+            crop=[0, 0, 4608, 3312],
+            mask_maker=data.MaskMaker(shape=(3312, 4608)),
+        )
+        dataset_transformed = data.CamfiDataset(
+            root="camfi/test/data",
+            via_project=via_project,
+            inference_mode=False,
+            crop=[0, 0, 4608, 3312],
+            mask_maker=data.MaskMaker(shape=(3312, 4608), mask_dilate=1),
+            transform=MockImageTransform(),
+        )
+        image, target = dataset[0]
+        image_transformed, target_transformed = dataset_transformed[0]
+        assert image_transformed.allclose(image + 1.0)
+        assert image_transformed.dtype == float32
+        assert target_transformed.masks[0].sum() > target.masks[0].sum()

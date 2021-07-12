@@ -1,9 +1,7 @@
-from typing import Dict, Tuple
-
 from pytest import approx, fixture, raises
 from torch import Tensor, zeros
 
-from camfi.data import ImageTransform, Target
+from camfi.data import Target
 from camfi import transform
 from camfi.test.test_data import (
     target_dict,
@@ -14,6 +12,7 @@ from camfi.test.test_data import (
     area,
     iscrowd,
     masks,
+    MockImageTransform,
 )
 
 
@@ -25,14 +24,6 @@ def random_horizontal_flip(request):
 @fixture
 def image_tensor():
     return Tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-
-
-class MockImageTransform(ImageTransform):
-    def apply_to_tensor_dict(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
-        image = image + 1.0
-        return image, target
 
 
 class TestCompose:
