@@ -1,3 +1,5 @@
+import bz2
+
 from pydantic import ValidationError
 from pytest import approx, fixture, raises
 from torch import tensor, Tensor, zeros
@@ -236,6 +238,50 @@ class TestViaRegion:
             shape_attributes=point_shape_attributes,
         )
         assert region.get_bounding_box() == point_shape_attributes.get_bounding_box()
+
+
+class TestViaMetadata:
+    def test_get_bounding_boxes(self):
+        pass
+
+    def test_get_labels(self):
+        pass
+
+    def test_get_iscrowd(self):
+        pass
+
+
+class TestViaProject:
+    def test_parse_empty_file(self):
+        with open("camfi/test/data/empty_project.json") as f:
+            via_project_raw = f.read()
+
+        data.ViaProject.parse_raw(via_project_raw)
+
+    def test_parse_no_annotations(self):
+        with open("camfi/test/data/sample_project_no_annotations.json") as f:
+            via_project_raw = f.read()
+
+        data.ViaProject.parse_raw(via_project_raw)
+
+    def test_parse_no_metadata(self):
+        with open("camfi/test/data/sample_project_no_metadata.json") as f:
+            via_project_raw = f.read()
+
+        data.ViaProject.parse_raw(via_project_raw)
+
+    def test_parse_bz2(self):
+        with bz2.open("examples/data/cabramurra_all_annotations.json.bz2") as f:
+            via_project_raw = f.read()
+
+        data.ViaProject.parse_raw(via_project_raw)
+
+    def test_parse_fails(self):
+        with open("camfi/test/data/sample_project_no_metadata_malformed.json") as f:
+            via_project_raw = f.read()
+
+        with raises(ValidationError):
+            data.ViaProject.parse_raw(via_project_raw)
 
 
 class TestMaskMaker:

@@ -1,0 +1,251 @@
+{
+  "_via_attributes": {
+    "file": {},
+    "region": {}
+  },
+  "_via_img_metadata": {
+    "2019-11_cabramurra/0001/DSCF0010.JPG-1": {
+      "file_attributes": {},
+      "filename": "2019-11_cabramurra/0001/DSCF0010.JPG",
+      "regions": [
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              3469,
+              3973,
+              4252
+            ],
+            "all_points_y": [
+              2170,
+              1750,
+              1535
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              3589,
+              3913,
+              4140,
+              4264
+            ],
+            "all_points_y": [
+              1107,
+              1095,
+              1083,
+              1079
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              2582,
+              2945,
+              3241
+            ],
+            "all_points_y": [
+              1894,
+              1870,
+              1850
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "cx": 140,
+            "cy": 1047,
+            "name": "circle",
+            "r": 238
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              2806,
+              3253,
+              3513
+            ],
+            "all_points_y": [
+              156,
+              244,
+              308
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              1467,
+              1814,
+              1994
+            ],
+            "all_points_y": [
+              863,
+              823,
+              791
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              1215,
+              1435,
+              1531,
+              1615
+            ],
+            "all_points_y": [
+              1079,
+              1007,
+              991,
+              979
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              1910,
+              2518
+            ],
+            "all_points_y": [
+              1663,
+              1727
+            ],
+            "name": "polyline"
+          }
+        }
+      ],
+      "size": -1
+    },
+    "2019-11_cabramurra/0001/DSCF0011.JPG-1": {
+      "file_attributes": {},
+      "filename": "2019-11_cabramurra/0001/DSCF0011.JPG",
+      "regions": [],
+      "size": -1
+    },
+    "2019-11_cabramurra/0001/DSCF0012.JPG-1": {
+      "file_attributes": {},
+      "filename": "2019-11_cabramurra/0001/DSCF0012.JPG",
+      "regions": [
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              3857,
+              4080,
+              4312,
+              4540
+            ],
+            "all_points_y": [
+              1039,
+              1055,
+              1103,
+              1159
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              2666,
+              3009
+            ],
+            "all_points_y": [
+              1499,
+              1547
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              3017,
+              3221,
+              3369
+            ],
+            "all_points_y": [
+              1730,
+              1723,
+              1734
+            ],
+            "name": "polyline"
+          }
+        },
+        {
+          "region_attributes": {},
+          "shape_attributes": {
+            "all_points_x": [
+              3149,
+              3385,
+              3597
+            ],
+            "all_points_y": [
+              1962,
+              1938,
+              1926
+            ],
+            "name": "polyline"
+          }
+        }
+      ],
+      "size": -1
+    },
+    "2019-11_cabramurra/0010/DSCF0864.JPG-1": {
+      "file_attributes": {},
+      "filename": "2019-11_cabramurra/0010/DSCF0864.JPG",
+      "regions": [],
+      "size": -1
+    }
+  },
+  "_via_settings": {
+    "core": {
+      "buffer_size": 18,
+      "default_filepath": "",
+      "filepath": {}
+    },
+    "project": {
+      "name": "therese_annotation_project_2019-11_cabramurra/0010/DSCF0864"
+    },
+    "ui": {
+      "annotation_editor_fontsize": 0.8,
+      "annotation_editor_height": 25,
+      "image": {
+        "on_image_annotation_editor_placement": "NEAR_REGION",
+        "region_color": "__via_default_region_color__",
+        "region_label": "__via_region_id__",
+        "region_label_font": "10px Sans"
+      },
+      "image_grid": {
+        "img_height": 80,
+        "rshape_fill": "none",
+        "rshape_fill_opacity": 0.3,
+        "rshape_stroke": "yellow",
+        "rshape_stroke_width": 2,
+        "show_image_policy": "all",
+        "show_region_shape": true
+      },
+      "leftsidebar_width": 18
+    }
+  }
+}

@@ -21,7 +21,7 @@ from pydantic import (
 from skimage import draw
 from torch import stack, tensor, Tensor, zeros
 from torch.utils.data import Dataset
-from torchvision.io import read_image
+import torchvision.io
 
 from camfi.util import smallest_enclosing_circle, dilate_idx
 
@@ -33,6 +33,13 @@ class ViaFileAttributes(BaseModel):
     location: Optional[str]
     pixel_x_dimension: Optional[PositiveInt]
     pixel_y_dimension: Optional[PositiveInt]
+
+    @validator("datetime_corrected", "datetime_original", pre=True)
+    def valid_datetime_str(cls, v):
+        try:
+            return datetime.fromisoformat(v)
+        except ValueError:
+            return datetime.strptime(v, "%Y:%m:%d %H:%M:%S")
 
 
 class ViaRegionAttributes(BaseModel):
@@ -147,6 +154,35 @@ class ViaMetadata(BaseModel):
     regions: List[ViaRegion]
     size: int = -1
 
+    def get_bounding_boxes(self) -> List[BoundingBox]:
+        """Calls .get_bounding_box on each region in self.regions.
+
+        Returns
+        -------
+        List[BoundingBox]
+        """
+        return [region.get_bounding_box() for region in self.regions]
+
+    def get_labels(self) -> List[PositiveInt]:
+        """Gets a list full of 1's with same length as self.regions
+
+        Returns
+        -------
+        List[int]
+            [1, 1, 1, ...]
+        """
+        return [1 for _ in range(len(self.regions))]
+
+    def get_iscrowd(self) -> List[int]:
+        """Gets a list full of 0's with same length as self.regions
+
+        Returns
+        -------
+        List[int]
+            [0, 0, 0, ...]
+        """
+        return [0 for _ in range(len(self.regions))]
+
 
 class ViaProject(BaseModel):
     via_attributes: Dict
@@ -218,6 +254,21 @@ class MaskMaker:
 
         return mask
 
+    def get_masks(self, metadata: ViaMetadata) -> List[Tensor]:
+        """Calls self.get_mask on all regions in metadata
+
+        Parameters
+        ----------
+        metadata : ViaMetadata
+            has a field called "regions"
+
+        Returns
+        -------
+        List[Tensor]
+            list of masks
+        """
+        return [self.get_mask(region.shape_attributes) for region in metadata.regions]
+
 
 class BoundingBox(BaseModel):
     x0: NonNegativeInt
@@ -262,6 +313,9 @@ class BoundingBox(BaseModel):
             self.y0 = min(shape[0], self.y0)
             self.x1 = min(shape[1], self.x1)
             self.y1 = min(shape[0], self.y1)
+
+    def get_area(self) -> PositiveInt:
+        return (self.x1 - self.x0) * (self.y1 - self.y0)
 
 
 class Target(BaseModel):
@@ -324,6 +378,27 @@ class Target(BaseModel):
             masks=list(tensor_dict["masks"]),
         )
 
+    @classmethod
+    def empty(cls, image_id: NonNegativeInt = 0) -> Target:
+        """Initialises a Target with and image_id but no other data.
+
+        Parameters
+        ----------
+        image_id : NonNegativeInt
+
+        Returns
+        -------
+        Target
+
+        Examples
+        --------
+        >>> Target.empty()
+        Target(boxes=[], labels=[], image_id=0, area=[], iscrowd=[], masks=[])
+        """
+        return Target(
+            boxes=[], labels=[], image_id=image_id, area=[], iscrowd=[], masks=[]
+        )
+
 
 class ImageTransform(BaseModel, ABC):
     """Abstract base class for transforms on images with segmentation data."""
@@ -340,16 +415,106 @@ class ImageTransform(BaseModel, ABC):
         image and target dict."""
 
 
+def read_image(path: Path) -> Tensor:
+    """Read an image from a file
+
+    Parameters
+    ----------
+    path: Path
+        path to file
+
+    Returns
+    -------
+    Tensor[colour, height (y), width (x)]
+        image as RGB float32 tensor
+
+    Examples
+    --------
+    >>> image = read_image("examples/data/calibration_img0.jpg")
+    >>> image.shape == (3, 3456, 4608)
+    True
+    >>> image.dtype
+    torch.float32
+    """
+    image = torchvision.io.read_image(path, mode=torchvision.io.image.ImageReadMode.RGB)
+    return image / 255  # Converts from uint8 to float32
+
+
 class CamfiDataset(BaseModel, Dataset):
     root: Path
-    transforms: ImageTransform
     via_project: ViaProject
-    crop: Optional[Tuple[int, int, int, int]] = None
-    mask_makers: Dict[str, MaskMaker]
+    crop: Optional[Tuple[int, int, int, int]] = None  # [x0, y0, x1, y1]
+
+    inference_mode: bool = False
+
+    # Only set if inference_mode = False
+    mask_maker: Optional[MaskMaker] = None
+    transform: Optional[ImageTransform] = None
     min_annotations: int = 0
     max_annotations: float = inf
-    inference_mode: bool = False
-    exclude: Optional[set] = None
+
+    # Optionally exclude some files
+    exclude: set = None  # type: ignore[assignment]
+
+    # Automatically generated. No need to set.
+    keys: List = None  # type: ignore[assignment]
 
     class Config:
         arbitrary_types_allowed = True
+
+    @validator("exclude", pre=True, always=True)
+    def default_exclude(cls, v):
+        if v is None:
+            return set()
+        return v
+
+    @validator("transform", "min_annotations", "max_annotations")
+    def only_set_if_not_inference_mode(cls, v, values):
+        if "inference_mode" in values and values["inference_mode"] is True:
+            assert v in {0, inf, None}, "Only set if inference_mode=False"
+
+    @validator("mask_maker")
+    def set_iff_not_inference_mode(cls, v, values):
+        if "inference_mode" in values and values["inference_mode"] is True:
+            assert v is None, "Only set if inference_mode=False"
+        else:
+            assert isinstance(v, MaskMaker), "Must be set if inference_mode=False"
+
+    @validator("keys", pre=True, always=True)
+    def generate_filtered_keys(cls, v, values):
+        return list(
+            dict(
+                filter(
+                    lambda e: e[1].filename not in values["exclude"]
+                    and values["min_annotations"]
+                    <= len(e[1].regions)
+                    <= values["max_annotations"],
+                    values["via_project"].via_img_metadata.items(),
+                )
+            )
+        )
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Target]:
+        metadata = self.via_project.via_img_metadata[self.keys[idx]]
+        image = read_image(self.root / metadata.filename)
+
+        if self.crop is not None:
+            image = image[:, self.crop[1] : self.crop[3], self.crop[0] : self.crop[2]]
+
+        if self.inference_mode:
+            target = Target.empty(image_id=idx)
+        else:  # Training mode
+            boxes = metadata.get_bounding_boxes()
+            target = Target(
+                boxes=boxes,
+                labels=metadata.get_labels(),
+                image_id=idx,
+                area=[box.get_area() for box in boxes],
+                iscrowd=metadata.get_iscrowd(),
+                masks=self.mask_maker.get_masks(metadata),  # type: ignore[union-attr]
+            )
+
+            if self.transform is not None:
+                image, target = self.transform(image, target)
+
+        return image, target
