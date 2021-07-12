@@ -57,6 +57,15 @@ class ViaShapeAttributes(BaseModel, ABC):
         Note that CircleShapeAttributes are treated like PointShapeAttributes (i.e. r is
         ignored)."""
 
+    @abstractmethod
+    def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if all points in self are within bounding box.
+
+        Parameters
+        ----------
+        box: BoundingBox
+        """
+
 
 class PointShapeAttributes(ViaShapeAttributes):
     cx: NonNegativeFloat
@@ -67,6 +76,29 @@ class PointShapeAttributes(ViaShapeAttributes):
         return BoundingBox(
             x0=int(self.cx), y0=int(self.cy), x1=int(self.cx) + 1, y1=int(self.cy) + 1
         )
+
+    def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if all points in self are within bounding box.
+
+        Parameters
+        ----------
+        box: BoundingBox
+
+        Examples
+        --------
+        >>> point = PointShapeAttributes(cx=2, cy=13)
+        >>> point.in_box(BoundingBox(x0=2, y0=13, x1=4, y1=15))
+        True
+        >>> point.in_box(BoundingBox(x0=3, y0=13, x1=4, y1=15))
+        False
+        >>> point.in_box(BoundingBox(x0=2, y0=14, x1=4, y1=15))
+        False
+        >>> point.in_box(BoundingBox(x0=1, y0=13, x1=2, y1=15))
+        False
+        >>> point.in_box(BoundingBox(x0=2, y0=12, x1=4, y1=13))
+        False
+        """
+        return self.get_bounding_box().in_box(box)
 
 
 class CircleShapeAttributes(ViaShapeAttributes):
@@ -80,6 +112,29 @@ class CircleShapeAttributes(ViaShapeAttributes):
 
     def get_bounding_box(self) -> BoundingBox:
         return self.as_point().get_bounding_box()
+
+    def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if all points in self are within bounding box.
+
+        Parameters
+        ----------
+        box: BoundingBox
+
+        Examples
+        --------
+        >>> circle = CircleShapeAttributes(cx=2, cy=13, r=10)
+        >>> circle.in_box(BoundingBox(x0=2, y0=13, x1=4, y1=15))
+        True
+        >>> circle.in_box(BoundingBox(x0=3, y0=13, x1=4, y1=15))
+        False
+        >>> circle.in_box(BoundingBox(x0=2, y0=14, x1=4, y1=15))
+        False
+        >>> circle.in_box(BoundingBox(x0=1, y0=13, x1=2, y1=15))
+        False
+        >>> circle.in_box(BoundingBox(x0=2, y0=12, x1=4, y1=13))
+        False
+        """
+        return self.get_bounding_box().in_box(box)
 
 
 class PolylineShapeAttributes(ViaShapeAttributes):
@@ -137,6 +192,32 @@ class PolylineShapeAttributes(ViaShapeAttributes):
             x0=int(x_min), y0=int(y_min), x1=int(x_max) + 1, y1=int(y_max) + 1
         )
 
+    def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if all points in self are within bounding box.
+
+        Parameters
+        ----------
+        box: BoundingBox
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 3],
+        ...     all_points_y=[15, 13],
+        ... )
+        >>> polyline.in_box(BoundingBox(x0=1, y0=13, x1=4, y1=16))
+        True
+        >>> polyline.in_box(BoundingBox(x0=2, y0=13, x1=4, y1=16))
+        False
+        >>> polyline.in_box(BoundingBox(x0=1, y0=14, x1=4, y1=16))
+        False
+        >>> polyline.in_box(BoundingBox(x0=1, y0=13, x1=3, y1=16))
+        False
+        >>> polyline.in_box(BoundingBox(x0=1, y0=13, x1=4, y1=15))
+        False
+        """
+        return self.get_bounding_box().in_box(box)
+
 
 class ViaRegion(BaseModel):
     region_attributes: ViaRegionAttributes
@@ -146,6 +227,36 @@ class ViaRegion(BaseModel):
 
     def get_bounding_box(self) -> BoundingBox:
         return self.shape_attributes.get_bounding_box()
+
+    def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if all points in region are within bounding box.
+
+        Parameters
+        ----------
+        box: BoundingBox
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 3],
+        ...     all_points_y=[15, 13],
+        ... )
+        >>> region = ViaRegion(
+        ...     region_attributes=ViaRegionAttributes(),
+        ...     shape_attributes=polyline,
+        ... )
+        >>> region.in_box(BoundingBox(x0=1, y0=13, x1=4, y1=16))
+        True
+        >>> region.in_box(BoundingBox(x0=2, y0=13, x1=4, y1=16))
+        False
+        >>> region.in_box(BoundingBox(x0=1, y0=14, x1=4, y1=16))
+        False
+        >>> region.in_box(BoundingBox(x0=1, y0=13, x1=3, y1=16))
+        False
+        >>> region.in_box(BoundingBox(x0=1, y0=13, x1=4, y1=15))
+        False
+        """
+        return self.shape_attributes.in_box(box)
 
 
 class ViaMetadata(BaseModel):
@@ -290,6 +401,37 @@ class BoundingBox(BaseModel):
             raise ValueError("x1 and y1 must be larger than x0 and y0")
         return v
 
+    @classmethod
+    def from_shape(
+        self, shape: Tuple[PositiveInt, PositiveInt], border: NonNegativeInt = 0
+    ) -> BoundingBox:
+        """Creates an instance of BoundingBox from an image shape, useful for defining
+        a region of interest within an image, not too close to the edge.
+
+        Parameters
+        ----------
+        shape: Tuple[PositiveInt, PositiveInt]
+            shape of image (height, width)
+        border: NonNegativeInt
+            width of border. If 0 (default), then the bounding box will contain the
+            entire image.
+
+        Returns
+        -------
+        BoundingBox
+
+        Examples
+        --------
+        >>> BoundingBox.from_shape((10, 15))
+        BoundingBox(x0=0, y0=0, x1=16, y1=11)
+
+        >>> BoundingBox.from_shape((10, 15), border=3)
+        BoundingBox(x0=3, y0=3, x1=13, y1=8)
+        """
+        return BoundingBox(
+            x0=border, y0=border, x1=shape[1] + 1 - border, y1=shape[0] + 1 - border
+        )
+
     def add_margin(
         self,
         margin: NonNegativeInt,
@@ -318,6 +460,14 @@ class BoundingBox(BaseModel):
 
     def get_area(self) -> PositiveInt:
         return (self.x1 - self.x0) * (self.y1 - self.y0)
+
+    def in_box(self, box: BoundingBox) -> bool:
+        return (
+            self.x0 >= box.x0
+            and self.y0 >= box.y0
+            and self.x1 <= box.x1
+            and self.y1 <= box.y1
+        )
 
 
 class Target(BaseModel):
