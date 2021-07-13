@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import inf
 from pathlib import Path
 import random
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
+import exif
 from multimethod import multimethod
 from pydantic import (
     BaseModel,
@@ -294,6 +295,102 @@ class ViaMetadata(BaseModel):
         """
         return [0 for _ in range(len(self.regions))]
 
+    def load_exif_metadata(
+        self,
+        location: Optional[str] = None,
+        datetime_corrector: Optional[Callable[[datetime], datetime]] = None,
+    ) -> None:
+        """Extract EXIF metadata from an image file and put it in self.file_attributes.
+        Note: this will overwrite all contents in self.file_attributes.
+
+        Parameters
+        ----------
+        location: Optional[str]
+            Option to also apply a location
+        datetime_corrector: Optional[Callable[[datetime], datetime]]
+            If set, then will be used to calculate datetime_corrected
+
+        EXIF tags loaded
+        ----------------
+        datetime_original: datetime
+        exposure_time: PositiveFloat
+        pixel_x_dimension: PositiveInt
+        pixel_Y_dimension: PositiveInt
+
+        Extra tags
+        ----------
+        datetime_corrected: datetime
+            if datetime_corrector is set, this is calculated by
+            calling datetime_corrector(datetime_original).
+        location: str
+            set if location is set
+
+        Returns
+        -------
+        None (operates in place)
+
+        Examples
+        --------
+        >>> metadata = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="camfi/test/data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> metadata.load_exif_metadata()
+        >>> metadata.file_attributes.datetime_original
+        datetime.datetime(2019, 11, 14, 20, 30, 29)
+        >>> print(round(metadata.file_attributes.exposure_time, 6))
+        0.111111
+        >>> metadata.file_attributes.pixel_y_dimension
+        3456
+        >>> metadata.file_attributes.pixel_x_dimension
+        4608
+
+        If location is set, this will be reflected
+        >>> metadata = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="camfi/test/data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> metadata.load_exif_metadata(location="cabramurra")
+        >>> metadata.file_attributes.location
+        'cabramurra'
+
+        If a time correction needs to be made (for example if the camera's clock is
+        known to have been incorrectly set), then we can correct the datetime by
+        supplying a function to the `datetime_corrector` parameter.
+        >>> metadata = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="camfi/test/data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> metadata.load_exif_metadata(
+        ...     datetime_corrector=lambda dt: dt - timedelta(days=30)
+        ... )
+        >>> metadata.file_attributes.datetime_original
+        datetime.datetime(2019, 11, 14, 20, 30, 29)
+        >>> metadata.file_attributes.datetime_corrected
+        datetime.datetime(2019, 10, 15, 20, 30, 29)
+        """
+        with open(self.filename, "rb") as image_file:
+            image = exif.Image(image_file)
+
+        self.file_attributes = ViaFileAttributes(
+            datetime_original=image.datetime_original,
+            exposure_time=image.exposure_time,
+            pixel_x_dimension=image.pixel_x_dimension,
+            pixel_y_dimension=image.pixel_y_dimension,
+            location=location,
+        )
+
+        if (
+            datetime_corrector is not None
+            and self.file_attributes.datetime_original is not None
+        ):
+            self.file_attributes.datetime_corrected = datetime_corrector(
+                self.file_attributes.datetime_original
+            )
+
 
 class ViaProject(BaseModel):
     via_attributes: Dict
@@ -467,6 +564,55 @@ class BoundingBox(BaseModel):
             and self.y0 >= box.y0
             and self.x1 <= box.x1
             and self.y1 <= box.y1
+        )
+
+    def overlaps(self, box: BoundingBox) -> bool:
+        """Returns True if two bounding boxes overlap, and False otherwise
+
+        Parameters
+        ----------
+        box: BoundingBox
+            another bounding box to compare to
+
+        Returns
+        -------
+        bool
+
+        Examples
+        --------
+        >>> box0 = BoundingBox(x0=0, y0=0, x1=1, y1=1)
+        >>> box1 = BoundingBox(x0=2, y0=2, x1=3, y1=3)
+        >>> box2 = BoundingBox(x0=0, y0=0, x1=2, y1=2)
+        >>> box3 = BoundingBox(x0=1, y0=1, x1=3, y1=3)
+        >>> box0.overlaps(box1)
+        False
+        >>> box2.overlaps(box3)
+        True
+
+        Overlaps can happen in either dimension:
+
+        >>> box0 = BoundingBox(x0=0, y0=0, x1=2, y1=2)
+        >>> box1 = BoundingBox(x0=0, y0=1, x1=1, y1=3)
+        >>> box2 = BoundingBox(x0=1, y0=0, x1=3, y1=1)
+        >>> box3 = BoundingBox(x0=0, y0=2, x1=2, y1=4)
+        >>> box4 = BoundingBox(x0=2, y0=0, x1=4, y1=2)
+        >>> box0.overlaps(box1)
+        True
+        >>> box0.overlaps(box2)
+        True
+
+        Overlaps are not inclusive of edges:
+
+        >>> box0.overlaps(box3)
+        False
+        >>> box0.overlaps(box4)
+        False
+        """
+        return (
+            self.x0 < box.x1
+            and self.y0 < box.y1
+            and self.x1 > box.x0
+            and self.y1 > box.y0
         )
 
 
