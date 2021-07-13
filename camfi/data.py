@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from math import inf
+from math import atan2, cos, inf, sin, sqrt
 from pathlib import Path
 import random
 from typing import Callable, Dict, List, Optional, Tuple, Union
@@ -20,7 +20,8 @@ from pydantic import (
     validator,
 )
 from skimage import draw
-from torch import stack, tensor, Tensor, zeros
+from skimage.transform import EuclideanTransform, warp
+from torch import from_numpy, hstack, stack, tensor, Tensor, zeros
 from torch.utils.data import Dataset
 import torchvision.io
 
@@ -218,6 +219,121 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         False
         """
         return self.get_bounding_box().in_box(box)
+
+    def extract_region_of_interest(
+        self, image: Tensor, scan_distance: PositiveInt
+    ) -> Tensor:
+        """Extracts region of interest (ROI) from an image tensor
+
+        Parameters
+        ----------
+        image: Tensor
+            image to extract region of interest from. Should be greyscale (ie. just have
+            two axes)
+        scan_distance : PositiveInt
+            half-width of rois for motion blurs
+
+        Returns
+        -------
+        Tensor
+           Region of interest
+
+        Examples
+        --------
+        >>> image = tensor([
+        ...     [0.0, 0.1, 0.2, 0.3, 0.4],
+        ...     [1.0, 1.1, 1.2, 1.3, 1.4],
+        ...     [2.0, 2.1, 2.2, 2.3, 2.4],
+        ...     [3.0, 3.1, 3.2, 3.3, 3.4],
+        ...     [4.0, 4.1, 4.2, 4.3, 4.4],
+        ... ])
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 4],
+        ...     all_points_y=[2, 2],
+        ... )
+        >>> polyline.extract_region_of_interest(image, 1)
+        tensor([[2.1000, 2.2000, 2.3000]])
+        >>> polyline.extract_region_of_interest(image, 2)
+        tensor([[1.1000, 1.2000, 1.3000],
+                [2.1000, 2.2000, 2.3000],
+                [3.1000, 3.2000, 3.3000]])
+
+        Also works for multi-segment polylines
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 2, 4],
+        ...     all_points_y=[2, 2, 2],
+        ... )
+        >>> polyline.extract_region_of_interest(image, 1)
+        tensor([[2.1000, 2.2000, 2.3000]])
+        >>> polyline.extract_region_of_interest(image, 2)
+        tensor([[1.1000, 1.2000, 1.3000],
+                [2.1000, 2.2000, 2.3000],
+                [3.1000, 3.2000, 3.3000]])
+
+        Segments can have different angles to each other
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 3, 3],
+        ...     all_points_y=[2, 2, 0],
+        ... )
+        >>> polyline.extract_region_of_interest(image, 1)
+        tensor([[2.1000, 2.2000, 2.3000, 1.3000]])
+        >>> polyline.extract_region_of_interest(image, 2)
+        tensor([[1.1000, 1.2000, 2.2000, 1.2000],
+                [2.1000, 2.2000, 2.3000, 1.3000],
+                [3.1000, 3.2000, 2.4000, 1.4000]])
+
+        And segments can be at arbitrary angles. This example starts towards the top-
+        right corner and travels towards the bottom-left.
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[3, 0],
+        ...     all_points_y=[1, 4],
+        ... )
+        >>> polyline.extract_region_of_interest(image, 2)
+        tensor([[2.0778, 2.7142, 3.3506, 3.9870],
+                [1.3000, 1.9364, 2.5728, 3.2092],
+                [0.5222, 1.1586, 1.7950, 2.4314]])
+
+        And this one from the top-left, heading down and left
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[1, 4],
+        ...     all_points_y=[1, 4],
+        ... )
+        >>> polyline.extract_region_of_interest(image, 2)
+        tensor([[0.4636, 1.2414, 2.0192, 2.7971],
+                [1.1000, 1.8778, 2.6556, 3.4335],
+                [1.7364, 2.5142, 3.2920, 4.0698]])
+        """
+
+        def pair(items):
+            return zip(items[:-1], items[1:])
+
+        img = image.numpy()  # Using skimage, which operates on numpy arrays
+
+        sections = []
+        for (x0, x1), (y0, y1) in zip(pair(self.all_points_x), pair(self.all_points_y)):
+            # Calculate angle of section
+            rotation = atan2(y1 - y0, x1 - x0)
+
+            # Calculate upper corner of ROI
+            x_translation = x0 + (scan_distance - 1) * sin(rotation)
+            y_translation = y0 - (scan_distance - 1) * cos(rotation)
+
+            # Rotate and translate image
+            transform_matrix = EuclideanTransform(
+                rotation=rotation, translation=(x_translation, y_translation)
+            )
+            warped_img = warp(img, transform_matrix)
+
+            # Crop rotated image to ROI
+            section_length = int(round(sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)))
+            cropped_img = warped_img[: 2 * scan_distance - 1, :section_length]
+
+            sections.append(from_numpy(cropped_img))  # Convert back to Tensor
+
+        # Join sections to form complete ROI
+        joined_img = hstack(sections)
+
+        return joined_img
 
 
 class ViaRegion(BaseModel):
@@ -556,9 +672,37 @@ class BoundingBox(BaseModel):
             self.y1 = min(shape[0], self.y1)
 
     def get_area(self) -> PositiveInt:
+        """Get the area enclosed by self.
+
+        Returns
+        -------
+        PositiveInt
+            area
+
+        Examples
+        --------
+        >>> box = BoundingBox(x0=0, y0=1, x1=2, y1=3)
+        >>> box.get_area()
+        4
+        """
         return (self.x1 - self.x0) * (self.y1 - self.y0)
 
     def in_box(self, box: BoundingBox) -> bool:
+        """Returns True if self is contained in box
+
+        Examples
+        --------
+        >>> box0 = BoundingBox(x0=1, y0=2, x1=3, y1=4)
+        >>> box1 = BoundingBox(x0=0, y0=1, x1=4, y1=5)
+        >>> box0.in_box(box1)
+        True
+        >>> box1.in_box(box0)
+        False
+
+        A box is always in itself
+        >>> box0.in_box(box0)
+        True
+        """
         return (
             self.x0 >= box.x0
             and self.y0 >= box.y0
@@ -614,6 +758,83 @@ class BoundingBox(BaseModel):
             and self.x1 > box.x0
             and self.y1 > box.y0
         )
+
+    def intersection(self, box: BoundingBox) -> NonNegativeInt:
+        """Get the intersectional area of two boxes
+
+        Parameters
+        ----------
+        box: BoundingBox
+            another bounding box to compare to
+
+        Returns
+        -------
+        NonNegativeInt
+            Area of intersection of two boxes
+
+        Examples
+        --------
+        >>> box0 = BoundingBox(x0=0, y0=0, x1=1, y1=1)
+        >>> box1 = BoundingBox(x0=2, y0=2, x1=3, y1=3)
+        >>> box2 = BoundingBox(x0=0, y0=0, x1=2, y1=2)
+        >>> box3 = BoundingBox(x0=1, y0=1, x1=3, y1=3)
+        >>> box0.intersection(box1)
+        0
+        >>> box2.intersection(box3)
+        1
+
+        Intersection is commutative
+        >>> from itertools import product
+        >>> pairs = product([box0, box1, box2, box3], repeat=2)
+        >>> all(b0.intersection(b1) == b1.intersection(b0) for b0, b1 in pairs)
+        True
+        """
+        if self.overlaps(box):
+            return BoundingBox(
+                x0=max(self.x0, box.x0),
+                y0=max(self.y0, box.y0),
+                x1=min(self.x1, box.x1),
+                y1=min(self.y1, box.y1),
+            ).get_area()
+        return 0
+
+    def intersection_over_union(self, box: BoundingBox) -> NonNegativeFloat:
+        """Get the intersection over union of two boxes
+
+        Parameters
+        ----------
+        box: BoundingBox
+            another bounding box to compare to
+
+        Returns
+        -------
+        NonNegativeFloat
+            Intersection over Union of two boxes, between 0.0 and 1.0
+
+        Examples
+        --------
+        >>> box0 = BoundingBox(x0=0, y0=0, x1=1, y1=1)
+        >>> box1 = BoundingBox(x0=2, y0=2, x1=3, y1=3)
+        >>> box2 = BoundingBox(x0=0, y0=0, x1=2, y1=2)
+        >>> box3 = BoundingBox(x0=1, y0=1, x1=3, y1=3)
+        >>> box0.intersection_over_union(box1)
+        0.0
+        >>> box2.intersection_over_union(box3)
+        0.125
+
+        Intersection over union is commutative
+        >>> from itertools import product
+        >>> pairs = product([box0, box1, box2, box3], repeat=2)
+        >>> all(
+        ...     b0.intersection_over_union(b1) == b1.intersection_over_union(b0)
+        ...     for b0, b1 in pairs
+        ... )
+        True
+        """
+        intersection = self.intersection(box)
+        union = self.get_area() + box.get_area()
+
+        return intersection / union
 
 
 class Target(BaseModel):
