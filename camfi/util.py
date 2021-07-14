@@ -1,8 +1,17 @@
+import functools
 import itertools
 from math import sqrt
-from typing import Iterable, Optional, Sequence, Tuple, Union
+from typing import Callable, Iterable, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
+
+
+# Hack to get cache decorator to play nice with mypy
+T = TypeVar("T")
+
+
+def cache(func: Callable[..., T]) -> T:
+    return functools.lru_cache(maxsize=None)(func)  # type: ignore
 
 
 def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, float]:

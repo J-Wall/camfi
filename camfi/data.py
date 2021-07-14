@@ -46,6 +46,33 @@ class ViaFileAttributes(BaseModel):
 
 class ViaRegionAttributes(BaseModel):
     score: Optional[float] = Field(None, ge=0, le=1)
+    best_peak: Optional[int] = Field(
+        None, gt=0, description="period of wingbeat in pixels"
+    )
+    blur_length: Optional[float] = Field(
+        None, gt=0.0, description="length of motion blur in pixels"
+    )
+    snr: Optional[float] = Field(None, description="signal to noise ratio of best peak")
+    wb_freq_up: Optional[float] = Field(
+        None,
+        ge=0.0,
+        description="wingbeat frequency estimate, assuming upward motion (and zero body-length)",
+    )
+    wb_freq_down: Optional[float] = Field(
+        None,
+        ge=0.0,
+        description="wingbeat frequency estimate, assuming downward motion (and zero body-length)",
+    )
+    et_up: Optional[float] = Field(
+        None,
+        ge=0.0,
+        description="corrected moth exposure time, assuming upward motion",
+    )
+    et_dn: Optional[float] = Field(
+        None,
+        ge=0.0,
+        description="corrected moth exposure time, assuming downward motion",
+    )
 
 
 class ViaShapeAttributes(BaseModel, ABC):
@@ -67,6 +94,10 @@ class ViaShapeAttributes(BaseModel, ABC):
         ----------
         box: BoundingBox
         """
+
+    def y_diff(self):
+        bounding_box = self.get_bounding_box()
+        return bounding_box.y1 - bounding_box.y0 - 1
 
 
 class PointShapeAttributes(ViaShapeAttributes):
@@ -143,34 +174,6 @@ class PolylineShapeAttributes(ViaShapeAttributes):
     all_points_x: List[NonNegativeFloat]
     all_points_y: List[NonNegativeFloat]
     name: str = Field("polyline", regex=r"^polyline$")
-
-    best_peak: Optional[float] = Field(
-        None, gt=0.0, description="period of wingbeat in pixels"
-    )
-    blur_length: Optional[float] = Field(
-        None, gt=0.0, description="length of motion blur in pixels"
-    )
-    snr: Optional[float] = Field(None, description="signal to noise ratio of best peak")
-    wb_freq_up: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="wingbeat frequency estimate, assuming upward motion (and zero body-length)",
-    )
-    wb_freq_down: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="wingbeat frequency estimate, assuming downward motion (and zero body-length)",
-    )
-    et_up: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="corrected moth exposure time, assuming upward motion",
-    )
-    et_dn: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="corrected moth exposure time, assuming downward motion",
-    )
 
     @validator("all_points_y")
     def same_number_of_points_in_both_dimensions(cls, v, values):
@@ -342,6 +345,21 @@ class ViaRegion(BaseModel):
         PolylineShapeAttributes, CircleShapeAttributes, PointShapeAttributes
     ]
 
+    @validator("shape_attributes")
+    def only_polylines_get_wingbeat_data(cls, v, values):
+        if "region_attributes" in values and v.name != "polyline":
+            for field in [
+                values["region_attributes"].best_peak,
+                values["region_attributes"].blur_length,
+                values["region_attributes"].snr,
+                values["region_attributes"].wb_freq_up,
+                values["region_attributes"].wb_freq_down,
+                values["region_attributes"].et_up,
+                values["region_attributes"].et_dn,
+            ]:
+                assert field is None, "Wingbeat data is invalid for non-polylines"
+        return v
+
     def get_bounding_box(self) -> BoundingBox:
         return self.shape_attributes.get_bounding_box()
 
@@ -413,6 +431,7 @@ class ViaMetadata(BaseModel):
 
     def load_exif_metadata(
         self,
+        root: Path = Path(),
         location: Optional[str] = None,
         datetime_corrector: Optional[Callable[[datetime], datetime]] = None,
     ) -> None:
@@ -421,6 +440,10 @@ class ViaMetadata(BaseModel):
 
         Parameters
         ----------
+        root: Path
+            Root directory from which the relative path in self.filename is resolved.
+            Defaults to current working directory. If a str is passed it will be coerced
+            to a Path.
         location: Optional[str]
             Option to also apply a location
         datetime_corrector: Optional[Callable[[datetime], datetime]]
@@ -462,6 +485,18 @@ class ViaMetadata(BaseModel):
         >>> metadata.file_attributes.pixel_x_dimension
         4608
 
+        Optionally specify root directory. Here we are loading the same file, but using
+        a root parameter. Note that root may also be a relative path (as in this case).
+        Absolute paths are also acceptable.
+        >>> metadata_with_root = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> metadata_with_root.load_exif_metadata(root="camfi/test")
+        >>> metadata_with_root.file_attributes == metadata.file_attributes
+        True
+
         If location is set, this will be reflected
         >>> metadata = ViaMetadata(
         ...     file_attributes=ViaFileAttributes(),
@@ -488,7 +523,7 @@ class ViaMetadata(BaseModel):
         >>> metadata.file_attributes.datetime_corrected
         datetime.datetime(2019, 10, 15, 20, 30, 29)
         """
-        with open(self.filename, "rb") as image_file:
+        with open(Path(root) / self.filename, "rb") as image_file:
             image = exif.Image(image_file)
 
         self.file_attributes = ViaFileAttributes(
@@ -506,6 +541,51 @@ class ViaMetadata(BaseModel):
             self.file_attributes.datetime_corrected = datetime_corrector(
                 self.file_attributes.datetime_original
             )
+
+    def read_image(self, root: Path = Path()) -> Tensor:
+        """Read an image from a file
+
+        Parameters
+        ----------
+        root: Path
+            Root directory from which the relative path in self.filename is resolved.
+            Defaults to current working directory. If a str is passed it will be coerced
+            to a Path.
+
+        Returns
+        -------
+        Tensor[colour, height (y), width (x)]
+            image as RGB float32 tensor
+
+        Examples
+        --------
+        >>> metadata = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="camfi/test/data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> image = metadata.read_image()
+        >>> image.shape == (3, 3456, 4608)
+        True
+        >>> image.dtype
+        torch.float32
+
+        Optionally specify root directory. Here we are loading the same file, but using
+        a root parameter. Note that root may also be a relative path (as in this case).
+        Absolute paths are also acceptable.
+        >>> metadata_with_root = ViaMetadata(
+        ...     file_attributes=ViaFileAttributes(),
+        ...     filename="data/DSCF0010.JPG",
+        ...     regions=[],
+        ... )
+        >>> image_with_root = metadata_with_root.read_image(root="camfi/test")
+        >>> image_with_root.allclose(image)
+        True
+        """
+        image = torchvision.io.read_image(
+            str(Path(root) / self.filename), mode=torchvision.io.image.ImageReadMode.RGB
+        )
+        return image / 255  # Converts from uint8 to float32
 
 
 class ViaProject(BaseModel):
@@ -934,33 +1014,6 @@ class ImageTransform(BaseModel, ABC):
         image and target dict."""
 
 
-def read_image(path: Path) -> Tensor:
-    """Read an image from a file
-
-    Parameters
-    ----------
-    path: Path
-        path to file
-
-    Returns
-    -------
-    Tensor[colour, height (y), width (x)]
-        image as RGB float32 tensor
-
-    Examples
-    --------
-    >>> image = read_image(Path("examples/data/calibration_img0.jpg"))
-    >>> image.shape == (3, 3456, 4608)
-    True
-    >>> image.dtype
-    torch.float32
-    """
-    image = torchvision.io.read_image(
-        str(path), mode=torchvision.io.image.ImageReadMode.RGB
-    )
-    return image / 255  # Converts from uint8 to float32
-
-
 class CamfiDataset(BaseModel, Dataset):
     root: Path
     via_project: ViaProject
@@ -1021,7 +1074,7 @@ class CamfiDataset(BaseModel, Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Target]:
         metadata = self.via_project.via_img_metadata[self.keys[idx]]
-        image = read_image(self.root / metadata.filename)
+        image = metadata.read_image(root=self.root)
 
         if self.crop is not None:
             image = image[:, self.crop[1] : self.crop[3], self.crop[0] : self.crop[2]]
