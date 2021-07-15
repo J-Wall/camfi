@@ -46,10 +46,11 @@ def autocorrelation(roi: Tensor, max_pixel_period: PositiveInt) -> Tensor:
     std = roi.std(axis=0)  # type: ignore[call-overload]
 
     index = arange(roi.shape[1] - max_pixel_period, device=roi.device)
-    step, origin = meshgrid(index, index)
+    step, origin = meshgrid(index[: max_pixel_period + 1], index)
     step = step + origin
 
     autocovariance = (mean_diff[:, origin] * mean_diff[:, step]).mean(axis=0)
+
     denominator = std[origin] * std[step]
 
     return (autocovariance / denominator).nan_to_num().mean(axis=1)
@@ -159,6 +160,13 @@ class WingbeatExtractor(BaseModel):
         assert isinstance(self.metadata.file_attributes.exposure_time, float)
         return self.metadata.file_attributes.exposure_time
 
+    # In order to use the cache decorator, we need to define __eq__ and __hash__
+    def __eq__(self, other):
+        return self is other
+
+    def __hash__(self):
+        return id(self) // 16
+
     def process_blur(
         self, polyline: PolylineShapeAttributes, score: Optional[float] = None
     ) -> ViaRegionAttributes:
@@ -193,6 +201,9 @@ class WingbeatExtractor(BaseModel):
         # Find wingbeat peak
         best_peak, snr = find_best_peak(mean_autocorrelation)
 
+        if best_peak is None:  # Failed to find peak
+            return ViaRegionAttributes(score=score, blur_length=polyline.length())
+
         # Calculate wingbeat frequency from peak.
         # Note that due to the ambiguity in the direction of the moth's flight,
         # as well as rolling shutter, there are two possible frequency estimates,
@@ -201,20 +212,39 @@ class WingbeatExtractor(BaseModel):
         # respect to the camera's orientation.
         y_diff = polyline.y_diff()
         corrected_exposure_time = (
-            self.exposure_time + tensor([y_diff, -y_diff]) / self.line_rate
-        ).sort()
+            (self.exposure_time + tensor([y_diff, -y_diff]) / self.line_rate)
+            .sort()
+            .values
+        )
         period = [
-            arange(1, max_pixel_period) * et / roi.shape[1]
+            arange(1, max_pixel_period) * float(et) / roi.shape[1]
             for et in corrected_exposure_time
         ]
         wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
 
         return ViaRegionAttributes(
             score=score,
-            blur_length=roi.shape[1],
+            best_peak=best_peak,
+            blur_length=polyline.length(),
             snr=snr,
             wb_freq_up=wb_freq_up,
             wb_freq_down=wb_freq_down,
-            et_up=corrected_exposure_time[0],
-            et_dn=corrected_exposure_time[1],
+            et_up=float(corrected_exposure_time[0]),
+            et_dn=float(corrected_exposure_time[1]),
         )
+
+    def extract_wingbeats(self) -> None:
+        """Calls self.process_blur on the shape_attributes of all polyline regions in
+        self.metadata, replacing the region_attributes of those regions with ones
+        containing wingbeat data.
+        """
+        for region in filter(
+            lambda r: r.shape_attributes.name == "polyline", self.metadata.regions
+        ):
+            # Get parameters for self.process_blur
+            polyline = region.shape_attributes
+            assert isinstance(polyline, PolylineShapeAttributes)
+            score = region.region_attributes.score
+
+            # Update region attributes with wingbeat data
+            region.region_attributes = self.process_blur(polyline, score=score)
