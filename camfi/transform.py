@@ -2,7 +2,6 @@ from math import inf, sqrt
 import random
 from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
-import numpy as np
 from pydantic import BaseModel, Field
 from torch import Tensor
 
