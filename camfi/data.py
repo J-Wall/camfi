@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from collections import defaultdict
 from datetime import datetime, timedelta
 from math import atan2, cos, fsum, inf, sin, sqrt
 from pathlib import Path
 import random
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import exif
 from multimethod import multimethod

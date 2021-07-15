@@ -1,9 +1,18 @@
-from collections.abc import Mapping
 import functools
 import itertools
 from math import sqrt
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Sequence, Tuple, TypeVar, Union
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 
@@ -298,13 +307,15 @@ class SubDirDict(Mapping[Path, V]):
     >>> d["bar"]
     Traceback (most recent call last):
     ...
-    KeyError: "'bar' not in SubDirDict({'foo': 'foo'})"
+    KeyError: "'bar' not in SubDirDict({Path('foo'): 'foo'})"
     """
 
-    def __init__(self):
+    def __init__(self, mapping: Optional[Mapping[Path, V]] = None):
         self._lastkey = None
         self._prevkey = None
-        self._dict = {}
+        self._dict: Dict[Path, V] = {}
+        if mapping is not None:
+            self._dict.update(mapping)
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -315,7 +326,10 @@ class SubDirDict(Mapping[Path, V]):
             )
         self._prevkey = self._lastkey
         self._lastkey = key
-        return self._dict[key]
+        try:
+            return self._dict[key]
+        except KeyError:
+            return self.__missing__(key)
 
     def __setitem__(self, key, value):
         if isinstance(key, str):
@@ -333,7 +347,10 @@ class SubDirDict(Mapping[Path, V]):
         return self[key.parent]
 
     def __repr__(self):
-        return f"{str(type(self)).split('.')[-1][:-2]}({super().__repr__()})"
+        s = ", ".join(
+            (f"Path('{str(path)}'): {value!r}" for path, value in self._dict.items())
+        )
+        return f"SubDirDict({{{s}}})"
 
     def __iter__(self):
         return self.keys()
