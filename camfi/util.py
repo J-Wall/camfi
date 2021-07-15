@@ -1,6 +1,8 @@
+from collections.abc import Mapping
 import functools
 import itertools
 from math import sqrt
+from pathlib import Path
 from typing import Callable, Iterable, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
@@ -274,3 +276,76 @@ def dilate_idx(
         mask[cc_dilated >= img_shape[1]] = False
 
     return rr_dilated[mask], cc_dilated[mask]
+
+
+V = TypeVar("V")
+
+
+class SubDirDict(Mapping[Path, V]):
+    """A mapping which returns self['foo/bar'] if self['foo/bar/baz'] is missing
+    from the dict.
+
+    Examples
+    --------
+    >>> d = SubDirDict()
+    >>> d["foo"] = "foo"
+    >>> d["foo"]
+    'foo'
+    >>> d["foo/bar"]
+    'foo'
+    >>> d["foo/bar/baz"]
+    'foo'
+    >>> d["bar"]
+    Traceback (most recent call last):
+    ...
+    KeyError: "'bar' not in SubDirDict({'foo': 'foo'})"
+    """
+
+    def __init__(self):
+        self._lastkey = None
+        self._prevkey = None
+        self._dict = {}
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            key = Path(key)
+        elif not isinstance(key, Path):
+            raise TypeError(
+                f"SubDirDict can only be indexed by Path instances. Got {type(key)}"
+            )
+        self._prevkey = self._lastkey
+        self._lastkey = key
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            key = Path(key)
+        elif not isinstance(key, Path):
+            raise TypeError(
+                f"SubDirDict can only be indexed by Path instances. Got {type(key)}"
+            )
+        self._dict[key] = value
+
+    def __missing__(self, key):
+        if key == Path():
+            raise KeyError(f"'{self._prevkey}' not in {str(self)}")
+
+        return self[key.parent]
+
+    def __repr__(self):
+        return f"{str(type(self)).split('.')[-1][:-2]}({super().__repr__()})"
+
+    def __iter__(self):
+        return self.keys()
+
+    def __len__(self):
+        return len(self._dict)
+
+    def keys(self):
+        return self._dict.keys()
+
+    def values(self):
+        return self._dict.values()
+
+    def items(self):
+        return self._dict.items()

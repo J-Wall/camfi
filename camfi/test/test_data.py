@@ -344,6 +344,44 @@ class TestViaProject:
             data.ViaProject.parse_raw(via_project_raw)
 
 
+class TestLocationTimeZone:
+    def test_all_offset_aware_or_naive(self):
+        assert data.LocationTime(
+            camera_start_time="2021-07-15T14:00",
+            actual_start_time=None,
+            camera_end_time=None,
+            actual_end_time=None,
+        ) == data.LocationTime(camera_start_time="2021-07-15T14:00")
+        assert data.LocationTime(
+            camera_start_time="2021-07-15T14:00+10",
+            actual_start_time=None,
+            camera_end_time=None,
+            actual_end_time=None,
+        ) == data.LocationTime(camera_start_time="2021-07-15T14:00+10")
+        data.LocationTime(
+            camera_start_time="2021-07-15T14:00",
+            actual_start_time="2021-07-15T14:00",
+            camera_end_time="2021-07-15T15:00",
+            actual_end_time="2021-07-15T15:00",
+        )
+        data.LocationTime(
+            camera_start_time="2021-07-15T14:00+10",
+            actual_start_time="2021-07-15T14:00+10",
+            camera_end_time="2021-07-15T15:00+11",  # Mixed offsets are allowed
+            actual_end_time="2021-07-15T15:00+11",
+        )
+        with raises(ValidationError):
+            data.LocationTime(
+                camera_start_time="2021-07-15T14:00+10",
+                actual_start_time="2021-07-15T14:00",  # Mixed offset-awareness banned
+            )
+        with raises(ValidationError):
+            data.LocationTime(
+                camera_start_time="2021-07-15T14:00",
+                actual_start_time="2021-07-15T14:00+10",  # Mixed offset-awareness banned
+            )
+
+
 class TestMaskMaker:
     def test_get_mask_point(self, mask_maker, point_shape_attributes):
         if (

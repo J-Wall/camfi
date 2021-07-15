@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from collections import defaultdict
 from datetime import datetime, timedelta
-from math import atan2, cos, inf, sin, sqrt
+from math import atan2, cos, fsum, inf, sin, sqrt
 from pathlib import Path
 import random
 from typing import Callable, Dict, List, Optional, Tuple, Union
@@ -25,7 +27,10 @@ from torch import from_numpy, hstack, stack, tensor, Tensor, zeros
 from torch.utils.data import Dataset
 import torchvision.io
 
-from camfi.util import smallest_enclosing_circle, dilate_idx
+from camfi.util import SubDirDict, smallest_enclosing_circle, dilate_idx
+
+
+DatetimeCorrector = Callable[[datetime], datetime]
 
 
 class ViaFileAttributes(BaseModel):
@@ -454,7 +459,7 @@ class ViaMetadata(BaseModel):
         self,
         root: Path = Path(),
         location: Optional[str] = None,
-        datetime_corrector: Optional[Callable[[datetime], datetime]] = None,
+        datetime_corrector: Optional[DatetimeCorrector] = None,
     ) -> None:
         """Extract EXIF metadata from an image file and put it in self.file_attributes.
         Note: this will overwrite all contents in self.file_attributes.
@@ -467,7 +472,7 @@ class ViaMetadata(BaseModel):
             to a Path.
         location: Optional[str]
             Option to also apply a location
-        datetime_corrector: Optional[Callable[[datetime], datetime]]
+        datetime_corrector: Optional[DatetimeCorrector]
             If set, then will be used to calculate datetime_corrected
 
         EXIF tags loaded
@@ -620,6 +625,204 @@ class ViaProject(BaseModel):
             "via_img_metadata": "_via_img_metadata",
             "via_settings": "_via_settings",
         }
+
+    def load_all_exif_metadata(
+        self,
+        root: Path = Path(),
+        location_dict: Optional[Mapping[Path, Optional[str]]] = None,
+        datetime_correctors: Optional[
+            Mapping[Path, Optional[DatetimeCorrector]]
+        ] = None,
+    ) -> None:
+        """Calls the `.load_exif_metadata` method of all ViaMetadata instances in
+        self.via_img_metadata, extracting the EXIF metadata from each image file
+        """
+        if location_dict is None:
+            location_dict = defaultdict(lambda: None)
+        if datetime_correctors is None:
+            datetime_correctors = defaultdict(lambda: None)
+
+        for metadata in self.via_img_metadata.values():
+            metadata.load_exif_metadata(
+                root=root,
+                location=location_dict[metadata.filename.parent],
+                datetime_corrector=datetime_correctors[metadata.filename.parent],
+            )
+
+
+class LocationTime(BaseModel):
+    camera_start_time: datetime
+    actual_start_time: Optional[datetime] = None  # Defaults to camera_start_time
+    camera_end_time: Optional[datetime] = None
+    actual_end_time: Optional[datetime] = None
+    location: Optional[str] = None
+
+    @validator("actual_start_time", always=True)
+    def default_actual_start_time(cls, v, values):
+        if v is None and "camera_start_time" in values:
+            return values["camera_start_time"]
+        return v
+
+    @root_validator
+    def all_offset_aware_or_naive(cls, values):
+        is_offset_aware = values["camera_start_time"].tzinfo is not None
+        for field in ["actual_start_time", "camera_end_time", "actual_end_time"]:
+            if field in values and values[field] is not None:
+                assert (
+                    values[field].tzinfo is not None
+                ) == is_offset_aware, (
+                    "Unable to mix timezone offset-aware and -naive datetimes"
+                )
+        return values
+
+    def get_time_ratio(self) -> Optional[float]:
+        """If self.camera_end_time and self.actual_end_time are set, gets the camera
+        time to actual time ratio. Otherwise, None
+
+        Returns
+        -------
+        camera_time_to_actual_time_ratio : float
+
+        Examples
+        --------
+        >>> location_time = LocationTime(
+        ...     camera_start_time="2021-07-15T14:00",
+        ...     camera_end_time="2021-07-15T16:00",
+        ...     actual_end_time="2021-07-15T15:00",
+        ... )
+        >>> location_time.get_time_ratio()
+        2.0
+
+        `camera_end_time` and `actual_end_time` must be set, or else None is returned
+        >>> print(LocationTime(camera_start_time="2021-07-15T14:00").get_time_ratio())
+        None
+        """
+        if (
+            self.actual_start_time is None
+            or self.camera_end_time is None
+            or self.actual_end_time is None
+        ):
+            return None
+
+        camera_elapsed_time = self.camera_end_time - self.camera_start_time
+        actual_elapsed_time = self.actual_end_time - self.actual_start_time
+        return camera_elapsed_time / actual_elapsed_time
+
+    def corrector(
+        self, camera_time_to_actual_time_ratio: Optional[float] = None
+    ) -> DatetimeCorrector:
+        """Returns a datetime corrector function, which takes an original camera-
+        reported datetime as an argument, and returns a corrected datetime.
+        If self.actual_start_time is None, then it is assumed that
+        self.camera_start_time reflects the actual time. Generally it is advised to set
+        the time of the camera just before it is placed out, which is the basis for this
+        assumption.
+
+        Parameters
+        ----------
+        camera_time_to_actual_time_ratio : Optional[float]
+            The amount of time elapsed as reported by the camera divided by the actual
+            amount of time elapsed. If None, then this is inferred from the fields of
+            the LocationTime instance. In this case, both self.camera_end_time and
+            self.actual_end_time must be set.
+
+        Returns
+        -------
+        datetime_corrector : DatetimeCorrector
+
+        Examples
+        --------
+        >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00")
+        >>> location_corrector = location_time.corrector(2.)
+        >>> location_corrector(datetime(2021, 7, 15, 16, 0))
+        datetime.datetime(2021, 7, 15, 15, 0)
+
+        Also works with offset-aware datetimes
+        >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00+10")
+        >>> location_corrector = location_time.corrector(2.)
+        >>> location_corrector(datetime.fromisoformat("2021-07-15T17:00+11:00"))
+        datetime.datetime(2021, 7, 15, 15, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=36000)))
+
+        Raises an error if `camera_time_to_actual_time_ratio` cannot be determined
+        >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00")
+        >>> location_corrector = location_time.corrector()
+        Traceback (most recent call last):
+        ...
+        ValueError: Must set camera_time_to_actual_time_ratio or both end times
+        """
+        if camera_time_to_actual_time_ratio is None:
+            camera_time_to_actual_time_ratio = self.get_time_ratio()
+
+        if camera_time_to_actual_time_ratio is None:
+            raise ValueError(
+                "Must set camera_time_to_actual_time_ratio or both end times"
+            )
+
+        def datetime_corrector(datetime_original: datetime) -> datetime:
+            # To quash some mypy errors but still allow proper type checking:
+            assert isinstance(camera_time_to_actual_time_ratio, float)
+            assert isinstance(self.actual_start_time, datetime)
+
+            camera_elapsed_time = datetime_original - self.camera_start_time
+            actual_elapsed_time = camera_elapsed_time / camera_time_to_actual_time_ratio
+            return self.actual_start_time + actual_elapsed_time
+
+        return datetime_corrector
+
+
+class LocationTimeCollector(BaseModel):
+    items: Dict[Path, LocationTime]
+
+    def get_time_ratio(self) -> Optional[float]:
+        """Gets the mean of calling the `.get_time_ratio` method on each LocationTime
+        in self.items
+        """
+        time_ratios_generator = (lt.get_time_ratio() for lt in self.items.values())
+        time_ratios: List[float] = list(filter(lambda x: x is not None, time_ratios))
+        if len(time_ratios) == 0:
+            return None
+        return fsum(time_ratios) / len(time_ratios)
+
+    def get_correctors(
+        self, camera_time_to_actual_time_ratio: Optional[float] = None
+    ) -> SubDirDict[DatetimeCorrector]:
+        """Calls the `.corrector` method on each LocationTime in self.items to produce
+        a SubDirDict of datetime_corrector functions.
+
+        Parameters
+        ----------
+        camera_time_to_actual_time_ratio : Optional[float]
+            The amount of time elapsed as reported by the camera divided by the actual
+            amount of time elapsed. If None, then this is inferred by calling
+            self.get_time_ratio(). If this returns None, a RuntimeError is raised.
+
+        Returns
+        -------
+        datetime_correctors : SubDirDict[DatetimeCorrector]
+        """
+        if camera_time_to_actual_time_ratio is None:
+            camera_time_to_actual_time_ratio = self.get_time_ratio()
+
+        if camera_time_to_actual_time_ratio is None:
+            raise RuntimeError(
+                "Not able to calculate camera time to actual time ratio from time data"
+            )
+
+        datetime_correctors: SubDirDict[DatetimeCorrector] = SubDirDict()
+        for directory, location_time in self.items.items():
+            datetime_correctors[directory] = location_time.corrector(
+                camera_time_to_actual_time_ratio
+            )
+
+        return datetime_correctors
+
+    def get_location_dict(self) -> SubDirDict[str]:
+        """Returns a SubDirDict of location strings."""
+        location_dict: SubDirDict[str] = SubDirDict()
+        for directory, location_time in self.items.items():
+            location_dict[directory] = location_time.location
+
+        return location_dict
 
 
 class MaskMaker:
