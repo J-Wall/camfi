@@ -338,6 +338,27 @@ class PolylineShapeAttributes(ViaShapeAttributes):
 
         return joined_img
 
+    def length(self):
+        """Get the sum of lengths of all the polyline segments
+
+        Returns
+        -------
+        float
+
+        Examples
+        --------
+        >>> from pytest import approx
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[0, 1, 2],
+        ...     all_points_y=[0, 1, 1],
+        ... )
+        >>> polyline.length() == approx(sqrt(2) + 1)
+        True
+        """
+        xs = tensor(self.all_points_x)
+        ys = tensor(self.all_points_y)
+        return float(((xs[1:] - xs[:-1]) ** 2 + (ys[1:] - ys[:-1]) ** 2).sqrt().sum())
+
 
 class ViaRegion(BaseModel):
     region_attributes: ViaRegionAttributes

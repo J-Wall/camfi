@@ -1,4 +1,5 @@
 import bz2
+import random
 from typing import Dict, Tuple
 
 from pydantic import ValidationError
@@ -263,6 +264,20 @@ class TestPolylineShapeAttributes:
             assert (
                 y < bounding_box.y1
             ), f"{polyline_shape_attributes!r} is not bound by {bounding_box!r}"
+
+    def test_extract_region_of_interest_gets_right_shape(self):
+        random.seed(1234567890, version=2)  # Want arbitrary values, not random ones
+        h, w = 100, 200
+        n_segments = 10
+        scan_distance = 10
+        polyline = data.PolylineShapeAttributes(
+            all_points_x=[random.uniform(0.0, w) for _ in range(n_segments + 1)],
+            all_points_y=[random.uniform(0.0, h) for _ in range(n_segments + 1)],
+        )
+        image = zeros(h, w)
+        roi = polyline.extract_region_of_interest(image, scan_distance)
+        expected_shape = (scan_distance * 2 - 1, int(round(polyline.length())))
+        assert roi.shape == expected_shape, f"{roi.shape} != {expected_shape}"
 
 
 class TestViaRegion:
