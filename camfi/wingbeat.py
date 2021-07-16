@@ -1,11 +1,13 @@
+from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
-from pydantic import BaseModel, PositiveFloat, PositiveInt
+from pydantic import BaseModel, NonNegativeInt, PositiveFloat, PositiveInt
 from torch import arange, cat, float32, meshgrid, tensor, Tensor, zeros
 
 from camfi.data import (
+    DatetimeCorrector,
     PolylineShapeAttributes,
     ViaRegionAttributes,
     ViaRegion,
@@ -122,10 +124,95 @@ def find_best_peak(values: Tensor) -> Tuple[Optional[PositiveInt], Optional[floa
     return best_peak, snr
 
 
+class WingbeatSuppFigPlotter(ABC, BaseModel):
+    """Defines an interface for producing suplementary figures from the wingbeat
+    extraction procedure, used by WingbeatExtractor. This abstract base class is
+    agnostic to which plotting library is used. Subclasses will naturally have to use
+    a particular plotting library, such as matplotlib.
+
+    Parameters
+    ----------
+    root: Path
+        Root directory to put supplementary figures in.
+    image_filename: Path
+        Relative path to image file. `self.get_filepath` uses this to compute the path
+        where the supplementary figure will be written (note that if annotation_idx is
+        set, then the filename will be modified to include the annotation index - useful
+        for plotting multple supplementary figures relating to annotations from one
+        image).
+    suffix: str
+        File suffix for output plots. Defaults to ".png", but could be ".pdf", ".html",
+        or ".eps", etc. depending on the subclass of WingbeatSuppFigPlotter.
+    annotation_idx: NonNegativeInt
+        Used to infer the correct filename. Defaults to 0 (which is almost always what
+        you would want when initialising a subclass of WingbeatSuppFigPlotter).
+
+    Examples
+    --------
+    >>> class DummyWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
+    ...     def __call__(
+    ...         self,
+    ...         region_attributes: ViaRegionAttributes,
+    ...         region_of_interest: Tensor,
+    ...         mean_autocorrelation: Tensor,
+    ...     ) -> None:
+    ...         pass
+    >>> supplementary_figure_plotter = DummyWingbeatSuppFigPlotter(
+    ...     root="foo", image_filename="bar/baz.jpg"
+    ... )
+    >>> supplementary_figure_plotter.get_filepath() == Path("foo/bar/baz_0.png")
+    True
+
+    The annotation index has now been incremented by 1
+    >>> supplementary_figure_plotter.annotation_idx
+    1
+    >>> supplementary_figure_plotter.get_filepath() == Path("foo/bar/baz_1.png")
+    True
+    """
+
+    root: Path
+    image_filename: Path
+    suffix: str = ".png"
+    annotation_idx: NonNegativeInt = 0
+
+    def get_filepath(self):
+        """Computes the filepath for the supplementary figure and increments
+        `self.annotation_idx` by 1.
+        """
+        name = f"{self.image_filename.stem}_{self.annotation_idx}{self.suffix}"
+        self.annotation_idx += 1
+        return self.root.joinpath(self.image_filename.parent, name)
+
+    @abstractmethod
+    def __call__(
+        self,
+        region_attributes: ViaRegionAttributes,
+        region_of_interest: Tensor,
+        mean_autocorrelation: Tensor,
+    ) -> None:
+        """Implementations produce a supplementary figure of a wingbeat extraction
+        process, perhaps writing this to a file. Should call `self.get_filepath()` once
+        only to get the path to the file where the figure should be written.
+
+        Parameters
+        ----------
+        region_attributes : ViaRegionAttributes
+            With fields calculated (e.g. by WingbeatExtractor.process_blur)
+        region_of_interest : Tensor
+            Greyscale image Tensor displaying region of interest
+        mean_autocorrelation : Tensor
+            1-d Tensor with values containing autocorrrelation along axis 1 of
+            `region_of_interest`
+        """
+
+
 class WingbeatExtractor(BaseModel):
     metadata: ViaMetadata
     root: Path
     line_rate: PositiveFloat
+
+    # Some processes can run on the GPU. To enable, set e.g. device="cuda"
+    device: str = "cpu"
 
     # Optional parameters to process_blur
     scan_distance: PositiveInt = 50
@@ -134,7 +221,10 @@ class WingbeatExtractor(BaseModel):
     # Optional extra parameters for when getting exif metadata
     force_load_exif_metadata: bool = False
     location: Optional[str] = None
-    datetime_corrector: Optional[Callable[[datetime], datetime]] = None
+    datetime_corrector: Optional[DatetimeCorrector] = None
+
+    # Optionally plot supplementary figures during process_blur
+    supplementary_figure_plotter: Optional[WingbeatSuppFigPlotter] = None
 
     # image and exposure_time may require expensive IO operations, so should only happen
     # once each, if at all. They should also be treated as immutable for the life of the
@@ -195,43 +285,56 @@ class WingbeatExtractor(BaseModel):
         if self.max_pixel_period is not None:
             max_pixel_period = min(max_pixel_period, self.max_pixel_period)
 
-        # Calculate autocorrelation
-        mean_autocorrelation = autocorrelation(roi, max_pixel_period)
+        # Calculate autocorrelation. This step can run on the GPU
+        mean_autocorrelation = autocorrelation(
+            roi.to(self.device), max_pixel_period
+        ).cpu()
 
         # Find wingbeat peak
         best_peak, snr = find_best_peak(mean_autocorrelation)
 
         if best_peak is None:  # Failed to find peak
-            return ViaRegionAttributes(score=score, blur_length=polyline.length())
+            region_attributes = ViaRegionAttributes(
+                score=score, blur_length=polyline.length()
+            )
 
-        # Calculate wingbeat frequency from peak.
-        # Note that due to the ambiguity in the direction of the moth's flight,
-        # as well as rolling shutter, there are two possible frequency estimates,
-        # with the lower frequency corresponding to an upward direction and the
-        # higher frequency corresponding to a downward direction of flight with
-        # respect to the camera's orientation.
-        y_diff = polyline.y_diff()
-        corrected_exposure_time = (
-            (self.exposure_time + tensor([y_diff, -y_diff]) / self.line_rate)
-            .sort()
-            .values
-        )
-        period = [
-            arange(1, max_pixel_period) * float(et) / roi.shape[1]
-            for et in corrected_exposure_time
-        ]
-        wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
+        else:
+            # Calculate wingbeat frequency from peak.
+            # Note that due to the ambiguity in the direction of the moth's flight,
+            # as well as rolling shutter, there are two possible frequency estimates,
+            # with the lower frequency corresponding to an upward direction and the
+            # higher frequency corresponding to a downward direction of flight with
+            # respect to the camera's orientation.
+            y_diff = polyline.y_diff()
+            corrected_exposure_time = (
+                (self.exposure_time + tensor([y_diff, -y_diff]) / self.line_rate)
+                .sort()
+                .values
+            )
+            period = [
+                arange(1, max_pixel_period) * float(et) / roi.shape[1]
+                for et in corrected_exposure_time
+            ]
+            wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
 
-        return ViaRegionAttributes(
-            score=score,
-            best_peak=best_peak,
-            blur_length=polyline.length(),
-            snr=snr,
-            wb_freq_up=wb_freq_up,
-            wb_freq_down=wb_freq_down,
-            et_up=float(corrected_exposure_time[0]),
-            et_dn=float(corrected_exposure_time[1]),
-        )
+            region_attributes = ViaRegionAttributes(
+                score=score,
+                best_peak=best_peak,
+                blur_length=polyline.length(),
+                snr=snr,
+                wb_freq_up=wb_freq_up,
+                wb_freq_down=wb_freq_down,
+                et_up=float(corrected_exposure_time[0]),
+                et_dn=float(corrected_exposure_time[1]),
+            )
+
+        # Plot supplementary figure
+        if self.supplementary_figure_plotter is not None:
+            self.supplementary_figure_plotter(
+                region_attributes, roi, mean_autocorrelation
+            )
+
+        return region_attributes
 
     def extract_wingbeats(self) -> None:
         """Calls self.process_blur on the shape_attributes of all polyline regions in

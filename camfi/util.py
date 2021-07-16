@@ -308,6 +308,10 @@ class SubDirDict(Mapping[Path, V]):
     Traceback (most recent call last):
     ...
     KeyError: "'bar' not in SubDirDict({Path('foo'): 'foo'})"
+
+    SubDirDict can be initialised from a dictionary
+    >>> SubDirDict({"foo": "bar", "foobar": "baz"})
+    SubDirDict({Path('foo'): 'bar', Path('foobar'): 'baz'})
     """
 
     def __init__(self, mapping: Optional[Mapping[Path, V]] = None):
