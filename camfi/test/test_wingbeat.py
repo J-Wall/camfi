@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pytest import approx, fixture, raises
+from torch import Tensor
 
 from camfi import data, wingbeat
 
@@ -53,6 +54,17 @@ def wingbeat_extractor(via_metadata):
         line_rate=9.05e04,
         location="cabramurra",
     )
+
+
+class MockWingbeatSuppFigPlotter(wingbeat.WingbeatSuppFigPlotter):
+    def __call__(
+        self,
+        region_attributes: data.ViaRegionAttributes,
+        region_of_interest: Tensor,
+        mean_autocorrelation: Tensor,
+    ) -> None:
+        self.get_filepath()
+        return None
 
 
 class TestWingbeatExtractor:
@@ -124,6 +136,13 @@ class TestWingbeatExtractor:
         assert region_attributes.wb_freq_down is None
         assert region_attributes.et_up is None
         assert region_attributes.et_dn is None
+
+    def test_process_blur_with_suppfigplotter(self, wingbeat_extractor, polyline):
+        wingbeat_extractor.supplementary_figure_plotter = MockWingbeatSuppFigPlotter(
+            root="foo", image_filename="bar/baz.jpg"
+        )
+        region_attributes = wingbeat_extractor.process_blur(polyline)
+        assert wingbeat_extractor.supplementary_figure_plotter.annotation_idx == 1
 
     def test_process_all_blurs(
         self, wingbeat_extractor, via_region_circle, via_region, polyline

@@ -357,7 +357,7 @@ class SubDirDict(Mapping[Path, V]):
         return f"SubDirDict({{{s}}})"
 
     def __iter__(self):
-        return self.keys()
+        return iter(self._dict)
 
     def __len__(self):
         return len(self._dict)

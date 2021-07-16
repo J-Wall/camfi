@@ -156,7 +156,8 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     ...         region_of_interest: Tensor,
     ...         mean_autocorrelation: Tensor,
     ...     ) -> None:
-    ...         pass
+    ...         self.get_filepath()
+    ...         return None
     >>> supplementary_figure_plotter = DummyWingbeatSuppFigPlotter(
     ...     root="foo", image_filename="bar/baz.jpg"
     ... )

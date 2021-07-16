@@ -635,6 +635,67 @@ class ViaProject(BaseModel):
     ) -> None:
         """Calls the `.load_exif_metadata` method of all ViaMetadata instances in
         self.via_img_metadata, extracting the EXIF metadata from each image file
+
+        Parameters
+        ----------
+        root: Path
+            Root directory from which the relative path in self.filename is resolved.
+            Defaults to current working directory. If a str is passed it will be coerced
+            to a Path.
+        location_dict: Optional[Mapping[Path, Optional[str]]]
+            A mapping from filenames (i.e. relative paths to images under root) to
+            location strings, which are passed to `ViaMetadata.load_exif_metadata`.
+            Typically, an instance of `camfi.util.SubDirDict` should be used.
+        datetime_correctors: Optional[Mapping[Path, Optional[DatetimeCorrector]]]
+            A mapping from filenames (i.e. relative paths to images under root) to
+            DatetimeCorrector instances, which are passed to
+            `ViaMetadata.load_exif_metadata`
+            Typically, an instance of `camfi.util.SubDirDict` should be used.
+
+        Returns
+        -------
+        None (operates in place)
+
+        Examples
+        --------
+        >>> with open("camfi/test/data/sample_project_images_included.json") as f:
+        ...     project = ViaProject.parse_raw(f.read())
+
+        The file which has been loaded contains no metadata
+        >>> for meta in project.via_img_metadata.values():
+        ...     print(meta.filename, str(meta.file_attributes.datetime_original))
+        DSCF0010.JPG None
+        DSCF0011.JPG None
+
+        After load_all_exif_metadata is called, `project` does contain image metadata
+        >>> project.load_all_exif_metadata(root=Path("camfi/test/data"))
+        >>> for meta in project.via_img_metadata.values():
+        ...     print(meta.filename, str(meta.file_attributes.datetime_original))
+        DSCF0010.JPG 2019-11-14 20:30:29
+        DSCF0011.JPG 2019-11-14 20:40:32
+
+        If `location_dict` and/or `datetime_correctors` are set, the metadata will
+        include `location` and/or `datetime_corrected`, respectively. Normally, these
+        would be set as instances of `camfi.util.SubDirDict`, but for brevity we use
+        a regular `dict` for each of them here.
+        >>> project.load_all_exif_metadata(
+        ...     root=Path("camfi/test/data"),
+        ...     location_dict={
+        ...         Path("DSCF0010.JPG"): "loc0", Path("DSCF0011.JPG"): "loc1"
+        ...     },
+        ...     datetime_correctors={
+        ...         Path("DSCF0010.JPG"): lambda dt: dt + timedelta(hours=1),
+        ...         Path("DSCF0011.JPG"): lambda dt: dt - timedelta(hours=1),
+        ...     },
+        ... )
+        >>> for meta in project.via_img_metadata.values():
+        ...     print(
+        ...         meta.filename,
+        ...         meta.file_attributes.location,
+        ...         str(meta.file_attributes.datetime_corrected),
+        ...     )
+        DSCF0010.JPG loc0 2019-11-14 21:30:29
+        DSCF0011.JPG loc1 2019-11-14 19:40:32
         """
         if location_dict is None:
             location_dict = defaultdict(lambda: None)
@@ -644,8 +705,8 @@ class ViaProject(BaseModel):
         for metadata in self.via_img_metadata.values():
             metadata.load_exif_metadata(
                 root=root,
-                location=location_dict[metadata.filename.parent],
-                datetime_corrector=datetime_correctors[metadata.filename.parent],
+                location=location_dict[metadata.filename],
+                datetime_corrector=datetime_correctors[metadata.filename],
             )
 
 
@@ -770,14 +831,55 @@ class LocationTime(BaseModel):
 
 
 class LocationTimeCollector(BaseModel):
+    """Used to generate `SubDirDict` instances which map subdirectories to location
+    strings or `DatetimeCorrector`s
+
+    Parammeters
+    -----------
+    items: Dict[Path, LocationTime]
+
+    Examples
+    --------
+    Here, `LocationTimeCollector` is instantiated with two `LocationTime` instances.
+    The first has enough information to get a `float` from its `.get_time_rato` method,
+    However the second doesn't.
+    >>> lt_collector = LocationTimeCollector(items={
+    ...     Path("data"): LocationTime(
+    ...         camera_start_time="2021-07-15T14:00",
+    ...         camera_end_time="2021-07-15T16:00",
+    ...         actual_end_time="2021-07-15T15:00",
+    ...     ),
+    ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+    ... })
+
+    When calling the `.get_time_ratio` method on a `LocationTimeCollector` instance,
+    the mean of all (excluding those who return `None`) `.get_time_ratio` results from
+    all the `LocationTime`s is given.
+    >>> lt_collector.get_time_ratio()
+    2.0
+    """
+
     items: Dict[Path, LocationTime]
 
     def get_time_ratio(self) -> Optional[float]:
         """Gets the mean of calling the `.get_time_ratio` method on each LocationTime
         in self.items
+
+        Examples
+        --------
+        If there is not enough information to calculate a time ratio, `None` is returned
+        >>> lt_collector = LocationTimeCollector(items={
+        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ... })
+        >>> print(lt_collector.get_time_ratio())
+        None
         """
-        time_ratios_generator = (lt.get_time_ratio() for lt in self.items.values())
-        time_ratios: List[float] = list(filter(lambda x: x is not None, time_ratios))
+        time_ratios: List[float] = []
+        for lt in self.items.values():
+            time_ratio = lt.get_time_ratio()
+            if time_ratio is not None:
+                time_ratios.append(time_ratio)
+
         if len(time_ratios) == 0:
             return None
         return fsum(time_ratios) / len(time_ratios)
@@ -798,13 +900,46 @@ class LocationTimeCollector(BaseModel):
         Returns
         -------
         datetime_correctors : SubDirDict[DatetimeCorrector]
+
+        Examples
+        --------
+        >>> lt_collector = LocationTimeCollector(items={
+        ...     Path("data"): LocationTime(
+        ...         camera_start_time="2021-07-15T14:00",
+        ...         camera_end_time="2021-07-15T16:00",
+        ...         actual_end_time="2021-07-15T15:00",
+        ...     ),
+        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ... })
+        >>> datetime_correctors = lt_collector.get_correctors(
+        ...     camera_time_to_actual_time_ratio=2.0
+        ... )
+        >>> datetime_correctors["data"](datetime(2021, 7, 15, 18, 0))
+        datetime.datetime(2021, 7, 15, 16, 0)
+
+        If `camera_time_to_actual_time_ratio` is not set, it is calculated from
+        the items in the `LocationTimeCollector`
+        >>> datetime_correctors = lt_collector.get_correctors()
+        >>> datetime_correctors["data"](datetime(2021, 7, 15, 18, 0))
+        datetime.datetime(2021, 7, 15, 16, 0)
+
+        But don't do this if there isn't enough information
+        >>> lt_collector = LocationTimeCollector(items={
+        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ... })
+        >>> print(lt_collector.get_time_ratio())
+        None
+        >>> datetime_correctors = lt_collector.get_correctors()
+        Traceback (most recent call last):
+        ...
+        RuntimeError: Unable to calculate camera-to-actual time ratio from time data
         """
         if camera_time_to_actual_time_ratio is None:
             camera_time_to_actual_time_ratio = self.get_time_ratio()
 
         if camera_time_to_actual_time_ratio is None:
             raise RuntimeError(
-                "Not able to calculate camera time to actual time ratio from time data"
+                "Unable to calculate camera-to-actual time ratio from time data"
             )
 
         datetime_correctors: SubDirDict[DatetimeCorrector] = SubDirDict()
@@ -815,9 +950,28 @@ class LocationTimeCollector(BaseModel):
 
         return datetime_correctors
 
-    def get_location_dict(self) -> SubDirDict[str]:
-        """Returns a SubDirDict of location strings."""
-        location_dict: SubDirDict[str] = SubDirDict()
+    def get_location_dict(self) -> SubDirDict[Optional[str]]:
+        """Returns a SubDirDict of location strings.
+
+        Examples
+        --------
+        >>> lt_collector = LocationTimeCollector(items={
+        ...     Path("data"): LocationTime(
+        ...         camera_start_time="2021-07-15T14:00",
+        ...         camera_end_time="2021-07-15T16:00",
+        ...         actual_end_time="2021-07-15T15:00",
+        ...         location="loc0",
+        ...     ),
+        ...     Path("foo"): LocationTime(
+        ...         camera_start_time="2021-07-15T13:00",
+        ...         location="loc1",
+        ...     ),
+        ...     Path("bar"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ... })
+        >>> lt_collector.get_location_dict()
+        SubDirDict({Path('data'): 'loc0', Path('foo'): 'loc1', Path('bar'): None})
+        """
+        location_dict: SubDirDict[Optional[str]] = SubDirDict()
         for directory, location_time in self.items.items():
             location_dict[directory] = location_time.location
 
