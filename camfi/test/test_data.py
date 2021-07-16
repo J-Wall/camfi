@@ -115,30 +115,13 @@ def image_id():
 
 
 @fixture
-def area():
-    return [1, 10]
-
-
-@fixture
-def iscrowd():
-    return [0, 0]
-
-
-@fixture
 def masks():
     return [zeros((2, 3)), tensor([[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]])]
 
 
 @fixture
-def target(boxes, labels, image_id, area, iscrowd, masks):
-    return data.Target(
-        boxes=boxes,
-        labels=labels,
-        image_id=image_id,
-        area=area,
-        iscrowd=iscrowd,
-        masks=masks,
-    )
+def target(boxes, labels, image_id, masks):
+    return data.Target(boxes=boxes, labels=labels, image_id=image_id, masks=masks)
 
 
 @fixture
@@ -302,13 +285,6 @@ class TestViaMetadata:
         for item in labels:
             assert isinstance(item, int)
             assert item > 0
-
-    def test_get_iscrowd(self, via_metadata):
-        iscrowds = via_metadata.get_iscrowd()
-        assert len(iscrowds) == len(via_metadata.regions)
-        for item in iscrowds:
-            assert isinstance(item, int)
-            assert 0 <= item <= 1
 
 
 class TestViaProject:
@@ -506,12 +482,7 @@ class TestBoundingBox:
 class TestTarget:
     def test_validator_passes(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box],
-            labels=[1],
-            image_id=0,
-            area=[1],
-            iscrowd=[0],
-            masks=[zeros((2, 2))],
+            boxes=[bounding_box], labels=[1], image_id=0, masks=[zeros((2, 2))],
         )
         target = data.Target(**kwargs)
         for key, value in kwargs.items():
@@ -519,12 +490,7 @@ class TestTarget:
 
     def test_validator_fails(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box],
-            labels=[1, 1],
-            image_id=0,
-            area=[1],
-            iscrowd=[0],
-            masks=[zeros((2, 2))],
+            boxes=[bounding_box], labels=[1, 1], image_id=0, masks=[zeros((2, 2))],
         )
         with raises(ValueError):
             data.Target(**kwargs)
@@ -540,8 +506,6 @@ class TestTarget:
                 boxes=[bounding_box, bounding_box],
                 labels=[1, 1],
                 image_id=0,
-                area=[1, 1],
-                iscrowd=[0, 0],
                 masks=[zeros(s0), zeros(s1)],
             )
             with raises(ValueError):
@@ -553,8 +517,6 @@ class TestTarget:
             "boxes",
             "labels",
             "image_id",
-            "area",
-            "iscrowd",
             "masks",
         ]
         for field in fields:
@@ -566,16 +528,12 @@ class TestTarget:
             "boxes",
             "labels",
             "image_id",
-            "area",
-            "iscrowd",
             "masks",
         ]
         target_from_dict = data.Target.from_tensor_dict(target_dict)
         assert target_from_dict.boxes == target.boxes
         assert target_from_dict.labels == target.labels
         assert target_from_dict.image_id == target.image_id
-        assert target_from_dict.area == target.area
-        assert target_from_dict.iscrowd == target.iscrowd
         for i in range(len(target_from_dict.masks)):
             assert target_from_dict.masks[i].allclose(target.masks[i])
 

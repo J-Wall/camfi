@@ -9,8 +9,6 @@ from camfi.test.test_data import (
     boxes,
     labels,
     image_id,
-    area,
-    iscrowd,
     masks,
     MockImageTransform,
 )

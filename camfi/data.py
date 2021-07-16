@@ -444,16 +444,6 @@ class ViaMetadata(BaseModel):
         """
         return [1 for _ in range(len(self.regions))]
 
-    def get_iscrowd(self) -> List[int]:
-        """Gets a list full of 0's with same length as self.regions
-
-        Returns
-        -------
-        List[int]
-            [0, 0, 0, ...]
-        """
-        return [0 for _ in range(len(self.regions))]
-
     def load_exif_metadata(
         self,
         root: Path = Path(),
@@ -1298,8 +1288,6 @@ class Target(BaseModel):
     boxes: List[BoundingBox]
     labels: List[PositiveInt]
     image_id: NonNegativeInt
-    area: List[PositiveInt]
-    iscrowd: List[int]
     masks: List[Tensor]
 
     class Config:
@@ -1309,9 +1297,7 @@ class Target(BaseModel):
     def all_fields_have_same_length(cls, values):
         try:
             length = len(values["boxes"])
-            if not all(
-                len(values[k]) == length for k in ["labels", "area", "iscrowd", "masks"]
-            ):
+            if not all(len(values[k]) == length for k in ["labels", "masks"]):
                 raise ValueError("Fields must have same length")
         except KeyError:
             raise ValueError("Invalid parameters given to Target")
@@ -1335,8 +1321,6 @@ class Target(BaseModel):
             boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
             labels=tensor(self.labels),
             image_id=tensor([self.image_id]),
-            area=tensor(self.area),
-            iscrowd=tensor(self.iscrowd),
             masks=stack(self.masks),
         )
 
@@ -1349,8 +1333,6 @@ class Target(BaseModel):
             ],
             labels=[int(v) for v in tensor_dict["labels"]],
             image_id=int(tensor_dict["image_id"]),
-            area=[int(v) for v in tensor_dict["area"]],
-            iscrowd=[int(v) for v in tensor_dict["iscrowd"]],
             masks=list(tensor_dict["masks"]),
         )
 
@@ -1369,11 +1351,9 @@ class Target(BaseModel):
         Examples
         --------
         >>> Target.empty()
-        Target(boxes=[], labels=[], image_id=0, area=[], iscrowd=[], masks=[])
+        Target(boxes=[], labels=[], image_id=0, masks=[])
         """
-        return Target(
-            boxes=[], labels=[], image_id=image_id, area=[], iscrowd=[], masks=[]
-        )
+        return Target(boxes=[], labels=[], image_id=image_id, masks=[])
 
 
 class ImageTransform(BaseModel, ABC):
@@ -1464,8 +1444,6 @@ class CamfiDataset(BaseModel, Dataset):
                 boxes=boxes,
                 labels=metadata.get_labels(),
                 image_id=idx,
-                area=[box.get_area() for box in boxes],
-                iscrowd=metadata.get_iscrowd(),
                 masks=self.mask_maker.get_masks(metadata),  # type: ignore[union-attr]
             )
 
