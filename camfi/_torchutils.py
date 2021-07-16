@@ -39,9 +39,6 @@ from __future__ import print_function
 from collections import defaultdict, deque
 import datetime
 from math import isfinite
-import os
-import pickle
-import random
 import time
 
 import torch
@@ -49,7 +46,6 @@ import torch.distributed as dist
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-from torchvision.transforms import functional as F
 
 
 class SmoothedValue(object):
@@ -113,51 +109,6 @@ class SmoothedValue(object):
             max=self.max,
             value=self.value,
         )
-
-
-def all_gather(data):
-    """
-    Run all_gather on arbitrary picklable data (not necessarily tensors)
-    Args:
-        data: any picklable object
-    Returns:
-        list[data]: list of data gathered from each rank
-    """
-    world_size = get_world_size()
-    if world_size == 1:
-        return [data]
-
-    # serialized to a Tensor
-    buffer = pickle.dumps(data)
-    storage = torch.ByteStorage.from_buffer(buffer)
-    tensor = torch.ByteTensor(storage).to("cuda")
-
-    # obtain Tensor size of each rank
-    local_size = torch.tensor([tensor.numel()], device="cuda")
-    size_list = [torch.tensor([0], device="cuda") for _ in range(world_size)]
-    dist.all_gather(size_list, local_size)
-    size_list = [int(size.item()) for size in size_list]
-    max_size = max(size_list)
-
-    # receiving Tensor from all ranks
-    # we pad the tensor because torch all_gather does not support
-    # gathering tensors of different shapes
-    tensor_list = []
-    for _ in size_list:
-        tensor_list.append(torch.empty((max_size,), dtype=torch.uint8, device="cuda"))
-    if local_size != max_size:
-        padding = torch.empty(
-            size=(max_size - local_size,), dtype=torch.uint8, device="cuda"
-        )
-        tensor = torch.cat((tensor, padding), dim=0)
-    dist.all_gather(tensor_list, tensor)
-
-    data_list = []
-    for size, tensor in zip(size_list, tensor_list):
-        buffer = tensor.cpu().numpy().tobytes()[:size]
-        data_list.append(pickle.loads(buffer))
-
-    return data_list
 
 
 def reduce_dict(input_dict, average=True):
@@ -303,46 +254,6 @@ def get_rank():
     if not is_dist_avail_and_initialized():
         return 0
     return dist.get_rank()
-
-
-class TransformCompose(object):
-    def __init__(self, transforms):
-        self.transforms = transforms
-
-    def __call__(self, image, target):
-        for t in self.transforms:
-            image, target = t(image, target)
-        return image, target
-
-
-class TransformRandomHorizontalFlip(object):
-    def __init__(self, prob):
-        self.prob = prob
-
-    def __call__(self, image, target):
-        if random.random() < self.prob:
-            height, width = image.shape[-2:]
-            image = image.flip(-1)
-            bbox = target["boxes"]
-            bbox[:, [0, 2]] = width - bbox[:, [2, 0]]
-            target["boxes"] = bbox
-            if "masks" in target:
-                target["masks"] = target["masks"].flip(-1)
-        return image, target
-
-
-class TransformToTensor(object):
-    def __call__(self, image, target):
-        image = F.to_tensor(image)
-        return image, target
-
-
-def get_transform(train=False):
-    transforms = []
-    transforms.append(TransformToTensor())
-    if train:
-        transforms.append(TransformRandomHorizontalFlip(0.5))
-    return TransformCompose(transforms)
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):

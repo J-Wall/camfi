@@ -27,7 +27,7 @@ from skimage import draw, transform
 import torch
 from tqdm import tqdm, trange
 
-from camfi import torchutils
+import ._torchutils as torchutils
 
 RLS_MODEL = "https://github.com/J-Wall/camfi/releases/download/1.0/20210519_4_model.pth"
 
