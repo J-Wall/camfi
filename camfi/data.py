@@ -1143,7 +1143,7 @@ class MaskMaker(BaseModel):
             return self.get_point_mask(shape_attributes)
         elif isinstance(shape_attributes, CircleShapeAttributes):
             return self.get_circle_mask(shape_attributes)
-        elif isinstance(shape_attributes, PolylineShapeAttributes):
+        else:
             return self.get_polyline_mask(shape_attributes)
 
     def get_masks(self, metadata: ViaMetadata) -> List[Tensor]:
@@ -1548,12 +1548,9 @@ class Prediction(TargetPredictionABC):
 
     @root_validator
     def all_fields_have_same_length(cls, values):
-        try:
-            length = len(values["boxes"])
-            if not all(len(values[k]) == length for k in ["labels", "masks", "scores"]):
-                raise ValueError("Fields must have same length")
-        except KeyError:
-            raise ValueError("Invalid parameters given to Target")
+        length = len(values["boxes"])
+        if not all(len(values[k]) == length for k in ["labels", "masks", "scores"]):
+            raise ValueError("Fields must have same length")
 
         return values
 

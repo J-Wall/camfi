@@ -672,6 +672,15 @@ class TestCamfiDataset:
                 max_annotations=10,
             )
 
+    def test_only_set_if_not_inference_mode_box_margin(self, via_project):
+        with raises(ValidationError):
+            data.CamfiDataset(
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=True,
+                box_margin=20,
+            )
+
     def test_set_iff_not_inference_mode_true(self, via_project, mask_maker):
         with raises(ValidationError):
             data.CamfiDataset(
@@ -696,11 +705,13 @@ class TestCamfiDataset:
             min_annotations=1,
             max_annotations=5,
             mask_maker=mask_maker,
+            box_margin=20,
         )
         assert isinstance(dataset.transform, data.ImageTransform)
         assert dataset.min_annotations == 1
         assert dataset.max_annotations == 5
         assert isinstance(dataset.mask_maker, data.MaskMaker)
+        assert dataset.box_margin == 20
 
     def test_generate_filtered_keys_minmax_unset(self, via_project):
         dataset = data.CamfiDataset(
@@ -773,3 +784,9 @@ class TestCamfiDataset:
         assert image_transformed.allclose(image + 1.0)
         assert image_transformed.dtype == float32
         assert target_transformed.masks[0].sum() > target.masks[0].sum()
+
+    def test_metadata(self, via_project):
+        dataset = data.CamfiDataset(
+            root="foo/bar", via_project=via_project, inference_mode=True
+        )
+        assert isinstance(dataset.metadata(0), data.ViaMetadata)
