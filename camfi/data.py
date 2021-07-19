@@ -1145,10 +1145,6 @@ class MaskMaker(BaseModel):
             return self.get_circle_mask(shape_attributes)
         elif isinstance(shape_attributes, PolylineShapeAttributes):
             return self.get_polyline_mask(shape_attributes)
-        else:
-            raise TypeError(
-                f"Expected one of 'PointShapeAttributes', 'CircleShapeAttributes', 'PolylineShapeAttributes', got {type(shape_attributes)}."
-            )
 
     def get_masks(self, metadata: ViaMetadata) -> List[Tensor]:
         """Calls self.get_mask on all regions in metadata
