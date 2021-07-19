@@ -15,10 +15,7 @@ help:
 .PHONY: help Makefile
 
 source/modules.rst: Makefile
-	sphinx-apidoc -f -H API -o source .. ../setup.py ../camfiutils.py
-
-usage/helppages/camfi.txt: Makefile build_cli.py
-	python build_cli.py
+	sphinx-apidoc -f -H API -e -o source .. ../setup.py
 
 notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
 
@@ -27,7 +24,7 @@ $(notebooks): usage/notebooks/%.rst: ../examples/%.ipynb
 	jupyter nbconvert --to rst usage/notebooks/$*.ipynb
 	rm usage/notebooks/$*.ipynb
 
-usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rst usage/automatic_image_annotation.rst usage/data_analysis.rst usage/cli.rst usage/helppages/camfi.txt
+usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rst usage/automatic_image_annotation.rst usage/data_analysis.rst usage/cli.rst
 
 # Catch-all target: route multiple targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

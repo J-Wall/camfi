@@ -17,7 +17,7 @@ or the DOI for the specific version you would like to cite.
 .. _10.5281/zenodo.4971144: https://doi.org/10.5281/zenodo.4971144
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :caption: Contents:
 
    usage/installation

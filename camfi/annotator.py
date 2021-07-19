@@ -470,29 +470,29 @@ class AnnotationValidationResult(BaseModel):
 
     Parameters
     ----------
-    all_ious: list of (iou, score) pairs
+    ious: List[Tuple[NonNegativeFloat, NonNegativeFloat]]
+        List of (iou, score) pairs.
         iou is the Intersection over Union of the bounding boxes of true positives
         to their matched ground truth annotation. All matched annotations are
         included.
-        score is the prediction score of the automatic annotation
-    polyline_hausdorff_distances: list of (h_dist, score) pairs
+    polyline_hausdorff_distances: List[Tuple[NonNegativeFloat, NonNegativeFloat]]
+        List of (h_dist, score) pairs.
         h_dist is the hausdorff distance of a true positive polyline annotation,
         where the annotation is matched to a polyline ground truth annotation. Only
         polyline annotations which matched to a polyline ground truth annotation are
         included.
-        score is the prediction score of the automatic annotation
-    length_differences: list of (l_diff, score) pairs
+    length_differences: List[Tuple[float, NonNegativeFloat]]
+        List of (l_diff, score) pairs.
         l_diff is calculated as the length of a true positive polyline annotation
         minus the length of it's matched ground truth annotation. Only polyline
         annotations which matched to a polyline ground truth annotation are
         included.
-        score is the prediction score of the automatic annotation
-    true_positives: list of scores
-        score is the prediction score of the automatic annotation
-    false_positives: list of scores
-        score is the prediction score of the automatic annotation
+    true_positives: List[NonNegativeFloat]
+        List of scores.
+    false_positives: List[NonNegativeFloat]
+        List of scores. Score is the prediction score of the automatic annotation.
     false_negatives: int
-        number of false negative annotations
+        Number of false negative annotations.
     """
 
     ious: List[Tuple[NonNegativeFloat, NonNegativeFloat]] = []

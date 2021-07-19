@@ -443,7 +443,7 @@ daily temperature data from the Bureau of Meterology.
           <td>4.9</td>
           <td>95</td>
           <td>...</td>
-          <td>15.833333</td>
+          <td>19.833333</td>
           <td>4.200000</td>
           <td>21.500000</td>
           <td>4.816667</td>
@@ -467,7 +467,7 @@ daily temperature data from the Bureau of Meterology.
           <td>8.3</td>
           <td>73</td>
           <td>...</td>
-          <td>15.850000</td>
+          <td>19.850000</td>
           <td>4.183333</td>
           <td>21.516667</td>
           <td>4.800000</td>
@@ -491,7 +491,7 @@ daily temperature data from the Bureau of Meterology.
           <td>5.9</td>
           <td>69</td>
           <td>...</td>
-          <td>15.866667</td>
+          <td>19.866667</td>
           <td>4.166667</td>
           <td>21.533333</td>
           <td>4.783333</td>
@@ -515,7 +515,7 @@ daily temperature data from the Bureau of Meterology.
           <td>8.4</td>
           <td>42</td>
           <td>...</td>
-          <td>15.883333</td>
+          <td>19.883333</td>
           <td>4.150000</td>
           <td>21.566667</td>
           <td>4.766667</td>
@@ -539,7 +539,7 @@ daily temperature data from the Bureau of Meterology.
           <td>7.6</td>
           <td>45</td>
           <td>...</td>
-          <td>15.900000</td>
+          <td>19.900000</td>
           <td>4.133333</td>
           <td>21.583333</td>
           <td>4.750000</td>
@@ -563,7 +563,7 @@ daily temperature data from the Bureau of Meterology.
           <td>13.0</td>
           <td>41</td>
           <td>...</td>
-          <td>15.916667</td>
+          <td>19.916667</td>
           <td>4.116667</td>
           <td>21.616667</td>
           <td>4.733333</td>
@@ -587,7 +587,7 @@ daily temperature data from the Bureau of Meterology.
           <td>15.0</td>
           <td>31</td>
           <td>...</td>
-          <td>15.933333</td>
+          <td>19.933333</td>
           <td>4.100000</td>
           <td>21.633333</td>
           <td>4.733333</td>
@@ -611,7 +611,7 @@ daily temperature data from the Bureau of Meterology.
           <td>22.0</td>
           <td>27</td>
           <td>...</td>
-          <td>15.950000</td>
+          <td>19.950000</td>
           <td>4.083333</td>
           <td>21.650000</td>
           <td>4.716667</td>
@@ -635,7 +635,7 @@ daily temperature data from the Bureau of Meterology.
           <td>19.8</td>
           <td>34</td>
           <td>...</td>
-          <td>15.966667</td>
+          <td>19.966667</td>
           <td>4.066667</td>
           <td>21.683333</td>
           <td>4.700000</td>
@@ -659,7 +659,7 @@ daily temperature data from the Bureau of Meterology.
           <td>13.9</td>
           <td>36</td>
           <td>...</td>
-          <td>15.983333</td>
+          <td>19.983333</td>
           <td>4.050000</td>
           <td>21.700000</td>
           <td>4.683333</td>
@@ -781,7 +781,7 @@ Now we can plot these data:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7f900b97a5d0>]
+    [<matplotlib.lines.Line2D at 0x7ff91f6e63d0>]
 
 
 
@@ -936,7 +936,7 @@ Finally, we can combine the above plots into a single figure:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7f900b760b10>]
+    [<matplotlib.lines.Line2D at 0x7ff91f60ac40>]
 
 
 
@@ -1114,8 +1114,8 @@ and plotting the effect:
     Model Family:                 Poisson   Df Model:                            7
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -51.152
-    Date:                Tue, 08 Jun 2021   Deviance:                       39.053
-    Time:                        16:03:33   Pearson chi2:                     37.8
+    Date:                Fri, 02 Jul 2021   Deviance:                       39.053
+    Time:                        10:24:41   Pearson chi2:                     37.8
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ===============================================================================================
@@ -1167,8 +1167,8 @@ as “Moth activity level scales with maximum temperature”.
     Model Family:                 Poisson   Df Model:                            1
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -99.853
-    Date:                Tue, 08 Jun 2021   Deviance:                       131.06
-    Time:                        16:03:33   Pearson chi2:                     130.
+    Date:                Fri, 02 Jul 2021   Deviance:                       131.06
+    Time:                        10:24:41   Pearson chi2:                     130.
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ============================================================================================
@@ -1217,8 +1217,8 @@ leaving the locale):
     Model Family:                 Poisson   Df Model:                            2
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -65.144
-    Date:                Tue, 08 Jun 2021   Deviance:                       61.639
-    Time:                        16:03:33   Pearson chi2:                     58.5
+    Date:                Fri, 02 Jul 2021   Deviance:                       61.639
+    Time:                        10:24:41   Pearson chi2:                     58.5
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ============================================================================================
@@ -1347,7 +1347,7 @@ including the predicted values for ``n_annotations``.
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f9009ce0a50>
+    <matplotlib.legend.Legend at 0x7ff8e1c5ed60>
 
 
 
@@ -1521,7 +1521,7 @@ Putting it all together for the publication:
 
 .. parsed-literal::
 
-    [<matplotlib.lines.Line2D at 0x7f9009ed78d0>]
+    [<matplotlib.lines.Line2D at 0x7ff8e1a8ce50>]
 
 
 

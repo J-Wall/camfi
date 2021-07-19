@@ -1,3 +1,7 @@
+"""Defines the data structures used throughout camfi. Makes heavy use of Pydantic's
+BaseModel.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -23,7 +27,7 @@ from pydantic import (
 from shapely.geometry import LineString
 from skimage import draw
 from skimage.transform import EuclideanTransform, warp
-from torch import from_numpy, hstack, stack, tensor, Tensor, zeros
+import torch
 from torch.utils.data import Dataset
 import torchvision.io
 
@@ -34,6 +38,24 @@ DatetimeCorrector = Callable[[datetime], datetime]
 
 
 class ViaFileAttributes(BaseModel):
+    """Contains file-level metadata for a single photograph.
+
+    Parameters
+    ----------
+    datetime_corrected : Optional[datetime]
+        Time image was taken (after taking the error of the camera's clock into
+        account).
+    datetime_original : Optional[datetime]
+        Time image was taken (according to camera).
+    exposure_time : Optional[PositiveFloat]
+        The exposure time of the image in seconds, as reported by the camera.
+    location : Optional[str]
+        The location the image was taken.
+    pixel_x_dimension : Optional[PositiveInt]
+        The width of the image in pixels.
+    pixel_y_dimension : Optional[PositiveInt]
+        The height of the image in pixels.
+    """
     datetime_corrected: Optional[datetime]
     datetime_original: Optional[datetime]
     exposure_time: Optional[PositiveFloat]
@@ -50,6 +72,28 @@ class ViaFileAttributes(BaseModel):
 
 
 class ViaRegionAttributes(BaseModel):
+    """Contains object annotation (region)-level metadata.
+
+    Parameters
+    ----------
+    score : Optional[float]
+        Score of annotation. This is only relevant for annotations which have been
+        obtained automatically. Score should not be set for manual annotations.
+    best_peak : Optional[int]
+        Period of wingbeat in pixels.
+    blur_length : Optional[float]
+        Length of motion blur in pixels.
+    snr : Optional[float]
+        Signal-to-noise ratio of best peak.
+    wb_freq_up : Optional[float]
+        Wingbeat frequency estimate, assuming upward motion (and zero body-length).
+    wb_freq_down : Optional[float]
+        Wingbeat frequency estimate, assuming downward motion (and zero body-length).
+    et_up : Optional[float]
+        Corrected moth exposure time, assuming upward motion.
+    et_dn : Optional[float]
+        Corrected moth exposure time, assuming downward motion.
+    """
     score: Optional[float] = Field(None, ge=0, le=1)
     best_peak: Optional[int] = Field(
         None, gt=0, description="period of wingbeat in pixels"
@@ -81,7 +125,14 @@ class ViaRegionAttributes(BaseModel):
 
 
 class ViaShapeAttributes(BaseModel, ABC):
-    """Abstract base class for via region shapes"""
+    """Abstract base class for via region shapes. These define the geometry data of
+    annotations of flying insects in images.
+
+    Parameters
+    ----------
+    name : str
+        Name of shape type (e.g. "point", "circle", or "polyline").
+    """
 
     name: str
 
@@ -89,7 +140,13 @@ class ViaShapeAttributes(BaseModel, ABC):
     def get_bounding_box(self) -> BoundingBox:
         """Returns a BoundingBox object which contains the coordinates in self.
         Note that CircleShapeAttributes are treated like PointShapeAttributes (i.e. r is
-        ignored)."""
+        ignored).
+
+        Returns
+        -------
+        box : BoundingBox
+            Bounding box of ViaShapeAttributes instance.
+        """
 
     @abstractmethod
     def in_box(self, box: BoundingBox) -> bool:
@@ -97,10 +154,23 @@ class ViaShapeAttributes(BaseModel, ABC):
 
         Parameters
         ----------
-        box: BoundingBox
+        box : BoundingBox
+            Bounding box to test against.
+
+        Returns
+        -------
+        is_in_box : bool
+            True if within box.
         """
 
-    def y_diff(self):
+    def y_diff(self) -> PositiveInt:
+        """Returns the total height (y-dimension) of the annotation (in pixels).
+
+        Returns
+        -------
+        y_diff : PositiveInt
+            Height of self in pixels.
+        """
         bounding_box = self.get_bounding_box()
         return bounding_box.y1 - bounding_box.y0 - 1
 
@@ -114,8 +184,8 @@ class ViaShapeAttributes(BaseModel, ABC):
 
         Returns
         -------
-        NonNegativeFloat
-            Intersection over Union of two bounding boxes, between 0.0 and 1.0
+        iou : NonNegativeFloat
+            Intersection over Union of two bounding boxes, between 0.0 and 1.0.
 
         Examples
         --------
@@ -140,11 +210,35 @@ class ViaShapeAttributes(BaseModel, ABC):
 
 
 class PointShapeAttributes(ViaShapeAttributes):
+    """Defines a point geometry.
+
+    Parameters
+    ----------
+    cx : NonNegativeFloat
+        x-coordinate of point.
+    cy : NonNegativeFloat
+        y-coordinate of point.
+    name : str
+        Name of shape (must be "point" for PointShapeAttributes instances).
+    """
     cx: NonNegativeFloat
     cy: NonNegativeFloat
     name: str = Field("point", regex=r"^point$")
 
     def get_bounding_box(self) -> BoundingBox:
+        """Finds the bounding box of the point.
+
+        Returns
+        -------
+        box : BoundingBox
+            Bounding box of point
+
+        Examples
+        --------
+        >>> point = PointShapeAttributes(cx=10, cy=15)
+        >>> point.get_bounding_box()
+        BoundingBox(x0=10, y0=15, x1=11, y1=16)
+        """
         return BoundingBox(
             x0=int(self.cx), y0=int(self.cy), x1=int(self.cx) + 1, y1=int(self.cy) + 1
         )
@@ -155,6 +249,12 @@ class PointShapeAttributes(ViaShapeAttributes):
         Parameters
         ----------
         box: BoundingBox
+           Box to test against..
+
+        Returns
+        -------
+        is_in_box : bool
+            True if point is within box.
 
         Examples
         --------
@@ -174,6 +274,19 @@ class PointShapeAttributes(ViaShapeAttributes):
 
 
 class CircleShapeAttributes(ViaShapeAttributes):
+    """Defines a circle geometry.
+
+    Parameters
+    ----------
+    cx : NonNegativeInt
+        x-coordinate of centre of circle.
+    cy : NonNegativeInt
+        y-coordinate of centre of circle.
+    name : str
+        Name of shape (must be "circle" for CircleShapeAttributes instances).
+    r : NonNegativeFloat
+        Radius of circle.
+    """
     cx: NonNegativeFloat
     cy: NonNegativeFloat
     name: str = Field("circle", regex=r"^circle$")
@@ -191,7 +304,8 @@ class CircleShapeAttributes(ViaShapeAttributes):
 
         Returns
         -------
-        CircleShapeAttributes
+        circle : CircleShapeAttributes
+            Smallest circle enclosing box.
 
         Examples
         --------
@@ -211,9 +325,32 @@ class CircleShapeAttributes(ViaShapeAttributes):
         return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
     def as_point(self):
+        """Converts a CircleShapeAttributes instance to a PointShapeAttributes instance.
+
+        Returns
+        -------
+        point : PointShapeAttributes
+            Point at centre of circle.
+        """
         return PointShapeAttributes(cx=self.cx, cy=self.cy)
 
     def get_bounding_box(self) -> BoundingBox:
+        """Finds the bounding box of the point at the centre of the circle.
+
+        **Note: this does not return the bounding box of the entire circle, just it's
+        centre.**
+
+        Returns
+        -------
+        box : BoundingBox
+            Bounding box of point at the centre of the circle.
+
+        Examples
+        --------
+        >>> circle = CircleShapeAttributes(cx=10, cy=15, r=10)
+        >>> circle.get_bounding_box()
+        BoundingBox(x0=10, y0=15, x1=11, y1=16)
+        """
         return self.as_point().get_bounding_box()
 
     def in_box(self, box: BoundingBox) -> bool:
@@ -221,7 +358,13 @@ class CircleShapeAttributes(ViaShapeAttributes):
 
         Parameters
         ----------
-        box: BoundingBox
+        box : BoundingBox
+            Box to test against.
+
+        Returns
+        -------
+        is_in_box : bool
+            True if centre of circle is contained in box.
 
         Examples
         --------
@@ -241,6 +384,17 @@ class CircleShapeAttributes(ViaShapeAttributes):
 
 
 class PolylineShapeAttributes(ViaShapeAttributes):
+    """Defines a polyline geometry.
+
+    Parameters
+    ----------
+    all_points_x : List[NonNegativeFloat]
+        List of the x-coordinates of the points defining the polyline.
+    all_points_y : List[NonNegativeFloat]
+        List of the y-coordinates of the points defining the polyline.
+    name : str
+        Name of shape (must be "polyline" for PolylineShapeAttributes instances).
+    """
     all_points_x: List[NonNegativeFloat]
     all_points_y: List[NonNegativeFloat]
     name: str = Field("polyline", regex=r"^polyline$")
@@ -252,12 +406,36 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         return v
 
     def as_circle(self) -> CircleShapeAttributes:
-        """Returns a CircleShapeAttributes object from the smallest enclosing circle
-        of the points in self."""
+        """Calculates the smallest enclosing circle of the polyline.
+
+        Returns
+        -------
+        smallest_enclosing_circle : CircleShapeAttributes
+            Smallest enclosing circle of polyline.
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(all_points_x=[0, 1], all_points_y=[0, 0])
+        >>> polyline.as_circle()
+        CircleShapeAttributes(name='circle', cx=0.5, cy=0.0, r=0.5)
+        """
         cx, cy, r = smallest_enclosing_circle(zip(self.all_points_x, self.all_points_y))
         return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
     def get_bounding_box(self) -> BoundingBox:
+        """Finds the bounding box of all the points in the polyline.
+
+        Returns
+        -------
+        box : BoundingBox
+            Bounding box of all the points in the polyline.
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(all_points_x=[0, 1], all_points_y=[0, 0])
+        >>> polyline.get_bounding_box()
+        BoundingBox(x0=0, y0=0, x1=2, y1=1)
+        """
         x_min = min(self.all_points_x)
         x_max = max(self.all_points_x)
         y_min = min(self.all_points_y)
@@ -273,6 +451,12 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         Parameters
         ----------
         box: BoundingBox
+            Box to test against.
+
+        Returns
+        -------
+        is_in_box : bool
+            True if entire polyline is contained in box.
 
         Examples
         --------
@@ -294,26 +478,26 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         return self.get_bounding_box().in_box(box)
 
     def extract_region_of_interest(
-        self, image: Tensor, scan_distance: PositiveInt
-    ) -> Tensor:
-        """Extracts region of interest (ROI) from an image tensor
+        self, image: torch.Tensor, scan_distance: PositiveInt
+    ) -> torch.Tensor:
+        """Extracts region of interest (ROI) from an image tensor.
 
         Parameters
         ----------
-        image: Tensor
-            image to extract region of interest from. Should be greyscale (ie. just have
+        image : torch.Tensor
+            Image to extract region of interest from. Should be greyscale (ie. just have
             two axes)
         scan_distance : PositiveInt
-            half-width of rois for motion blurs
+            Half-width of rois for motion blurs.
 
         Returns
         -------
-        Tensor
-           Region of interest
+        roi : torch.Tensor
+           Rotated, cropped, and straightened region of interest.
 
         Examples
         --------
-        >>> image = tensor([
+        >>> image = torch.tensor([
         ...     [0.0, 0.1, 0.2, 0.3, 0.4],
         ...     [1.0, 1.1, 1.2, 1.3, 1.4],
         ...     [2.0, 2.1, 2.2, 2.3, 2.4],
@@ -332,6 +516,7 @@ class PolylineShapeAttributes(ViaShapeAttributes):
                 [3.1000, 3.2000, 3.3000]])
 
         Also works for multi-segment polylines
+
         >>> polyline = PolylineShapeAttributes(
         ...     all_points_x=[1, 2, 4],
         ...     all_points_y=[2, 2, 2],
@@ -344,6 +529,7 @@ class PolylineShapeAttributes(ViaShapeAttributes):
                 [3.1000, 3.2000, 3.3000]])
 
         Segments can have different angles to each other
+
         >>> polyline = PolylineShapeAttributes(
         ...     all_points_x=[1, 3, 3],
         ...     all_points_y=[2, 2, 0],
@@ -357,6 +543,7 @@ class PolylineShapeAttributes(ViaShapeAttributes):
 
         And segments can be at arbitrary angles. This example starts towards the top-
         right corner and travels towards the bottom-left.
+
         >>> polyline = PolylineShapeAttributes(
         ...     all_points_x=[3, 0],
         ...     all_points_y=[1, 4],
@@ -367,6 +554,7 @@ class PolylineShapeAttributes(ViaShapeAttributes):
                 [0.5222, 1.1586, 1.7950, 2.4314]])
 
         And this one from the top-left, heading down and left
+
         >>> polyline = PolylineShapeAttributes(
         ...     all_points_x=[1, 4],
         ...     all_points_y=[1, 4],
@@ -401,19 +589,20 @@ class PolylineShapeAttributes(ViaShapeAttributes):
             section_length = int(round(sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)))
             cropped_img = warped_img[: 2 * scan_distance - 1, :section_length]
 
-            sections.append(from_numpy(cropped_img))  # Convert back to Tensor
+            sections.append(torch.from_numpy(cropped_img))  # Convert back to Tensor
 
         # Join sections to form complete ROI
-        joined_img = hstack(sections)
+        joined_img = torch.hstack(sections)
 
         return joined_img
 
     def length(self):
-        """Get the sum of lengths of all the polyline segments
+        """Get the sum of lengths of all the polyline segments.
 
         Returns
         -------
-        float
+        length : float
+            Length of polyline in pixels.
 
         Examples
         --------
@@ -425,16 +614,17 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         >>> polyline.length() == approx(sqrt(2) + 1)
         True
         """
-        xs = tensor(self.all_points_x)
-        ys = tensor(self.all_points_y)
+        xs = torch.tensor(self.all_points_x)
+        ys = torch.tensor(self.all_points_y)
         return float(((xs[1:] - xs[:-1]) ** 2 + (ys[1:] - ys[:-1]) ** 2).sqrt().sum())
 
     def to_shapely(self) -> LineString:
-        """Casts self to a shapely.geometry.LineString instance
+        """Casts self to a shapely.geometry.LineString instance.
 
         Returns
         -------
-        LineString
+        line_string : LineString
+            Shapely representation of a polyline.
 
         Examples
         --------
@@ -460,7 +650,8 @@ class PolylineShapeAttributes(ViaShapeAttributes):
 
         Returns
         -------
-        NonNegativeFloat
+        h_dist : NonNegativeFloat
+            Hausdorff distance between self and polyline.
 
         Examples
         --------
@@ -479,6 +670,18 @@ class PolylineShapeAttributes(ViaShapeAttributes):
 
 
 class ViaRegion(BaseModel):
+    """Combines region metadata with a geometry to define a complete annotation of a
+    single flying insect motion blur.
+
+    Parameters
+    ----------
+    region_attributes : ViaRegionAttributes
+        Metadata of annotation.
+    shape_attributes : Union[
+        PolylineShapeAttributes, CircleShapeAttributes, PointShapeAttributes
+    ]
+        Geometry of annotation.
+    """
     region_attributes: ViaRegionAttributes
     shape_attributes: Union[
         PolylineShapeAttributes, CircleShapeAttributes, PointShapeAttributes
@@ -500,6 +703,14 @@ class ViaRegion(BaseModel):
         return v
 
     def get_bounding_box(self) -> BoundingBox:
+        """Calls `.get_bounding_box` on `self.shape_attributes` to get the bounding box
+        of the annotation.
+
+        Returns
+        -------
+        box : BoundingBox
+            Bounding box of annotation.
+        """
         return self.shape_attributes.get_bounding_box()
 
     def in_box(self, box: BoundingBox) -> bool:
@@ -508,6 +719,7 @@ class ViaRegion(BaseModel):
         Parameters
         ----------
         box: BoundingBox
+            Box to test against.
 
         Examples
         --------
@@ -534,6 +746,20 @@ class ViaRegion(BaseModel):
 
 
 class ViaMetadata(BaseModel):
+    """Combines file-level image metadata with a list of annotations contained within
+    the image.
+
+    Parameters
+    ----------
+    file_attributes: ViaFileAttributes
+        File-level image metadata.
+    filename: Path
+        Relative path to image file.
+    regions: List[ViaRegion]
+        List of flying insect annotations.
+    size: int = -1
+        Not used. (Included for compatability with VIA).
+    """
     file_attributes: ViaFileAttributes
     filename: Path
     regions: List[ViaRegion]
@@ -565,7 +791,21 @@ class ViaMetadata(BaseModel):
         datetime_corrector: Optional[DatetimeCorrector] = None,
     ) -> None:
         """Extract EXIF metadata from an image file and put it in self.file_attributes.
-        Note: this will overwrite all contents in self.file_attributes.
+
+        **Note: this will overwrite all contents in self.file_attributes.**
+
+        EXIF tags loaded:
+          - datetime_original: datetime
+          - exposure_time: PositiveFloat
+          - pixel_x_dimension: PositiveInt
+          - pixel_y_dimension: PositiveInt
+
+        Extra tags:
+          - datetime_corrected: datetime
+                if datetime_corrector is set, this is calculated by
+                calling datetime_corrector(datetime_original).
+          - location: str
+                set if location is set
 
         Parameters
         ----------
@@ -577,21 +817,6 @@ class ViaMetadata(BaseModel):
             Option to also apply a location
         datetime_corrector: Optional[DatetimeCorrector]
             If set, then will be used to calculate datetime_corrected
-
-        EXIF tags loaded
-        ----------------
-        datetime_original: datetime
-        exposure_time: PositiveFloat
-        pixel_x_dimension: PositiveInt
-        pixel_Y_dimension: PositiveInt
-
-        Extra tags
-        ----------
-        datetime_corrected: datetime
-            if datetime_corrector is set, this is calculated by
-            calling datetime_corrector(datetime_original).
-        location: str
-            set if location is set
 
         Returns
         -------
@@ -617,6 +842,7 @@ class ViaMetadata(BaseModel):
         Optionally specify root directory. Here we are loading the same file, but using
         a root parameter. Note that root may also be a relative path (as in this case).
         Absolute paths are also acceptable.
+
         >>> metadata_with_root = ViaMetadata(
         ...     file_attributes=ViaFileAttributes(),
         ...     filename="data/DSCF0010.JPG",
@@ -627,6 +853,7 @@ class ViaMetadata(BaseModel):
         True
 
         If location is set, this will be reflected
+
         >>> metadata = ViaMetadata(
         ...     file_attributes=ViaFileAttributes(),
         ...     filename="camfi/test/data/DSCF0010.JPG",
@@ -639,6 +866,7 @@ class ViaMetadata(BaseModel):
         If a time correction needs to be made (for example if the camera's clock is
         known to have been incorrectly set), then we can correct the datetime by
         supplying a function to the `datetime_corrector` parameter.
+
         >>> metadata = ViaMetadata(
         ...     file_attributes=ViaFileAttributes(),
         ...     filename="camfi/test/data/DSCF0010.JPG",
@@ -671,7 +899,7 @@ class ViaMetadata(BaseModel):
                 self.file_attributes.datetime_original
             )
 
-    def read_image(self, root: Path = Path()) -> Tensor:
+    def read_image(self, root: Path = Path()) -> torch.Tensor:
         """Read an image from a file
 
         Parameters
@@ -683,7 +911,7 @@ class ViaMetadata(BaseModel):
 
         Returns
         -------
-        Tensor[colour, height (y), width (x)]
+        torch.Tensor[colour, height (y), width (x)]
             image as RGB float32 tensor
 
         Examples
@@ -702,6 +930,7 @@ class ViaMetadata(BaseModel):
         Optionally specify root directory. Here we are loading the same file, but using
         a root parameter. Note that root may also be a relative path (as in this case).
         Absolute paths are also acceptable.
+
         >>> metadata_with_root = ViaMetadata(
         ...     file_attributes=ViaFileAttributes(),
         ...     filename="data/DSCF0010.JPG",
@@ -766,12 +995,14 @@ class ViaProject(BaseModel):
         ...     project = ViaProject.parse_raw(f.read())
 
         The file which has been loaded contains no metadata
+
         >>> for meta in project.via_img_metadata.values():
         ...     print(meta.filename, str(meta.file_attributes.datetime_original))
         DSCF0010.JPG None
         DSCF0011.JPG None
 
         After load_all_exif_metadata is called, `project` does contain image metadata
+
         >>> project.load_all_exif_metadata(root=Path("camfi/test/data"))
         >>> for meta in project.via_img_metadata.values():
         ...     print(meta.filename, str(meta.file_attributes.datetime_original))
@@ -782,6 +1013,7 @@ class ViaProject(BaseModel):
         include `location` and/or `datetime_corrected`, respectively. Normally, these
         would be set as instances of `camfi.util.SubDirDict`, but for brevity we use
         a regular `dict` for each of them here.
+
         >>> project.load_all_exif_metadata(
         ...     root=Path("camfi/test/data"),
         ...     location_dict={
@@ -858,6 +1090,7 @@ class LocationTime(BaseModel):
         2.0
 
         `camera_end_time` and `actual_end_time` must be set, or else None is returned
+
         >>> print(LocationTime(camera_start_time="2021-07-15T14:00").get_time_ratio())
         None
         """
@@ -902,12 +1135,14 @@ class LocationTime(BaseModel):
         datetime.datetime(2021, 7, 15, 15, 0)
 
         Also works with offset-aware datetimes
+
         >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00+10")
         >>> location_corrector = location_time.corrector(2.)
         >>> location_corrector(datetime.fromisoformat("2021-07-15T17:00+11:00"))
         datetime.datetime(2021, 7, 15, 15, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=36000)))
 
         Raises an error if `camera_time_to_actual_time_ratio` cannot be determined
+
         >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00")
         >>> location_corrector = location_time.corrector()
         Traceback (most recent call last):
@@ -936,9 +1171,9 @@ class LocationTime(BaseModel):
 
 class LocationTimeCollector(BaseModel):
     """Used to generate `SubDirDict` instances which map subdirectories to location
-    strings or `DatetimeCorrector`s
+    strings or `DatetimeCorrector` s.
 
-    Parammeters
+    Parameters
     -----------
     items: Dict[Path, LocationTime]
 
@@ -947,6 +1182,7 @@ class LocationTimeCollector(BaseModel):
     Here, `LocationTimeCollector` is instantiated with two `LocationTime` instances.
     The first has enough information to get a `float` from its `.get_time_rato` method,
     However the second doesn't.
+
     >>> lt_collector = LocationTimeCollector(items={
     ...     Path("data"): LocationTime(
     ...         camera_start_time="2021-07-15T14:00",
@@ -958,7 +1194,8 @@ class LocationTimeCollector(BaseModel):
 
     When calling the `.get_time_ratio` method on a `LocationTimeCollector` instance,
     the mean of all (excluding those who return `None`) `.get_time_ratio` results from
-    all the `LocationTime`s is given.
+    all the `LocationTime` s is given.
+
     >>> lt_collector.get_time_ratio()
     2.0
     """
@@ -972,6 +1209,7 @@ class LocationTimeCollector(BaseModel):
         Examples
         --------
         If there is not enough information to calculate a time ratio, `None` is returned
+
         >>> lt_collector = LocationTimeCollector(items={
         ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
@@ -1023,11 +1261,13 @@ class LocationTimeCollector(BaseModel):
 
         If `camera_time_to_actual_time_ratio` is not set, it is calculated from
         the items in the `LocationTimeCollector`
+
         >>> datetime_correctors = lt_collector.get_correctors()
         >>> datetime_correctors["data"](datetime(2021, 7, 15, 18, 0))
         datetime.datetime(2021, 7, 15, 16, 0)
 
         But don't do this if there isn't enough information
+
         >>> lt_collector = LocationTimeCollector(items={
         ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
@@ -1086,7 +1326,7 @@ class MaskMaker(BaseModel):
     shape: Tuple[PositiveInt, PositiveInt]
     mask_dilate: Optional[PositiveInt] = None
 
-    def get_point_mask(self, point: PointShapeAttributes) -> Tensor:
+    def get_point_mask(self, point: PointShapeAttributes) -> torch.Tensor:
         """Produces a mask Tensor for a given point.
         Raises a ValueError if point lies outise self.shape"""
         cx = array([int(point.cx)])
@@ -1097,7 +1337,7 @@ class MaskMaker(BaseModel):
                 f"point ({cy}, {cx}) lies outside image with shape {self.shape}"
             )
 
-        mask = zeros(self.shape)
+        mask = torch.zeros(self.shape)
         if self.mask_dilate is None:
             rr, cc = cy, cx
         else:
@@ -1107,17 +1347,17 @@ class MaskMaker(BaseModel):
 
         return mask
 
-    def get_circle_mask(self, circle: CircleShapeAttributes) -> Tensor:
+    def get_circle_mask(self, circle: CircleShapeAttributes) -> torch.Tensor:
         """Produces a mask Tensor for a given circle.
         Raises a ValueError if centre lies outise self.shape"""
         return self.get_point_mask(circle.as_point())
 
-    def get_polyline_mask(self, polyline: PolylineShapeAttributes) -> Tensor:
+    def get_polyline_mask(self, polyline: PolylineShapeAttributes) -> torch.Tensor:
         """Produces a mask Tensor for a given polyline.
         Raises a ValueError if any point lies outise self.shape"""
         x = polyline.all_points_x
         y = polyline.all_points_y
-        mask = zeros(self.shape)
+        mask = torch.zeros(self.shape)
 
         for i in range(len(x) - 1):
             if x[i] >= self.shape[1] or y[i] >= self.shape[0]:
@@ -1138,7 +1378,7 @@ class MaskMaker(BaseModel):
         shape_attributes: Union[
             PointShapeAttributes, CircleShapeAttributes, PolylineShapeAttributes
         ],
-    ) -> Tensor:
+    ) -> torch.Tensor:
         if isinstance(shape_attributes, PointShapeAttributes):
             return self.get_point_mask(shape_attributes)
         elif isinstance(shape_attributes, CircleShapeAttributes):
@@ -1146,7 +1386,7 @@ class MaskMaker(BaseModel):
         else:
             return self.get_polyline_mask(shape_attributes)
 
-    def get_masks(self, metadata: ViaMetadata) -> List[Tensor]:
+    def get_masks(self, metadata: ViaMetadata) -> List[torch.Tensor]:
         """Calls self.get_mask on all regions in metadata
 
         Parameters
@@ -1156,7 +1396,7 @@ class MaskMaker(BaseModel):
 
         Returns
         -------
-        List[Tensor]
+        List[torch.Tensor]
             list of masks
         """
         return [self.get_mask(region.shape_attributes) for region in metadata.regions]
@@ -1266,6 +1506,7 @@ class BoundingBox(BaseModel):
         False
 
         A box is always in itself
+
         >>> box0.in_box(box0)
         True
         """
@@ -1350,6 +1591,7 @@ class BoundingBox(BaseModel):
         1
 
         Intersection is commutative
+
         >>> from itertools import product
         >>> pairs = product([box0, box1, box2, box3], repeat=2)
         >>> all(b0.intersection(b1) == b1.intersection(b0) for b0, b1 in pairs)
@@ -1393,6 +1635,7 @@ class BoundingBox(BaseModel):
         0.25
 
         Intersection over union is commutative
+
         >>> from itertools import product
         >>> pairs = product([box0, box1, box2, box3], repeat=2)
         >>> all(
@@ -1418,32 +1661,33 @@ class BoundingBox(BaseModel):
         """
         return self.y1 - self.y0 >= self.x1 - self.x0
 
-    def crop_image(self, image: Tensor) -> Tensor:
+    def crop_image(self, image: torch.Tensor) -> torch.Tensor:
         """Returns a view of an image cropped to the BoundingBox
 
         Parameters
         ----------
-        image : Tensor
+        image : torch.Tensor
             With shape [..., height, width]
 
         Returns
         -------
-        Tensor
+        torch.Tensor
             with shape [..., self.y1 - self.y0, self.x1 - self.x0], assuming
             height <= self.y1 - self.y0 and width <= self.x1 - self.x0.
 
         Examples
         --------
         >>> box = BoundingBox(x0=7, x1=15, y0=3, y1=7)
-        >>> grey_image = zeros(10, 20)
+        >>> grey_image = torch.zeros(10, 20)
         >>> box.crop_image(grey_image).shape
         torch.Size([4, 8])
-        >>> colour_image = zeros(3, 10, 20)
+        >>> colour_image = torch.zeros(3, 10, 20)
         >>> box.crop_image(colour_image).shape
         torch.Size([3, 4, 8])
 
         If BoundingBox goes outside image.shape, then output size will be truncated in
         the expected way
+
         >>> box = BoundingBox(x0=15, x1=25, y0=3, y1=7)
         >>> box.crop_image(grey_image).shape
         torch.Size([4, 5])
@@ -1457,7 +1701,7 @@ class BoundingBox(BaseModel):
 class TargetPredictionABC(BaseModel, ABC):
     boxes: List[BoundingBox]
     labels: List[PositiveInt]
-    masks: List[Tensor]
+    masks: List[torch.Tensor]
 
     class Config:
         arbitrary_types_allowed = True
@@ -1489,29 +1733,31 @@ class TargetPredictionABC(BaseModel, ABC):
         return len(self.labels)
 
     @abstractmethod
-    def to_tensor_dict(self) -> Dict[str, Tensor]:
+    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
         """Send data to a dict of Tensors"""
 
     @classmethod
     @abstractmethod
-    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> TargetPredictionABC:
+    def from_tensor_dict(
+        cls, tensor_dict: Dict[str, torch.Tensor]
+    ) -> TargetPredictionABC:
         """Load Target or Prediction from tensor_dict"""
 
 
 class Target(TargetPredictionABC):
     image_id: NonNegativeInt
 
-    def to_tensor_dict(self) -> Dict[str, Tensor]:
+    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
         """Send data to a dict of Tensors"""
         return dict(
-            boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
-            labels=tensor(self.labels),
-            image_id=tensor([self.image_id]),
-            masks=stack(self.masks),
+            boxes=torch.tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
+            labels=torch.tensor(self.labels),
+            image_id=torch.tensor([self.image_id]),
+            masks=torch.stack(self.masks),
         )
 
     @classmethod
-    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> Target:
+    def from_tensor_dict(cls, tensor_dict: Dict[str, torch.Tensor]) -> Target:
         """Load Target from tensor_dict"""
         return Target(
             boxes=[
@@ -1554,17 +1800,17 @@ class Prediction(TargetPredictionABC):
 
         return values
 
-    def to_tensor_dict(self) -> Dict[str, Tensor]:
+    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
         """Send data to a dict of Tensors"""
         return dict(
-            boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
-            labels=tensor(self.labels),
-            scores=tensor(self.scores),
-            masks=stack(self.masks),
+            boxes=torch.tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
+            labels=torch.tensor(self.labels),
+            scores=torch.tensor(self.scores),
+            masks=torch.stack(self.masks),
         )
 
     @classmethod
-    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> Prediction:
+    def from_tensor_dict(cls, tensor_dict: Dict[str, torch.Tensor]) -> Prediction:
         """Load Prediction from tensor_dict"""
         return Prediction(
             boxes=[
@@ -1634,7 +1880,7 @@ class Prediction(TargetPredictionABC):
         ...         BoundingBox(x0=1, y0=1, x1=2, y1=2),
         ...     ],
         ...     labels=[1, 2],
-        ...     masks=[zeros(2, 2), zeros(2, 2)],
+        ...     masks=[torch.zeros(2, 2), torch.zeros(2, 2)],
         ...     scores=[0.0, 1.0],
         ... )
         >>> subset_prediction = prediction.get_subset_from_index([0])
@@ -1660,14 +1906,16 @@ class Prediction(TargetPredictionABC):
 class ImageTransform(BaseModel, ABC):
     """Abstract base class for transforms on images with segmentation data."""
 
-    def __call__(self, image: Tensor, target: Target) -> Tuple[Tensor, Target]:
+    def __call__(
+        self, image: torch.Tensor, target: Target
+    ) -> Tuple[torch.Tensor, Target]:
         image, target_dict = self.apply_to_tensor_dict(image, target.to_tensor_dict())
         return image, Target.from_tensor_dict(target_dict)
 
     @abstractmethod
     def apply_to_tensor_dict(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        self, image: torch.Tensor, target: Dict[str, torch.Tensor]
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Subclasses of ImageTransform should implement this to return a transformed
         image and target dict."""
 
@@ -1746,7 +1994,7 @@ class CamfiDataset(BaseModel, Dataset):
             )
         )
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Target]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, Target]:
         metadata = self.via_project.via_img_metadata[self.keys[idx]]
         image = metadata.read_image(root=self.root)
 

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from pydantic import BaseModel, NonNegativeInt, PositiveFloat, PositiveInt
-from torch import arange, cat, float32, meshgrid, tensor, Tensor, zeros
+import torch
 
 from camfi.data import (
     DatetimeCorrector,
@@ -17,13 +17,13 @@ from camfi.data import (
 from camfi.util import cache
 
 
-def autocorrelation(roi: Tensor, max_pixel_period: PositiveInt) -> Tensor:
+def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.Tensor:
     """Calculate the autocorrelation along axis 1 of roi. Will run entirely on the
     device specified by roi.device, and is optimised for running on the GPU.
 
     Parameters
     ----------
-    roi : Tensor
+    roi : torch.Tensor
         tensor of shape (width, blur_length)
     max_pixel_period : Optional[PositiveInt]
         maximum period to consider (choosing a smaller number will increase the speed of
@@ -32,7 +32,7 @@ def autocorrelation(roi: Tensor, max_pixel_period: PositiveInt) -> Tensor:
 
     Returns
     -------
-    Tensor
+    torch.Tensor
         of shape (max_pixel_period,). Contains the the autocorrelation with integer
         step-sizes.
 
@@ -47,8 +47,8 @@ def autocorrelation(roi: Tensor, max_pixel_period: PositiveInt) -> Tensor:
     mean_diff = roi - roi.mean(axis=0)  # type: ignore[call-overload]
     std = roi.std(axis=0)  # type: ignore[call-overload]
 
-    index = arange(roi.shape[1] - max_pixel_period, device=roi.device)
-    step, origin = meshgrid(index[: max_pixel_period + 1], index)
+    index = torch.arange(roi.shape[1] - max_pixel_period, device=roi.device)
+    step, origin = torch.meshgrid(index[: max_pixel_period + 1], index)
     step = step + origin
 
     autocovariance = (mean_diff[:, origin] * mean_diff[:, step]).mean(axis=0)
@@ -58,13 +58,15 @@ def autocorrelation(roi: Tensor, max_pixel_period: PositiveInt) -> Tensor:
     return (autocovariance / denominator).nan_to_num().mean(axis=1)
 
 
-def find_best_peak(values: Tensor) -> Tuple[Optional[PositiveInt], Optional[float]]:
+def find_best_peak(
+    values: torch.Tensor,
+) -> Tuple[Optional[PositiveInt], Optional[float]]:
     """Takes a Tensor of values (with 1 dimension), and finds the index of the best peak
     If peak finding fails, (None, None) is returned.
 
     Parameters
     ----------
-    values : Tensor
+    values : torch.Tensor
 
     Returns
     -------
@@ -75,7 +77,7 @@ def find_best_peak(values: Tensor) -> Tuple[Optional[PositiveInt], Optional[floa
 
     Examples
     --------
-    >>> t = zeros(100)
+    >>> t = torch.zeros(100)
     >>> t[0] = 1.  # The first peak is always ignored
     >>> t[50] = 1.
     >>> find_best_peak(t)
@@ -93,7 +95,7 @@ def find_best_peak(values: Tensor) -> Tuple[Optional[PositiveInt], Optional[floa
     True
 
     If no peak is found, then (None, None) is returned
-    >>> find_best_peak(zeros(10))
+    >>> find_best_peak(torch.zeros(10))
     (None, None)
     """
     peaks = ((values > values.roll(-1)) & (values > values.roll(1))).nonzero(
@@ -107,7 +109,7 @@ def find_best_peak(values: Tensor) -> Tuple[Optional[PositiveInt], Optional[floa
 
     for peak in sorted_peaks:
         # Find snr
-        trough_values = cat(
+        trough_values = torch.cat(
             [
                 values[peak // 3 : (peak * 3) // 4],
                 values[(peak * 5) // 3 : (peak * 7) // 4],
@@ -153,8 +155,8 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     ...     def __call__(
     ...         self,
     ...         region_attributes: ViaRegionAttributes,
-    ...         region_of_interest: Tensor,
-    ...         mean_autocorrelation: Tensor,
+    ...         region_of_interest: torch.Tensor,
+    ...         mean_autocorrelation: torch.Tensor,
     ...     ) -> None:
     ...         self.get_filepath()
     ...         return None
@@ -188,8 +190,8 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     def __call__(
         self,
         region_attributes: ViaRegionAttributes,
-        region_of_interest: Tensor,
-        mean_autocorrelation: Tensor,
+        region_of_interest: torch.Tensor,
+        mean_autocorrelation: torch.Tensor,
     ) -> None:
         """Implementations produce a supplementary figure of a wingbeat extraction
         process, perhaps writing this to a file. Should call `self.get_filepath()` once
@@ -199,9 +201,9 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
         ----------
         region_attributes : ViaRegionAttributes
             With fields calculated (e.g. by WingbeatExtractor.process_blur)
-        region_of_interest : Tensor
+        region_of_interest : torch.Tensor
             Greyscale image Tensor displaying region of interest
-        mean_autocorrelation : Tensor
+        mean_autocorrelation : torch.Tensor
             1-d Tensor with values containing autocorrrelation along axis 1 of
             `region_of_interest`
         """
@@ -232,7 +234,7 @@ class WingbeatExtractor(BaseModel):
     # WingbeatExtractor instance. Hence, the property and cache decorators.
     @property  # type: ignore[misc]
     @cache
-    def image(self) -> Tensor:
+    def image(self) -> torch.Tensor:
         """Loads image from file and converts it to a greyscale tensor"""
         return self.metadata.read_image(root=self.root).mean(axis=-3)  # type: ignore[call-overload]
 
@@ -308,12 +310,12 @@ class WingbeatExtractor(BaseModel):
             # respect to the camera's orientation.
             y_diff = polyline.y_diff()
             corrected_exposure_time = (
-                (self.exposure_time + tensor([y_diff, -y_diff]) / self.line_rate)
+                (self.exposure_time + torch.tensor([y_diff, -y_diff]) / self.line_rate)
                 .sort()
                 .values
             )
             period = [
-                arange(1, max_pixel_period) * float(et) / roi.shape[1]
+                torch.arange(1, max_pixel_period) * float(et) / roi.shape[1]
                 for et in corrected_exposure_time
             ]
             wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
