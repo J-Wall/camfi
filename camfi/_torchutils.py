@@ -45,7 +45,7 @@ import torch
 import torch.distributed as dist
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+from torchvision.models.detection.mask_rcnn import MaskRCNN, MaskRCNNPredictor
 
 
 class SmoothedValue(object):
@@ -299,7 +299,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
 
-def get_model_instance_segmentation(num_classes, pretrained=True):
+def get_model_instance_segmentation(
+    num_classes: int, pretrained: bool = True
+) -> MaskRCNN:
     # load an instance segmentation model pre-trained pre-trained on COCO
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=pretrained)
 

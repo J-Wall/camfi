@@ -15,6 +15,8 @@ from typing import (
 )
 
 import numpy as np
+from pydantic import NonNegativeInt
+import torch
 
 
 # Hack to get cache decorator to play nice with mypy
@@ -143,10 +145,7 @@ def smallest_enclosing_circle(
 
 
 def dilate_idx(
-    rr: Union[np.ndarray, int],
-    cc: Union[np.ndarray, int],
-    d: int,
-    img_shape: Optional[Tuple[int, int]] = None,
+    rr: np.ndarray, cc: np.ndarray, d: int, img_shape: Optional[Tuple[int, int]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Takes index arrays rr and cc and performs a morphological dilation of size d on
     them.
@@ -370,3 +369,35 @@ class SubDirDict(Mapping[Path, V]):
 
     def items(self):
         return self._dict.items()
+
+
+def endpoint_truncate(fit_mask_vals: np.ndarray, n: NonNegativeInt) -> np.ndarray:
+    return np.array([n, len(fit_mask_vals) - n])
+
+
+def weighted_intersection_over_minimum(
+    mask0: torch.Tensor, mask1: torch.Tensor
+) -> float:
+    """Calculates the weighted intersection over minimum (IoM) between two segmentation
+    masks.
+
+    Parameters
+    ----------
+    mask0 : torch.Tensor
+    mask1 : torch.Tensor
+        Shoulf have the same shape as `mask0`.
+
+    Returns
+    -------
+    float
+
+    Examples
+    --------
+    >>> mask0 = torch.tensor([0.0, 0.5, 0.5, 0.0])
+    >>> mask1 = torch.tensor([1.0, 1.0, 0.0, 0.0])
+    >>> weighted_intersection_over_minimum(mask0, mask1)
+    0.5
+    """
+    return float(torch.minimum(mask0, mask1).sum()) / min(
+        float(mask0.sum()), float(mask1.sum())
+    )

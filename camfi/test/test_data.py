@@ -120,13 +120,28 @@ def masks():
 
 
 @fixture
-def target(boxes, labels, image_id, masks):
-    return data.Target(boxes=boxes, labels=labels, image_id=image_id, masks=masks)
+def scores():
+    return [0.0, 1.0]
+
+
+@fixture
+def target(boxes, labels, masks, image_id):
+    return data.Target(boxes=boxes, labels=labels, masks=masks, image_id=image_id)
+
+
+@fixture
+def prediction(boxes, labels, masks, scores):
+    return data.Prediction(boxes=boxes, labels=labels, masks=masks, scores=scores)
 
 
 @fixture
 def target_dict(target):
     return target.to_tensor_dict()
+
+
+@fixture
+def prediction_dict(prediction):
+    return prediction.to_tensor_dict()
 
 
 @fixture
@@ -538,6 +553,74 @@ class TestTarget:
             assert target_from_dict.masks[i].allclose(target.masks[i])
 
 
+class TestPrediction:
+    def test_validator_passes(self, bounding_box):
+        kwargs = dict(
+            boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0],
+        )
+        prediction = data.Prediction(**kwargs)
+        for key, value in kwargs.items():
+            assert getattr(prediction, key) == value
+
+    def test_validator_fails(self, bounding_box):
+        kwargs = dict(
+            boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0, 1.0],
+        )
+        with raises(ValueError):
+            data.Prediction(**kwargs)
+
+    def test_mask_validator_fails(self):
+        for s0, s1 in [
+            ((2, 2), (2, 3)),
+            ((2, 2), (3, 2)),
+            ((2, 3), (2, 2)),
+            ((3, 2), (2, 2)),
+        ]:
+            kwargs = dict(
+                boxes=[bounding_box, bounding_box],
+                labels=[1, 1],
+                masks=[zeros(s0), zeros(s1)],
+                scores=[0.0, 1.0],
+            )
+            with raises(ValueError):
+                data.Target(**kwargs)
+
+    def test_to_tensor_dict(self, prediction):
+        prediction_dict = prediction.to_tensor_dict()
+        fields = [
+            "boxes",
+            "labels",
+            "masks",
+            "scores",
+        ]
+        for field in fields:
+            assert field in prediction_dict
+
+    def test_from_tensor_dict(self, prediction):
+        prediction_dict = prediction.to_tensor_dict()
+        fields = [
+            "boxes",
+            "labels",
+            "masks",
+            "scores",
+        ]
+        prediction_from_dict = data.Prediction.from_tensor_dict(prediction_dict)
+        assert prediction_from_dict.boxes == prediction.boxes
+        assert prediction_from_dict.labels == prediction.labels
+        assert prediction_from_dict.scores == prediction.scores
+        for i in range(len(prediction_from_dict.masks)):
+            assert prediction_from_dict.masks[i].allclose(prediction.masks[i])
+
+    def test_filter_by_score(self, prediction):
+        filtered_prediction = prediction.filter_by_score(0.5)
+        assert len(filtered_prediction) == 1
+        assert len(filtered_prediction.boxes) == 1
+        assert len(filtered_prediction.labels) == 1
+        assert len(filtered_prediction.masks) == 1
+        assert len(filtered_prediction.scores) == 1
+        assert filtered_prediction.scores[0] >= 0.5
+
+
 class MockImageTransform(data.ImageTransform):
     def apply_to_tensor_dict(
         self, image: Tensor, target: Dict[str, Tensor]
@@ -663,7 +746,7 @@ class TestCamfiDataset:
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=True,
-            crop=[5, 10, 55, 50],
+            crop=data.BoundingBox(x0=5, y0=10, x1=55, y1=50),
         )
         image, target = dataset[0]
         assert image.shape == (3, 40, 50)
@@ -674,14 +757,14 @@ class TestCamfiDataset:
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=False,
-            crop=[0, 0, 4608, 3312],
+            crop=data.BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
             mask_maker=data.MaskMaker(shape=(3312, 4608)),
         )
         dataset_transformed = data.CamfiDataset(
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=False,
-            crop=[0, 0, 4608, 3312],
+            crop=data.BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
             mask_maker=data.MaskMaker(shape=(3312, 4608), mask_dilate=1),
             transform=MockImageTransform(),
         )

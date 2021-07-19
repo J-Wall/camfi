@@ -9,7 +9,7 @@ import random
 from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import exif
-from multimethod import multimethod
+from numpy import array
 from pydantic import (
     BaseModel,
     Field,
@@ -20,6 +20,7 @@ from pydantic import (
     root_validator,
     validator,
 )
+from shapely.geometry import LineString
 from skimage import draw
 from skimage.transform import EuclideanTransform, warp
 from torch import from_numpy, hstack, stack, tensor, Tensor, zeros
@@ -103,6 +104,21 @@ class ViaShapeAttributes(BaseModel, ABC):
         bounding_box = self.get_bounding_box()
         return bounding_box.y1 - bounding_box.y0 - 1
 
+    def intersection_over_union(self, other: ViaShapeAttributes) -> NonNegativeFloat:
+        """Get the intersection over union of bounding boxes.
+
+        Parameters
+        ----------
+        other: ViaShapeAttributes
+            Other shape to compare to.
+
+        Returns
+        -------
+        NonNegativeFloat
+            Intersection over Union of two bounding boxes, between 0.0 and 1.0
+        """
+        return self.get_bounding_box().intersection_over_union(other.get_bounding_box())
+
 
 class PointShapeAttributes(ViaShapeAttributes):
     cx: NonNegativeFloat
@@ -143,6 +159,37 @@ class CircleShapeAttributes(ViaShapeAttributes):
     cy: NonNegativeFloat
     name: str = Field("circle", regex=r"^circle$")
     r: NonNegativeFloat
+
+    @classmethod
+    def from_bounding_box(cls, box: BoundingBox) -> CircleShapeAttributes:
+        """Takes a BoundingBox and returns a CircleShapeAttributes, which encloses the
+        BoundingBox.
+
+        Parameters
+        ----------
+        box : BoundingBox
+            Box to enclose with circle
+
+        Returns
+        -------
+        CircleShapeAttributes
+
+        Examples
+        --------
+        >>> from pytest import approx
+        >>> box = BoundingBox(x0=0, y0=0, x1=2, y1=2)
+        >>> circle = CircleShapeAttributes.from_bounding_box(box)
+        >>> circle.cx == approx(1.0)
+        True
+        >>> circle.cy == approx(1.0)
+        True
+        >>> circle.r == approx(sqrt(2))
+        True
+        """
+        all_points_x = [box.x0, box.x0, box.x1, box.x1]
+        all_points_y = [box.y0, box.y1, box.y0, box.y1]
+        cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
+        return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
     def as_point(self):
         return PointShapeAttributes(cx=self.cx, cy=self.cy)
@@ -362,6 +409,54 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         xs = tensor(self.all_points_x)
         ys = tensor(self.all_points_y)
         return float(((xs[1:] - xs[:-1]) ** 2 + (ys[1:] - ys[:-1]) ** 2).sqrt().sum())
+
+    def to_shapely(self) -> LineString:
+        """Casts self to a shapely.geometry.LineString instance
+
+        Returns
+        -------
+        LineString
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(
+        ...     all_points_x=[0, 1, 1],
+        ...     all_points_y=[1, 1, 2],
+        ... )
+        >>> line_string = polyline.to_shapely()
+        >>> isinstance(line_string, LineString)
+        True
+        >>> print(line_string)
+        LINESTRING (0 1, 1 1, 1 2)
+        """
+        return LineString(zip(self.all_points_x, self.all_points_y))
+
+    def hausdorff_distance(self, polyline: PolylineShapeAttributes) -> NonNegativeFloat:
+        """Returns the Hausdorff distance between two PolylineShapeAttributes instances.
+
+        Parameters
+        ----------
+        polyline : PolylineShapeAttributes
+            Other polyline to compare to
+
+        Returns
+        -------
+        NonNegativeFloat
+
+        Examples
+        --------
+        >>> polyline0 = PolylineShapeAttributes(
+        ...     all_points_x=[0, 1],
+        ...     all_points_y=[0, 0],
+        ... )
+        >>> polyline1 = PolylineShapeAttributes(
+        ...     all_points_x=[0, 1],
+        ...     all_points_y=[1, 1],
+        ... )
+        >>> polyline0.hausdorff_distance(polyline1)
+        1.0
+        """
+        return self.to_shapely().hausdorff_distance(polyline.to_shapely())
 
 
 class ViaRegion(BaseModel):
@@ -968,21 +1063,15 @@ class LocationTimeCollector(BaseModel):
         return location_dict
 
 
-class MaskMaker:
-    def __init__(
-        self,
-        shape: Tuple[PositiveInt, PositiveInt],
-        mask_dilate: Optional[PositiveInt] = None,
-    ):
-        self.shape = shape
-        self.mask_dilate = mask_dilate
+class MaskMaker(BaseModel):
+    shape: Tuple[PositiveInt, PositiveInt]
+    mask_dilate: Optional[PositiveInt] = None
 
-    @multimethod
-    def get_mask(self, point: PointShapeAttributes) -> Tensor:
+    def get_point_mask(self, point: PointShapeAttributes) -> Tensor:
         """Produces a mask Tensor for a given point.
         Raises a ValueError if point lies outise self.shape"""
-        cx = int(point.cx)
-        cy = int(point.cy)
+        cx = array([int(point.cx)])
+        cy = array([int(point.cy)])
 
         if cx >= self.shape[1] or cy >= self.shape[0]:
             raise ValueError(
@@ -999,14 +1088,12 @@ class MaskMaker:
 
         return mask
 
-    @multimethod  # type: ignore[no-redef]
-    def get_mask(self, circle: CircleShapeAttributes) -> Tensor:
+    def get_circle_mask(self, circle: CircleShapeAttributes) -> Tensor:
         """Produces a mask Tensor for a given circle.
         Raises a ValueError if centre lies outise self.shape"""
-        return self.get_mask(circle.as_point())
+        return self.get_point_mask(circle.as_point())
 
-    @multimethod  # type: ignore[no-redef]
-    def get_mask(self, polyline: PolylineShapeAttributes) -> Tensor:
+    def get_polyline_mask(self, polyline: PolylineShapeAttributes) -> Tensor:
         """Produces a mask Tensor for a given polyline.
         Raises a ValueError if any point lies outise self.shape"""
         x = polyline.all_points_x
@@ -1026,6 +1113,23 @@ class MaskMaker:
             mask[rr, cc] = 1
 
         return mask
+
+    def get_mask(
+        self,
+        shape_attributes: Union[
+            PointShapeAttributes, CircleShapeAttributes, PolylineShapeAttributes
+        ],
+    ) -> Tensor:
+        if isinstance(shape_attributes, PointShapeAttributes):
+            return self.get_point_mask(shape_attributes)
+        elif isinstance(shape_attributes, CircleShapeAttributes):
+            return self.get_circle_mask(shape_attributes)
+        elif isinstance(shape_attributes, PolylineShapeAttributes):
+            return self.get_polyline_mask(shape_attributes)
+        else:
+            raise TypeError(
+                f"Expected one of 'PointShapeAttributes', 'CircleShapeAttributes', 'PolylineShapeAttributes', got {type(shape_attributes)}."
+            )
 
     def get_masks(self, metadata: ViaMetadata) -> List[Tensor]:
         """Calls self.get_mask on all regions in metadata
@@ -1096,7 +1200,7 @@ class BoundingBox(BaseModel):
         self,
         margin: NonNegativeInt,
         shape: Optional[Tuple[PositiveInt, PositiveInt]] = None,
-    ):
+    ) -> None:
         """Expands self by a fixed margin. Operates in-place.
 
         Parameters
@@ -1283,11 +1387,57 @@ class BoundingBox(BaseModel):
 
         return intersection / union
 
+    def is_portrait(self) -> bool:
+        """Returns true if bounding box is at least as tall as it is wide.
 
-class Target(BaseModel):
+        Examples
+        --------
+        >>> BoundingBox(x0=1, y0=0, x1=11, y1=10).is_portrait()
+        True
+        >>> BoundingBox(x0=0, y0=0, x1=11, y1=10).is_portrait()
+        False
+        """
+        return self.y1 - self.y0 >= self.x1 - self.x0
+
+    def crop_image(self, image: Tensor) -> Tensor:
+        """Returns a view of an image cropped to the BoundingBox
+
+        Parameters
+        ----------
+        image : Tensor
+            With shape [..., height, width]
+
+        Returns
+        -------
+        Tensor
+            with shape [..., self.y1 - self.y0, self.x1 - self.x0], assuming
+            height <= self.y1 - self.y0 and width <= self.x1 - self.x0.
+
+        Examples
+        --------
+        >>> box = BoundingBox(x0=7, x1=15, y0=3, y1=7)
+        >>> grey_image = zeros(10, 20)
+        >>> box.crop_image(grey_image).shape
+        torch.Size([4, 8])
+        >>> colour_image = zeros(3, 10, 20)
+        >>> box.crop_image(colour_image).shape
+        torch.Size([3, 4, 8])
+
+        If BoundingBox goes outside image.shape, then output size will be truncated in
+        the expected way
+        >>> box = BoundingBox(x0=15, x1=25, y0=3, y1=7)
+        >>> box.crop_image(grey_image).shape
+        torch.Size([4, 5])
+        >>> box = BoundingBox(x0=7, x1=15, y0=7, y1=13)
+        >>> box.crop_image(grey_image).shape
+        torch.Size([3, 8])
+        """
+        return image[..., self.y0 : self.y1, self.x0 : self.x1]
+
+
+class TargetPredictionABC(BaseModel, ABC):
     boxes: List[BoundingBox]
     labels: List[PositiveInt]
-    image_id: NonNegativeInt
     masks: List[Tensor]
 
     class Config:
@@ -1316,7 +1466,24 @@ class Target(BaseModel):
 
         return v
 
+    def __len__(self):
+        return len(self.labels)
+
+    @abstractmethod
     def to_tensor_dict(self) -> Dict[str, Tensor]:
+        """Send data to a dict of Tensors"""
+
+    @classmethod
+    @abstractmethod
+    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> TargetPredictionABC:
+        """Load Target or Prediction from tensor_dict"""
+
+
+class Target(TargetPredictionABC):
+    image_id: NonNegativeInt
+
+    def to_tensor_dict(self) -> Dict[str, Tensor]:
+        """Send data to a dict of Tensors"""
         return dict(
             boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
             labels=tensor(self.labels),
@@ -1326,14 +1493,15 @@ class Target(BaseModel):
 
     @classmethod
     def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> Target:
+        """Load Target from tensor_dict"""
         return Target(
             boxes=[
                 BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
                 for x0, y0, x1, y1 in tensor_dict["boxes"]
             ],
             labels=[int(v) for v in tensor_dict["labels"]],
-            image_id=int(tensor_dict["image_id"]),
             masks=list(tensor_dict["masks"]),
+            image_id=int(tensor_dict["image_id"]),
         )
 
     @classmethod
@@ -1351,9 +1519,126 @@ class Target(BaseModel):
         Examples
         --------
         >>> Target.empty()
-        Target(boxes=[], labels=[], image_id=0, masks=[])
+        Target(boxes=[], labels=[], masks=[], image_id=0)
         """
-        return Target(boxes=[], labels=[], image_id=image_id, masks=[])
+        return Target.construct(boxes=[], labels=[], image_id=image_id, masks=[])
+
+
+class Prediction(TargetPredictionABC):
+    scores: List[NonNegativeFloat]
+
+    @root_validator
+    def all_fields_have_same_length(cls, values):
+        try:
+            length = len(values["boxes"])
+            if not all(len(values[k]) == length for k in ["labels", "masks", "scores"]):
+                raise ValueError("Fields must have same length")
+        except KeyError:
+            raise ValueError("Invalid parameters given to Target")
+
+        return values
+
+    def to_tensor_dict(self) -> Dict[str, Tensor]:
+        """Send data to a dict of Tensors"""
+        return dict(
+            boxes=tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
+            labels=tensor(self.labels),
+            scores=tensor(self.scores),
+            masks=stack(self.masks),
+        )
+
+    @classmethod
+    def from_tensor_dict(cls, tensor_dict: Dict[str, Tensor]) -> Prediction:
+        """Load Prediction from tensor_dict"""
+        return Prediction(
+            boxes=[
+                BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
+                for x0, y0, x1, y1 in tensor_dict["boxes"]
+            ],
+            labels=[int(v) for v in tensor_dict["labels"]],
+            masks=list(tensor_dict["masks"]),
+            scores=[int(v) for v in tensor_dict["scores"]],
+        )
+
+    @classmethod
+    def empty(cls) -> Prediction:
+        """Initialises an Prediction with no data.
+
+        Returns
+        -------
+        Prediction
+
+        Examples
+        --------
+        >>> Prediction.empty()
+        Prediction(boxes=[], labels=[], masks=[], scores=[])
+        """
+        return Prediction.construct(boxes=[], labels=[], masks=[], scores=[])
+
+    def filter_by_score(self, score_thresh: float) -> Prediction:
+        """Returns a Prediction instance with items with scores below `score_thresh`
+        removed.
+
+        Parameters
+        ----------
+        score_thresh: float
+
+        Returns
+        -------
+        Prediction
+        """
+        filtered_prediction = Prediction.empty()
+        for i in range(len(self)):
+            if self.scores[i] >= score_thresh:
+                filtered_prediction.boxes.append(self.boxes[i])
+                filtered_prediction.labels.append(self.labels[i])
+                filtered_prediction.masks.append(self.masks[i])
+                filtered_prediction.scores.append(self.scores[i])
+
+        return filtered_prediction
+
+    def get_subset_from_index(self, subset: List[NonNegativeInt]) -> Prediction:
+        """Returns a Prediction instance from self with items indexed by the elements
+        of `subset`.
+
+        Parameters
+        ----------
+        subset : List[NonNegativeInt]
+            List of indices
+
+        Returns
+        -------
+        Prediction
+
+        Examples
+        --------
+        >>> prediction = Prediction(
+        ...     boxes=[
+        ...         BoundingBox(x0=0, y0=0, x1=1, y1=1),
+        ...         BoundingBox(x0=1, y0=1, x1=2, y1=2),
+        ...     ],
+        ...     labels=[1, 2],
+        ...     masks=[zeros(2, 2), zeros(2, 2)],
+        ...     scores=[0.0, 1.0],
+        ... )
+        >>> subset_prediction = prediction.get_subset_from_index([0])
+        >>> subset_prediction.boxes == prediction.boxes[0:1]
+        True
+        >>> subset_prediction.labels == prediction.labels[0:1]
+        True
+        >>> len(subset_prediction.masks) == 1
+        True
+        >>> subset_prediction.scores == prediction.scores[0:1]
+        True
+        """
+        filtered_prediction = Prediction.empty()
+        for i in subset:
+            filtered_prediction.boxes.append(self.boxes[i])
+            filtered_prediction.labels.append(self.labels[i])
+            filtered_prediction.masks.append(self.masks[i])
+            filtered_prediction.scores.append(self.scores[i])
+
+        return filtered_prediction
 
 
 class ImageTransform(BaseModel, ABC):
@@ -1374,7 +1659,7 @@ class ImageTransform(BaseModel, ABC):
 class CamfiDataset(BaseModel, Dataset):
     root: Path
     via_project: ViaProject
-    crop: Optional[Tuple[int, int, int, int]] = None  # [x0, y0, x1, y1]
+    crop: Optional[BoundingBox] = None
 
     inference_mode: bool = False
 
@@ -1383,6 +1668,7 @@ class CamfiDataset(BaseModel, Dataset):
     transform: Optional[ImageTransform] = None
     min_annotations: int = 0
     max_annotations: float = inf
+    box_margin: PositiveInt = 10
 
     # Optionally exclude some files
     exclude: set = None  # type: ignore[assignment]
@@ -1390,19 +1676,34 @@ class CamfiDataset(BaseModel, Dataset):
     # Automatically generated. No need to set.
     keys: List = None  # type: ignore[assignment]
 
-    class Config:
-        arbitrary_types_allowed = True
-
     @validator("exclude", pre=True, always=True)
     def default_exclude(cls, v):
         if v is None:
             return set()
         return v
 
-    @validator("transform", "min_annotations", "max_annotations")
-    def only_set_if_not_inference_mode(cls, v, values):
+    @validator("transform")
+    def only_set_transform_if_not_inference_mode(cls, v, values):
         if "inference_mode" in values and values["inference_mode"] is True:
-            assert v in {0, inf, None}, "Only set if inference_mode=False"
+            assert v is None, "Only set if inference_mode=False"
+        return v
+
+    @validator("min_annotations")
+    def only_set_min_annotations_if_not_inference_mode(cls, v, values):
+        if "inference_mode" in values and values["inference_mode"] is True:
+            assert v is 0, "Only set if inference_mode=False"
+        return v
+
+    @validator("max_annotations")
+    def only_set_max_annotations_if_not_inference_mode(cls, v, values):
+        if "inference_mode" in values and values["inference_mode"] is True:
+            assert v is inf, "Only set if inference_mode=False"
+        return v
+
+    @validator("box_margin")
+    def only_set_box_margin_if_not_inference_mode(cls, v, values):
+        if "inference_mode" in values and values["inference_mode"] is True:
+            assert v is 10, "Only set if inference_mode=False"
         return v
 
     @validator("mask_maker", always=True)
@@ -1434,12 +1735,14 @@ class CamfiDataset(BaseModel, Dataset):
         image = metadata.read_image(root=self.root)
 
         if self.crop is not None:
-            image = image[:, self.crop[1] : self.crop[3], self.crop[0] : self.crop[2]]
+            image = self.crop.crop_image(image)
 
         if self.inference_mode:
             target = Target.empty(image_id=idx)
         else:  # Training mode
             boxes = metadata.get_bounding_boxes()
+            for box in boxes:
+                box.add_margin(self.box_margin)
             target = Target(
                 boxes=boxes,
                 labels=metadata.get_labels(),
@@ -1454,3 +1757,7 @@ class CamfiDataset(BaseModel, Dataset):
 
     def __len__(self):
         return len(self.keys)
+
+    def metadata(self, idx: int) -> ViaMetadata:
+        """Returns the ViaMetadata object of the image at idx."""
+        return self.via_project.via_img_metadata[self.keys[idx]]
