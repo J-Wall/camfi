@@ -116,6 +116,25 @@ class ViaShapeAttributes(BaseModel, ABC):
         -------
         NonNegativeFloat
             Intersection over Union of two bounding boxes, between 0.0 and 1.0
+
+        Examples
+        --------
+        >>> class MockShapeAttributes(ViaShapeAttributes):
+        ...     bounding_box: BoundingBox
+        ...     def get_bounding_box(self) -> BoundingBox:
+        ...         return self.bounding_box
+        ...     def in_box(self, box: BoundingBox) -> bool:
+        ...         return self.bounding_box.in_box(box)
+        >>> shape_attributes0 = MockShapeAttributes(
+        ...     bounding_box=BoundingBox(x0=0, y0=0, x1=2, y1=1),
+        ...     name="mock_shape",
+        ... )
+        >>> shape_attributes1 = MockShapeAttributes(
+        ...     bounding_box=BoundingBox(x0=1, y0=0, x1=4, y1=1),
+        ...     name="mock_shape",
+        ... )
+        >>> shape_attributes0.intersection_over_union(shape_attributes1)
+        0.25
         """
         return self.get_bounding_box().intersection_over_union(other.get_bounding_box())
 
@@ -1367,11 +1386,15 @@ class BoundingBox(BaseModel):
         >>> box0 = BoundingBox(x0=0, y0=0, x1=1, y1=1)
         >>> box1 = BoundingBox(x0=2, y0=2, x1=3, y1=3)
         >>> box2 = BoundingBox(x0=0, y0=0, x1=2, y1=2)
-        >>> box3 = BoundingBox(x0=1, y0=1, x1=3, y1=3)
+        >>> box3 = BoundingBox(x0=1, y0=0, x1=4, y1=2)
         >>> box0.intersection_over_union(box1)
         0.0
+        >>> box1.intersection_over_union(box2)
+        0.0
         >>> box2.intersection_over_union(box3)
-        0.125
+        0.25
+        >>> box0.intersection_over_union(box2)
+        0.25
 
         Intersection over union is commutative
         >>> from itertools import product
@@ -1383,7 +1406,7 @@ class BoundingBox(BaseModel):
         True
         """
         intersection = self.intersection(box)
-        union = self.get_area() + box.get_area()
+        union = self.get_area() + box.get_area() - intersection
 
         return intersection / union
 
