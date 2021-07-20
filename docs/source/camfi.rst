@@ -1,6 +1,11 @@
 camfi package
 =============
 
+.. automodule:: camfi
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
@@ -20,11 +25,3 @@ Submodules
    camfi.transform
    camfi.util
    camfi.wingbeat
-
-Module contents
----------------
-
-.. automodule:: camfi
-   :members:
-   :undoc-members:
-   :show-inheritance:

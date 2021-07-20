@@ -1,6 +1,11 @@
 camfi.datamodel package
 =======================
 
+.. automodule:: camfi.datamodel
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -11,11 +16,3 @@ Submodules
    camfi.datamodel.geometry
    camfi.datamodel.locationtime
    camfi.datamodel.via
-
-Module contents
----------------
-
-.. automodule:: camfi.datamodel
-   :members:
-   :undoc-members:
-   :show-inheritance:
