@@ -1,7 +1,7 @@
 from pytest import approx, fixture, raises
 from torch import Tensor, zeros
 
-from camfi.data import Target
+from camfi.datamodel.autoannotation import Target
 from camfi import transform
 from camfi.test.test_data import (
     target_dict,

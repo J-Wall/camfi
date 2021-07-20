@@ -3,43 +3,46 @@ from pathlib import Path
 from pytest import approx, fixture, raises
 from torch import Tensor
 
-from camfi import data, wingbeat
+from camfi.wingbeat import WingbeatExtractor, WingbeatSuppFigPlotter
+from camfi.datamodel.geometry import CircleShapeAttributes, PolylineShapeAttributes
+from camfi.datamodel.via import (
+    ViaFileAttributes,
+    ViaMetadata,
+    ViaRegion,
+    ViaRegionAttributes,
+)
 
 
 @fixture
 def circle():
-    return data.CircleShapeAttributes(cx=5.0, cy=10.0, r=20.0)
+    return CircleShapeAttributes(cx=5.0, cy=10.0, r=20.0)
 
 
 @fixture
 def polyline():
-    return data.PolylineShapeAttributes(
+    return PolylineShapeAttributes(
         all_points_x=[3589, 3913, 4140, 4264], all_points_y=[1107, 1095, 1083, 1079],
     )
 
 
 @fixture
 def via_region(polyline):
-    return data.ViaRegion(
-        region_attributes=data.ViaRegionAttributes(), shape_attributes=polyline
-    )
+    return ViaRegion(region_attributes=ViaRegionAttributes(), shape_attributes=polyline)
 
 
 @fixture
 def via_region_circle(circle):
-    return data.ViaRegion(
-        region_attributes=data.ViaRegionAttributes(), shape_attributes=circle
-    )
+    return ViaRegion(region_attributes=ViaRegionAttributes(), shape_attributes=circle)
 
 
 @fixture
 def via_file_attributes():
-    return data.ViaFileAttributes()
+    return ViaFileAttributes()
 
 
 @fixture
 def via_metadata(via_file_attributes, via_region):
-    return data.ViaMetadata(
+    return ViaMetadata(
         file_attributes=via_file_attributes,
         filename="data/DSCF0010.JPG",
         regions=[via_region],
@@ -48,7 +51,7 @@ def via_metadata(via_file_attributes, via_region):
 
 @fixture
 def wingbeat_extractor(via_metadata):
-    return wingbeat.WingbeatExtractor(
+    return WingbeatExtractor(
         metadata=via_metadata,
         root="camfi/test",
         line_rate=9.05e04,
@@ -56,10 +59,10 @@ def wingbeat_extractor(via_metadata):
     )
 
 
-class MockWingbeatSuppFigPlotter(wingbeat.WingbeatSuppFigPlotter):
+class MockWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
     def __call__(
         self,
-        region_attributes: data.ViaRegionAttributes,
+        region_attributes: ViaRegionAttributes,
         region_of_interest: Tensor,
         mean_autocorrelation: Tensor,
     ) -> None:
@@ -104,7 +107,7 @@ class TestWingbeatExtractor:
 
     def test_process_blur(self, wingbeat_extractor, polyline):
         region_attributes = wingbeat_extractor.process_blur(polyline, score=1.0)
-        # assert region_attributes == data.ViaRegionAttributes(), region_attributes
+        # assert region_attributes == ViaRegionAttributes(), region_attributes
         assert region_attributes.score == 1.0
         assert region_attributes.best_peak == 165
         assert region_attributes.blur_length == polyline.length()

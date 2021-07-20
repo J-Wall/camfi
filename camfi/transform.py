@@ -1,3 +1,6 @@
+"""Defines transformations used for data augmentation during automatic annotation model
+training. Depends on camfi.datamodel.autoannotation."""
+
 from math import inf, sqrt
 import random
 from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
@@ -5,7 +8,7 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 from pydantic import BaseModel, Field
 import torch
 
-from camfi.data import ImageTransform, Target
+from camfi.datamodel.autoannotation import ImageTransform, Target
 
 
 class Compose(ImageTransform):

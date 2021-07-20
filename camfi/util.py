@@ -1,3 +1,4 @@
+from datetime import datetime
 import functools
 import itertools
 from math import sqrt
@@ -17,6 +18,9 @@ from typing import (
 import numpy as np
 from pydantic import NonNegativeInt
 import torch
+
+
+DatetimeCorrector = Callable[[datetime], datetime]
 
 
 # Hack to get cache decorator to play nice with mypy

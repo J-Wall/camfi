@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from torch import Tensor
 
-from camfi.data import ViaRegionAttributes
+from camfi.datamodel.via import ViaRegionAttributes
 from camfi.wingbeat import WingbeatSuppFigPlotter
 
 

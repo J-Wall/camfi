@@ -1,4 +1,5 @@
 import bz2
+from pathlib import Path
 import random
 from typing import Dict, Tuple
 
@@ -6,7 +7,28 @@ from pydantic import ValidationError
 from pytest import approx, fixture, raises
 from torch import float32, tensor, Tensor, zeros
 
-from camfi import data, util, transform
+from camfi import util, transform
+from camfi.datamodel.autoannotation import (
+    CamfiDataset,
+    MaskMaker,
+    Target,
+    Prediction,
+    ImageTransform,
+)
+from camfi.datamodel.geometry import (
+    BoundingBox,
+    PointShapeAttributes,
+    CircleShapeAttributes,
+    PolylineShapeAttributes,
+)
+from camfi.datamodel.locationtime import LocationTime
+from camfi.datamodel.via import (
+    ViaFileAttributes,
+    ViaMetadata,
+    ViaRegion,
+    ViaRegionAttributes,
+    ViaProject,
+)
 
 
 @fixture(params=[0.0, 50.0, 100.0, 150.0])
@@ -26,12 +48,12 @@ def r(request):
 
 @fixture
 def point_shape_attributes(cx, cy):
-    return data.PointShapeAttributes(cx=cx, cy=cy)
+    return PointShapeAttributes(cx=cx, cy=cy)
 
 
 @fixture
 def circle_shape_attributes(cx, cy, r):
-    return data.CircleShapeAttributes(cx=cx, cy=cy, r=r)
+    return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
 
 @fixture(
@@ -64,20 +86,18 @@ def polyline_shape_attributes(all_points_x, all_points_y):
     all_points_x = all_points_x[:min_size]
     all_points_y = all_points_y[:min_size]
 
-    return data.PolylineShapeAttributes(
-        all_points_x=all_points_x, all_points_y=all_points_y
-    )
+    return PolylineShapeAttributes(all_points_x=all_points_x, all_points_y=all_points_y)
 
 
 @fixture(params=[None, 1, 5])
 def mask_maker(request):
-    return data.MaskMaker(shape=(100, 120), mask_dilate=request.param)
+    return MaskMaker(shape=(100, 120), mask_dilate=request.param)
 
 
 @fixture(params=[(0, 0, 1, 1), (10, 15, 12, 20)])
 def bounding_box(request):
     x0, y0, x1, y1 = request.param
-    return data.BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
+    return BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
 
 
 @fixture(params=[(0, 1, 1, 0), (1, 0, 0, 1), (0, 1, 1, 1), (1, 0, 1, 1)])
@@ -99,7 +119,7 @@ def shape(request):
 def boxes():
     bounding_box_params = [(0, 0, 1, 1), (0, 1, 1, 2)]
     return [
-        data.BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
+        BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
         for x0, y0, x1, y1 in bounding_box_params
     ]
 
@@ -126,12 +146,12 @@ def scores():
 
 @fixture
 def target(boxes, labels, masks, image_id):
-    return data.Target(boxes=boxes, labels=labels, masks=masks, image_id=image_id)
+    return Target(boxes=boxes, labels=labels, masks=masks, image_id=image_id)
 
 
 @fixture
 def prediction(boxes, labels, masks, scores):
-    return data.Prediction(boxes=boxes, labels=labels, masks=masks, scores=scores)
+    return Prediction(boxes=boxes, labels=labels, masks=masks, scores=scores)
 
 
 @fixture
@@ -147,25 +167,23 @@ def prediction_dict(prediction):
 @fixture
 def via_metadata():
     regions = [
-        data.ViaRegion(
-            region_attributes=data.ViaRegionAttributes(),
-            shape_attributes=data.PointShapeAttributes(cx=1, cy=2),
+        ViaRegion(
+            region_attributes=ViaRegionAttributes(),
+            shape_attributes=PointShapeAttributes(cx=1, cy=2),
         ),
-        data.ViaRegion(
-            region_attributes=data.ViaRegionAttributes(),
-            shape_attributes=data.CircleShapeAttributes(cx=5, cy=10, r=2),
+        ViaRegion(
+            region_attributes=ViaRegionAttributes(),
+            shape_attributes=CircleShapeAttributes(cx=5, cy=10, r=2),
         ),
-        data.ViaRegion(
-            region_attributes=data.ViaRegionAttributes(),
-            shape_attributes=data.PolylineShapeAttributes(
+        ViaRegion(
+            region_attributes=ViaRegionAttributes(),
+            shape_attributes=PolylineShapeAttributes(
                 all_points_x=[0, 1, 5], all_points_y=[2, 3, 7]
             ),
         ),
     ]
-    return data.ViaMetadata(
-        file_attributes=data.ViaFileAttributes(),
-        filename="foo/bar.jpg",
-        regions=regions,
+    return ViaMetadata(
+        file_attributes=ViaFileAttributes(), filename="foo/bar.jpg", regions=regions,
     )
 
 
@@ -174,7 +192,7 @@ def via_project(scope="module"):
     with open("camfi/test/data/sample_project_no_metadata.json") as f:
         via_project_raw = f.read()
 
-    return data.ViaProject.parse_raw(via_project_raw)
+    return ViaProject.parse_raw(via_project_raw)
 
 
 class TestPointShapeAttributes:
@@ -219,14 +237,14 @@ class TestCircleShapeAttributes:
 class TestPolylineShapeAttributes:
     def test_validator(self, all_points_x, all_points_y):
         if len(all_points_x) == len(all_points_y):
-            shape = data.PolylineShapeAttributes(
+            shape = PolylineShapeAttributes(
                 all_points_x=all_points_x, all_points_y=all_points_y
             )
             assert shape.all_points_x == all_points_x
             assert shape.all_points_y == all_points_y
         else:
             with raises(ValidationError):
-                data.PolylineShapeAttributes(
+                PolylineShapeAttributes(
                     all_points_x=all_points_x, all_points_y=all_points_y
                 )
 
@@ -268,7 +286,7 @@ class TestPolylineShapeAttributes:
         h, w = 100, 200
         n_segments = 10
         scan_distance = 10
-        polyline = data.PolylineShapeAttributes(
+        polyline = PolylineShapeAttributes(
             all_points_x=[random.uniform(0.0, w) for _ in range(n_segments + 1)],
             all_points_y=[random.uniform(0.0, h) for _ in range(n_segments + 1)],
         )
@@ -280,8 +298,8 @@ class TestPolylineShapeAttributes:
 
 class TestViaRegion:
     def test_get_bounding_box(self, point_shape_attributes):
-        region = data.ViaRegion(
-            region_attributes=data.ViaRegionAttributes(),
+        region = ViaRegion(
+            region_attributes=ViaRegionAttributes(),
             shape_attributes=point_shape_attributes,
         )
         assert region.get_bounding_box() == point_shape_attributes.get_bounding_box()
@@ -292,7 +310,7 @@ class TestViaMetadata:
         bounding_boxes = via_metadata.get_bounding_boxes()
         assert len(bounding_boxes) == len(via_metadata.regions)
         for item in bounding_boxes:
-            assert isinstance(item, data.BoundingBox)
+            assert isinstance(item, BoundingBox)
 
     def test_get_labels(self, via_metadata):
         labels = via_metadata.get_labels()
@@ -307,67 +325,67 @@ class TestViaProject:
         with open("camfi/test/data/empty_project.json") as f:
             via_project_raw = f.read()
 
-        data.ViaProject.parse_raw(via_project_raw)
+        ViaProject.parse_raw(via_project_raw)
 
     def test_parse_no_annotations(self):
         with open("camfi/test/data/sample_project_no_annotations.json") as f:
             via_project_raw = f.read()
 
-        data.ViaProject.parse_raw(via_project_raw)
+        ViaProject.parse_raw(via_project_raw)
 
     def test_parse_no_metadata(self):
         with open("camfi/test/data/sample_project_no_metadata.json") as f:
             via_project_raw = f.read()
 
-        data.ViaProject.parse_raw(via_project_raw)
+        ViaProject.parse_raw(via_project_raw)
 
     def test_parse_bz2(self):
         with bz2.open("examples/data/cabramurra_all_annotations.json.bz2") as f:
             via_project_raw = f.read()
 
-        data.ViaProject.parse_raw(via_project_raw)
+        ViaProject.parse_raw(via_project_raw)
 
     def test_parse_fails(self):
         with open("camfi/test/data/sample_project_no_metadata_malformed.json") as f:
             via_project_raw = f.read()
 
         with raises(ValidationError):
-            data.ViaProject.parse_raw(via_project_raw)
+            ViaProject.parse_raw(via_project_raw)
 
 
 class TestLocationTimeZone:
     def test_all_offset_aware_or_naive(self):
-        assert data.LocationTime(
+        assert LocationTime(
             camera_start_time="2021-07-15T14:00",
             actual_start_time=None,
             camera_end_time=None,
             actual_end_time=None,
-        ) == data.LocationTime(camera_start_time="2021-07-15T14:00")
-        assert data.LocationTime(
+        ) == LocationTime(camera_start_time="2021-07-15T14:00")
+        assert LocationTime(
             camera_start_time="2021-07-15T14:00+10",
             actual_start_time=None,
             camera_end_time=None,
             actual_end_time=None,
-        ) == data.LocationTime(camera_start_time="2021-07-15T14:00+10")
-        data.LocationTime(
+        ) == LocationTime(camera_start_time="2021-07-15T14:00+10")
+        LocationTime(
             camera_start_time="2021-07-15T14:00",
             actual_start_time="2021-07-15T14:00",
             camera_end_time="2021-07-15T15:00",
             actual_end_time="2021-07-15T15:00",
         )
-        data.LocationTime(
+        LocationTime(
             camera_start_time="2021-07-15T14:00+10",
             actual_start_time="2021-07-15T14:00+10",
             camera_end_time="2021-07-15T15:00+11",  # Mixed offsets are allowed
             actual_end_time="2021-07-15T15:00+11",
         )
         with raises(ValidationError):
-            data.LocationTime(
+            LocationTime(
                 camera_start_time="2021-07-15T14:00+10",
                 actual_start_time="2021-07-15T14:00",  # Mixed offset-awareness banned
             )
         with raises(ValidationError):
-            data.LocationTime(
+            LocationTime(
                 camera_start_time="2021-07-15T14:00",
                 actual_start_time="2021-07-15T14:00+10",  # Mixed offset-awareness banned
             )
@@ -454,7 +472,7 @@ class TestBoundingBox:
         x0, y0, x1, y1 = invalid_bounding_box_params
 
         with raises(ValueError, match="x1 and y1 must be larger than x0 and y0"):
-            data.BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
+            BoundingBox(x0=x0, y0=y0, x1=x1, y1=y1)
 
     def test_add_margin_no_shape(self, bounding_box, margin):
         bounding_box_copy = bounding_box.copy()
@@ -499,7 +517,7 @@ class TestTarget:
         kwargs = dict(
             boxes=[bounding_box], labels=[1], image_id=0, masks=[zeros((2, 2))],
         )
-        target = data.Target(**kwargs)
+        target = Target(**kwargs)
         for key, value in kwargs.items():
             assert getattr(target, key) == value
 
@@ -508,7 +526,7 @@ class TestTarget:
             boxes=[bounding_box], labels=[1, 1], image_id=0, masks=[zeros((2, 2))],
         )
         with raises(ValueError):
-            data.Target(**kwargs)
+            Target(**kwargs)
 
     def test_mask_validator_fails(self):
         for s0, s1 in [
@@ -524,7 +542,7 @@ class TestTarget:
                 masks=[zeros(s0), zeros(s1)],
             )
             with raises(ValueError):
-                data.Target(**kwargs)
+                Target(**kwargs)
 
     def test_to_tensor_dict(self, target):
         target_dict = target.to_tensor_dict()
@@ -545,7 +563,7 @@ class TestTarget:
             "image_id",
             "masks",
         ]
-        target_from_dict = data.Target.from_tensor_dict(target_dict)
+        target_from_dict = Target.from_tensor_dict(target_dict)
         assert target_from_dict.boxes == target.boxes
         assert target_from_dict.labels == target.labels
         assert target_from_dict.image_id == target.image_id
@@ -558,7 +576,7 @@ class TestPrediction:
         kwargs = dict(
             boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0],
         )
-        prediction = data.Prediction(**kwargs)
+        prediction = Prediction(**kwargs)
         for key, value in kwargs.items():
             assert getattr(prediction, key) == value
 
@@ -567,7 +585,7 @@ class TestPrediction:
             boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0, 1.0],
         )
         with raises(ValueError):
-            data.Prediction(**kwargs)
+            Prediction(**kwargs)
 
     def test_mask_validator_fails(self):
         for s0, s1 in [
@@ -583,7 +601,7 @@ class TestPrediction:
                 scores=[0.0, 1.0],
             )
             with raises(ValueError):
-                data.Target(**kwargs)
+                Target(**kwargs)
 
     def test_to_tensor_dict(self, prediction):
         prediction_dict = prediction.to_tensor_dict()
@@ -604,7 +622,7 @@ class TestPrediction:
             "masks",
             "scores",
         ]
-        prediction_from_dict = data.Prediction.from_tensor_dict(prediction_dict)
+        prediction_from_dict = Prediction.from_tensor_dict(prediction_dict)
         assert prediction_from_dict.boxes == prediction.boxes
         assert prediction_from_dict.labels == prediction.labels
         assert prediction_from_dict.scores == prediction.scores
@@ -621,7 +639,7 @@ class TestPrediction:
         assert filtered_prediction.scores[0] >= 0.5
 
 
-class MockImageTransform(data.ImageTransform):
+class MockImageTransform(ImageTransform):
     def apply_to_tensor_dict(
         self, image: Tensor, target: Dict[str, Tensor]
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
@@ -631,23 +649,23 @@ class MockImageTransform(data.ImageTransform):
 
 class TestCamfiDataset:
     def test_default_exclude_set(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar",
             via_project=via_project,
             inference_mode=True,
             exclude={"baz"},
         )
-        assert dataset.exclude == {"baz"}
+        assert dataset.exclude == {Path("baz")}
 
     def test_default_exclude_unset(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar", via_project=via_project, inference_mode=True
         )
         assert dataset.exclude == set()
 
     def test_only_set_if_not_inference_mode_transform_fails(self, via_project):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar",
                 via_project=via_project,
                 inference_mode=True,
@@ -656,7 +674,7 @@ class TestCamfiDataset:
 
     def test_only_set_if_not_inference_mode_min_annotations(self, via_project):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar",
                 via_project=via_project,
                 inference_mode=True,
@@ -665,7 +683,7 @@ class TestCamfiDataset:
 
     def test_only_set_if_not_inference_mode_max_annotations(self, via_project):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar",
                 via_project=via_project,
                 inference_mode=True,
@@ -674,7 +692,7 @@ class TestCamfiDataset:
 
     def test_only_set_if_not_inference_mode_box_margin(self, via_project):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar",
                 via_project=via_project,
                 inference_mode=True,
@@ -683,7 +701,7 @@ class TestCamfiDataset:
 
     def test_set_iff_not_inference_mode_true(self, via_project, mask_maker):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar",
                 via_project=via_project,
                 inference_mode=True,
@@ -692,12 +710,12 @@ class TestCamfiDataset:
 
     def test_set_iff_not_inference_mode_false_fails(self, via_project):
         with raises(ValidationError):
-            data.CamfiDataset(
+            CamfiDataset(
                 root="foo/bar", via_project=via_project, inference_mode=False,
             )
 
     def test_init_all_set_passes(self, via_project, mask_maker):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar",
             via_project=via_project,
             inference_mode=False,
@@ -707,21 +725,21 @@ class TestCamfiDataset:
             mask_maker=mask_maker,
             box_margin=20,
         )
-        assert isinstance(dataset.transform, data.ImageTransform)
+        assert isinstance(dataset.transform, ImageTransform)
         assert dataset.min_annotations == 1
         assert dataset.max_annotations == 5
-        assert isinstance(dataset.mask_maker, data.MaskMaker)
+        assert isinstance(dataset.mask_maker, MaskMaker)
         assert dataset.box_margin == 20
 
     def test_generate_filtered_keys_minmax_unset(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar", via_project=via_project, inference_mode=True,
         )
         assert len(dataset.keys) == 4
         assert len(dataset) == 4
 
     def test_generate_filtered_keys_min4_max8(self, via_project, mask_maker):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar",
             via_project=via_project,
             inference_mode=False,
@@ -733,7 +751,7 @@ class TestCamfiDataset:
         assert len(dataset) == 2
 
     def test_generate_filtered_keys_min1_max4(self, via_project, mask_maker):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar",
             via_project=via_project,
             inference_mode=False,
@@ -745,7 +763,7 @@ class TestCamfiDataset:
         assert len(dataset) == 1
 
     def test_getitem_crop_none_inference_true(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="camfi/test/data", via_project=via_project, inference_mode=True,
         )
         image, target = dataset[0]
@@ -753,30 +771,30 @@ class TestCamfiDataset:
         assert image.dtype == float32
 
     def test_getitem_cropped_inference_true(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=True,
-            crop=data.BoundingBox(x0=5, y0=10, x1=55, y1=50),
+            crop=BoundingBox(x0=5, y0=10, x1=55, y1=50),
         )
         image, target = dataset[0]
         assert image.shape == (3, 40, 50)
         assert image.dtype == float32
 
     def test_getitem_cropped_inference_false(self, via_project, mask_maker):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=False,
-            crop=data.BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
-            mask_maker=data.MaskMaker(shape=(3312, 4608)),
+            crop=BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
+            mask_maker=MaskMaker(shape=(3312, 4608)),
         )
-        dataset_transformed = data.CamfiDataset(
+        dataset_transformed = CamfiDataset(
             root="camfi/test/data",
             via_project=via_project,
             inference_mode=False,
-            crop=data.BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
-            mask_maker=data.MaskMaker(shape=(3312, 4608), mask_dilate=1),
+            crop=BoundingBox(x0=0, y0=0, x1=4608, y1=3312),
+            mask_maker=MaskMaker(shape=(3312, 4608), mask_dilate=1),
             transform=MockImageTransform(),
         )
         image, target = dataset[0]
@@ -786,7 +804,7 @@ class TestCamfiDataset:
         assert target_transformed.masks[0].sum() > target.masks[0].sum()
 
     def test_metadata(self, via_project):
-        dataset = data.CamfiDataset(
+        dataset = CamfiDataset(
             root="foo/bar", via_project=via_project, inference_mode=True
         )
-        assert isinstance(dataset.metadata(0), data.ViaMetadata)
+        assert isinstance(dataset.metadata(0), ViaMetadata)

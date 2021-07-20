@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   camfi.datamodel
    camfi.plotting
 
 Submodules
@@ -16,7 +17,6 @@ Submodules
    :maxdepth: 4
 
    camfi.annotator
-   camfi.data
    camfi.transform
    camfi.util
    camfi.wingbeat

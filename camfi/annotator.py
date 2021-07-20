@@ -1,3 +1,8 @@
+"""Defines procedures for training, and evaluation automatic camfi annotation models,
+and for using them for making automatic annotations (inference). Depends on camfi.util,
+camfi.datamodel.autoannotation, camfi.datamodel.geometry, camfi.datamode.via, as well
+as ._torchutils and ._models."""
+
 from datetime import datetime
 import itertools
 from math import pi
@@ -20,12 +25,13 @@ from torch.utils.data import DataLoader
 from torchvision.models.detection.mask_rcnn import MaskRCNN
 from tqdm import tqdm, trange
 
-from camfi.data import (
+from camfi.datamodel.autoannotation import CamfiDataset, Prediction
+from camfi.datamodel.geometry import (
     BoundingBox,
-    CamfiDataset,
     CircleShapeAttributes,
     PolylineShapeAttributes,
-    Prediction,
+)
+from camfi.datamodel.via import (
     ViaFileAttributes,
     ViaMetadata,
     ViaProject,

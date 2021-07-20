@@ -6,15 +6,10 @@ from typing import Callable, List, Optional, Tuple
 from pydantic import BaseModel, NonNegativeInt, PositiveFloat, PositiveInt
 import torch
 
-from camfi.data import (
-    DatetimeCorrector,
-    PolylineShapeAttributes,
-    ViaRegionAttributes,
-    ViaRegion,
-    ViaMetadata,
-)
+from camfi.datamodel.geometry import PolylineShapeAttributes
+from camfi.datamodel.via import ViaRegionAttributes, ViaRegion, ViaMetadata
 
-from camfi.util import cache
+from camfi.util import cache, DatetimeCorrector
 
 
 def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.Tensor:
