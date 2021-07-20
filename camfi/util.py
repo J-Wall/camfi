@@ -407,7 +407,9 @@ class SubDirDict(Mapping[Path, V]):
         return self._dict.items()
 
 
-def endpoint_truncate(fit_mask_vals: np.ndarray, n: NonNegativeInt) -> np.ndarray:
+def endpoint_truncate(
+    fit_mask_vals: np.ndarray, n: NonNegativeInt
+) -> Tuple[NonNegativeInt, NonNegativeInt]:
     """An implementation of an endpoint_method.
 
     Parameters
@@ -419,10 +421,12 @@ def endpoint_truncate(fit_mask_vals: np.ndarray, n: NonNegativeInt) -> np.ndarra
 
     Returns
     -------
-    truncated_fit_mask_vals : np.ndarray
-        Truncated version of fit_mask_vals.
+    start_index : NonNegativeInt
+        Index of endpoint of polyline annotation.
+    end_index : NonNegativeInt
+        Index of endpoint of polyline annotation.
     """
-    return np.array([n, len(fit_mask_vals) - n])
+    return (n, len(fit_mask_vals) - n)
 
 
 def weighted_intersection_over_minimum(
