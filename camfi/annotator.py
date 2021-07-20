@@ -38,14 +38,25 @@ from camfi.datamodel.via import (
     ViaRegion,
     ViaRegionAttributes,
 )
+from camfi.models import model_urls
 from camfi.util import endpoint_truncate, weighted_intersection_over_minimum
 from ._torchutils import collate_fn, get_model_instance_segmentation, train_one_epoch
-from ._models import model_urls
 
 
 def load_annotation_model(model_path_or_url: Union[Path, str]) -> MaskRCNN:
-    f"""Loads a camfi annotation model. Accepts '{"', '".join(model_urls.keys())}', a
-    Path object, or a URL `str`.
+    """Loads a camfi annotation model. Accepts any model key provided in
+    camfi.models, a Path object, or a URL str.
+
+    Parameters
+    ----------
+    model_path_or_url : Union[Path, str]
+        Path to .pth file specifying model parameters, model name defined in
+        camfi.models.model_urls, or url to model to download from the internet.
+
+    Returns
+    -------
+    model : MaskRCNN
+        Instance segmentation model used for automatic annotation.
     """
     print(f"Loading model: {model_path_or_url}", file=stderr)
     model = get_model_instance_segmentation(2, pretrained=False)
@@ -60,7 +71,18 @@ def load_annotation_model(model_path_or_url: Union[Path, str]) -> MaskRCNN:
 
 
 def copy_annotation_model(model: MaskRCNN) -> MaskRCNN:
-    """Copies a camfi annotation model."""
+    """Copies a camfi annotation model.
+
+    Parameters
+    ----------
+    model : MaskRCNN
+        Model to copy.
+
+    Returns
+    -------
+    model_copy : MaskRCNN
+        Copy of model.
+    """
     model_copy = get_model_instance_segmentation(2, pretrained=False)
     model_copy.load_state_dict(model.state_dict())
     return model_copy
@@ -77,16 +99,20 @@ def train_model(
     model_name: Optional[str] = None,
     save_intermediate: bool = False,
 ) -> None:
-    """
+    """Trains a camfi instance segmentation annotation model on specified dataset,
+    saving to trained model to outdir.
+
     Parameters
     ----------
     dataset: CamfiDataset
         Dataset on which to train the model.
     load_pretrained_model: path-like
         Path or url to model parameters file. If set, will load the pretrained
-        parameters.
+        parameters. By default, will start with a model pre-trained on the Microsoft
+        COCO dataset.
     device: Union[str, torch.device]
-        E.g. "cpu" or "cuda".
+        E.g. "cpu" or "cuda". Training is typically much faster on a GPU. Use "cuda" for
+        Nvidia GPUs.
     batch_size: int
         Number of images to load at once.
     num_workers: int
@@ -94,12 +120,14 @@ def train_model(
     num_epochs: int
         Number of epochs to train.
     outdir: Path
-        Path to directory where to save model(s)
+        Path to directory where to save model(s).
     model_name: Optional[str]
         Identifier to include in model save file. By default the current date in
         YYYYmmdd format.
     save_intermediate: bool
         If True, model is saved after each epoch, not just after all epoch are complete.
+        This is recommended, especially if training on a service which could terminate
+        unpredicatbly (e.g. Google Colab).
     """
     # Parameter setting
     device = torch.device(device)
@@ -142,41 +170,48 @@ def train_model(
 
 
 class Annotator(BaseModel):
-    f"""
+    """Provides methods for automatically annotating images of flying insects using a
+    pre-trained instance segmentation model.
+
     Parameters
     ----------
     dataset : CamfiDataset
-        Dataset to annotate
+        Dataset to annotate.
     model : Union[str, Path, MaskRCNN]
         Either a path to state dict file which defines the segmentation model, or a url
-        pointing to a model to download, or one of
-        '{"', '".join(model_urls.keys())}'.
+        pointing to a model to download, or one of the model names defined in
+        camfi.models.model_urls.
         Alternatively, a MaskRCNN instance can be given directly.
     device : Union[str, torch.device]
         Specifies device to run inference on. E.g. set to "cuda" to use an Nvidia GPU.
     backup_device : Optional[Union[str, torch.device]]
         Specifies device to run inference on when a runtime error occurs while using
-        device. Probably only makes sense to set this to "cpu" if device="cuda"
+        device. Probably only makes sense to set this to "cpu" if device="cuda". This
+        option enables the annotator to leverage a GPU with limited memory capacity
+        without crashing if a difficult image is encountered.
     backup_model: Optional[MaskRCNN]
-        Defines the backup model. Should not be set manually.
+        Defines the backup model. Will be automatically generated if backup_device is
+        set. Should not be set manually.
     split_angle : PositiveFloat
-        Approximate maximum angle between polyline segments in degrees.
+        Approximate maximum angle between polyline segments in degrees. Note that this
+        will immediately be converted to radians upon instantiation of Annotator.
     poly_order : PositiveInt
         Order of polynomial used for fitting motion blur paths.
     endpoint_method : Callable[[np.ndarray, ...], Tuple[NonNegativeInt, NonNegativeInt]]
         Method to find endpoints of motion blurs. The first argument to this method
-        should be a cropped mas np.ndarray
+        should be a cropped mask np.ndarray.
     endpoint_extra_args : List[Any]
         Extra arguments to pass to endpoint_method.
     score_thresh : float
-        Score threshold between 0. and 1. for annotations
+        Score threshold between 0.0 and 1.0 for automatic annotations to be kept.
     overlap_thresh : float
-        Minimum proportion of overlap between two instance segmentation masks to
-        infer that one of the masks should be discarded
+        Minimum proportion of overlap (weighted intersection over minimum) between two
+        instance segmentation masks to infer that one of the masks should be discarded.
     edge_thresh : NonNegativeInt
         Minimum distance an annotation has to be from the edge of the image before it is
-        converted from polyline to circle
+        converted from a polyline annotation to a circle annotation.
     """
+
     dataset: CamfiDataset
     model: MaskRCNN = "release"
     device: Union[str, torch.device] = "cpu"
@@ -184,7 +219,9 @@ class Annotator(BaseModel):
     backup_device: Optional[Union[str, torch.device]] = None
     split_angle: PositiveFloat = 15.0
     poly_order: PositiveInt = 2
-    endpoint_method: Callable[..., Tuple[NonNegativeInt, NonNegativeInt]]
+    endpoint_method: Callable[
+        ..., Tuple[NonNegativeInt, NonNegativeInt]
+    ] = endpoint_truncate
     endpoint_extra_args: List[Any] = [10]
     score_thresh: float = 0.4
     overlap_thresh: float = 0.4
@@ -230,12 +267,12 @@ class Annotator(BaseModel):
         Parameters
         ----------
         img_idx: int
-            Index of image in via project
+            Index of image in via project.
 
         Returns
         -------
         prediction: Prediction
-            Output of model prediction
+            Output of model prediction.
         """
         try:
             img, _ = self.dataset[img_idx]
@@ -268,8 +305,8 @@ class Annotator(BaseModel):
 
         Returns
         -------
-        dict
-            Filtered prediction with same keys as prediction
+        filtered_prediction : Prediction
+            Filtered prediction.
         """
         # Remove predictions with below-threshold score
         prediction = prediction.filter_by_score(self.score_thresh)
@@ -316,13 +353,14 @@ class Annotator(BaseModel):
         Parameters
         ----------
         box : BoundingBox
-            Fully contains the object to be annotated
+            Fully contains the object to be annotated.
         mask : tensor or array
-            Segmentation mask of instance with shape (image_width, image_height)
+            Segmentation mask of instance with shape (image_width, image_height).
 
         Returns
         -------
-        PolylineShapeAttributes
+        polyline : PolylineShapeAttributes
+            Geometry of automatic annotation.
         """
         portrait = box.is_portrait()
         crop_mask = box.crop_image(mask).numpy()
@@ -373,14 +411,16 @@ class Annotator(BaseModel):
         Parameters
         ----------
         polyline : PolylineShapeAttributes
-            Shape to convert if too close to edge
+            Shape to convert if too close to edge.
         img_shape: Tuple[int, int]
-            height, width of image
+            Height and width of image.
 
         Returns
         -------
-        cx, cy, r or False
-            coordinates defining the circle annotation or None (leave as polyline)
+        shape_attributes : Union[PolylineShapeAttributes, CircleShapeAttributes]
+            Geometry of annotation after (possible) conversion. If polyline does not
+            go too close to the edge of the image, then polyline is returned unchanged.
+            Else, a circle annotation is returned.
         """
         polyline_accepted_region = BoundingBox.from_shape(
             img_shape, border=self.edge_thresh
@@ -397,12 +437,12 @@ class Annotator(BaseModel):
         Parameters
         ----------
         img_idx: int
-            Index of image in via project
+            Index of image in via project.
 
         Returns
         -------
-        List[ViaRegion]
-            List of annotations
+        regions : List[ViaRegion]
+            List of annotations for image.
         """
         prediction = self.get_prediction(img_idx)
         prediction = self.filter_annotations(prediction)
@@ -434,14 +474,13 @@ class Annotator(BaseModel):
         return regions
 
     def annotate(self) -> ViaProject:
-        """
-        Calls self.annotate_img on all images and returns a ViaProject instance.
+        """Calls self.annotate_img on all images and returns a ViaProject instance.
         Copies the `via_attributes` and `via_settings` fields from
         `self.dataset.via_project`, and just replaces the `via_img_metadata` field.
 
         Returns
         -------
-        ViaProject
+        project : ViaProject
             With automatic annotations made.
         """
         via_img_metadata: Dict[str, ViaMetadata] = {}
@@ -476,28 +515,28 @@ class AnnotationValidationResult(BaseModel):
 
     Parameters
     ----------
-    ious: List[Tuple[NonNegativeFloat, NonNegativeFloat]]
+    ious : List[Tuple[NonNegativeFloat, NonNegativeFloat]]
         List of (iou, score) pairs.
         iou is the Intersection over Union of the bounding boxes of true positives
         to their matched ground truth annotation. All matched annotations are
         included.
-    polyline_hausdorff_distances: List[Tuple[NonNegativeFloat, NonNegativeFloat]]
+    polyline_hausdorff_distances : List[Tuple[NonNegativeFloat, NonNegativeFloat]]
         List of (h_dist, score) pairs.
         h_dist is the hausdorff distance of a true positive polyline annotation,
         where the annotation is matched to a polyline ground truth annotation. Only
         polyline annotations which matched to a polyline ground truth annotation are
         included.
-    length_differences: List[Tuple[float, NonNegativeFloat]]
+    length_differences : List[Tuple[float, NonNegativeFloat]]
         List of (l_diff, score) pairs.
         l_diff is calculated as the length of a true positive polyline annotation
         minus the length of it's matched ground truth annotation. Only polyline
         annotations which matched to a polyline ground truth annotation are
         included.
-    true_positives: List[NonNegativeFloat]
+    true_positives : List[NonNegativeFloat]
         List of scores.
-    false_positives: List[NonNegativeFloat]
+    false_positives : List[NonNegativeFloat]
         List of scores. Score is the prediction score of the automatic annotation.
-    false_negatives: int
+    false_negatives : int
         Number of false negative annotations.
     """
 
@@ -517,17 +556,18 @@ def validate_annotations(
 
     Parameters
     ----------
-    annotations: ViaProject
+    annotations : ViaProject
         Automatically obtained annotations to assess.
-    ground_truth: ViaRegion
+    ground_truth : ViaProject
         Manually created ground-truth annotations.
-    iou_thresh: float
+    iou_thresh : float
         Threshold of intersection-over-union of bounding boxes to be considered a
-        match.
+        match. Typically, this is 0.5.
 
     Returns
     -------
-    AnnotationValidationResult
+    validation_result : AnnotationValidationResult
+        Result of running annotation validation.
     """
     result = AnnotationValidationResult()
 

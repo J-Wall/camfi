@@ -22,6 +22,7 @@ Submodules
    :maxdepth: 4
 
    camfi.annotator
+   camfi.models
    camfi.transform
    camfi.util
    camfi.wingbeat

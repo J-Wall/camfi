@@ -6,7 +6,7 @@ from camfi.wingbeat import WingbeatSuppFigPlotter
 
 
 class MatplotlibWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
-    """Implementation of WingbeatSuppFigPlotter using matplotlib"""
+    """Implementation of WingbeatSuppFigPlotter using matplotlib."""
 
     def __call__(
         self,
@@ -14,17 +14,18 @@ class MatplotlibWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
         region_of_interest: Tensor,
         mean_autocorrelation: Tensor,
     ) -> None:
-        """Plot a supplementary figure
+        """Plot a supplementary figure of wingbeat extraction, saving the image to a
+        file.
 
         Parameters
         ----------
         region_attributes : ViaRegionAttributes
-            With fields calculated (e.g. by WingbeatExtractor.process_blur)
+            With fields calculated (e.g. by WingbeatExtractor.process_blur).
         region_of_interest : Tensor
-            Greyscale image Tensor displaying region of interest
+            Greyscale image Tensor displaying region of interest.
         mean_autocorrelation : Tensor
             1-d Tensor with values containing autocorrrelation along axis 1 of
-            `region_of_interest`
+            region_of_interest.
         """
 
         fig = plt.figure()

@@ -28,6 +28,18 @@ T = TypeVar("T")
 
 
 def cache(func: Callable[..., T]) -> T:
+    """Decorator to cache ouput of function or method, called with specific parameters.
+
+    Parameters
+    ----------
+    func: Callable[..., T]
+        Function to decorate.
+
+    Returns
+    -------
+    return_value : T
+        Return value of func.
+    """
     return functools.lru_cache(maxsize=None)(func)  # type: ignore
 
 
@@ -81,11 +93,18 @@ def smallest_enclosing_circle(
 
     Parameters
     ----------
-    points : iterable of 2-tuples or (N, 2)-array
+    points : Union[Iterable[Tuple[float, float]], np.ndarray]
+        Iterable of 2-tuples or (N, 2)-array, with each tuple defining the coordinates
+        of a point.
 
     Returns
     -------
-    x, y, r : floats
+    x : float
+        x-coordinate of centre of circle.
+    y : float
+        y-coordinate of centre of circle.
+    r : float
+        Radius of circle.
 
     Examples
     --------
@@ -156,19 +175,21 @@ def dilate_idx(
 
     Parameters
     ----------
-    rr : array or int
-        row indices
-    cc : array or int
-        column indices (must have same shape as rr)
+    rr : np.ndarray
+        Row indices.
+    cc : np.ndarray
+        Column indices (must have same shape as rr).
     d : int
-        dilation factor, must be at least 1 (or a ValueError is raised)
-    img_shape : (rows, cols)
-        shape of image (indices which lie outside this will be ommitted)
+        Dilation factor, must be at least 1 (or a ValueError is raised).
+    img_shape : Optional[Tuple[int, int]]
+        Shape of image (rows, columns). Indices which lie outside this will be ommitted.
 
     Returns
     -------
-    rr_dilated : array
-    cc_dilated : array
+    rr_dilated : np.ndarray
+        Row indices after morphological dilation.
+    cc_dilated : np.ndarray
+        Column indices after morphological dilation.
 
     Examples
     --------
@@ -294,8 +315,8 @@ V = TypeVar("V")
 
 
 class SubDirDict(Mapping[Path, V]):
-    """A mapping which returns self['foo/bar'] if self['foo/bar/baz'] is missing
-    from the dict.
+    """A mapping from subdirectory Paths to V which returns self['foo/bar'] if
+    'foo/bar/baz' is missing from the available keys.
 
     Examples
     --------
@@ -313,11 +334,19 @@ class SubDirDict(Mapping[Path, V]):
     KeyError: "'bar' not in SubDirDict({Path('foo'): 'foo'})"
 
     SubDirDict can be initialised from a dictionary
+
     >>> SubDirDict({"foo": "bar", "foobar": "baz"})
     SubDirDict({Path('foo'): 'bar', Path('foobar'): 'baz'})
     """
 
     def __init__(self, mapping: Optional[Mapping[Path, V]] = None):
+        """Initialises SubDirDict.
+
+        Parameters
+        ----------
+        mapping: Optional[Mapping[Path, V]]
+            E.g. an instance of type Dictt[Path, V]
+        """
         self._lastkey = None
         self._prevkey = None
         self._dict: Dict[Path, V] = {}
@@ -354,6 +383,9 @@ class SubDirDict(Mapping[Path, V]):
         return self[key.parent]
 
     def __repr__(self):
+        """String representation of SubDirDict. Uses "Path" instead of platform
+        dependant "PosixPath" or "WindowsPath".
+        """
         s = ", ".join(
             (f"Path('{str(path)}'): {value!r}" for path, value in self._dict.items())
         )
@@ -376,6 +408,20 @@ class SubDirDict(Mapping[Path, V]):
 
 
 def endpoint_truncate(fit_mask_vals: np.ndarray, n: NonNegativeInt) -> np.ndarray:
+    """An implementation of an endpoint_method.
+
+    Parameters
+    ----------
+    fit_mask_vals : np.ndarray
+        Array to find the endpoints of.
+    n : NonNegativeInt
+        Number of values to truncate off start and end of fit_mask_vals.
+
+    Returns
+    -------
+    truncated_fit_mask_vals : np.ndarray
+        Truncated version of fit_mask_vals.
+    """
     return np.array([n, len(fit_mask_vals) - n])
 
 
@@ -388,12 +434,15 @@ def weighted_intersection_over_minimum(
     Parameters
     ----------
     mask0 : torch.Tensor
+        Instance segmentation mask to compare to mask1.
     mask1 : torch.Tensor
-        Shoulf have the same shape as `mask0`.
+        Instance segmentation mask to compare to mask0. Should have the same shape as
+        mask0.
 
     Returns
     -------
-    float
+    iom : float
+        Weighted intersection over union of mask0 and mask1.
 
     Examples
     --------
