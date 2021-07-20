@@ -3,5 +3,5 @@ camfi.wingbeat module
 
 .. automodule:: camfi.wingbeat
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

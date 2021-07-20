@@ -3,5 +3,5 @@ camfi.datamodel.via module
 
 .. automodule:: camfi.datamodel.via
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

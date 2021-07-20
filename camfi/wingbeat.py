@@ -1,3 +1,6 @@
+"""Implements wingbeat frequency measurement from annotated images of flying insects.
+"""
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
@@ -13,23 +16,23 @@ from camfi.util import cache, DatetimeCorrector
 
 
 def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.Tensor:
-    """Calculate the autocorrelation along axis 1 of roi. Will run entirely on the
+    """Calculates the autocorrelation along axis 1 of roi. Will run entirely on the
     device specified by roi.device, and is optimised for running on the GPU.
 
     Parameters
     ----------
     roi : torch.Tensor
-        tensor of shape (width, blur_length)
+        Tensor of shape (width, blur_length).
     max_pixel_period : Optional[PositiveInt]
-        maximum period to consider (choosing a smaller number will increase the speed of
+        Maximum period to consider (choosing a smaller number will increase the speed of
         execution if running on cpu, and decrease memory consumption regardless of
-        which device it's running on). If None, calculated as roi.shape[1] // 2
+        which device it's running on). If None, calculated as roi.shape[1] // 2.
 
     Returns
     -------
-    torch.Tensor
-        of shape (max_pixel_period,). Contains the the autocorrelation with integer
-        step-sizes.
+    mean_autocorrelation : torch.Tensor
+        Tensor of shape (max_pixel_period,). Contains the autocorrelation with of the
+        roi along axis 1, with integer step-sizes.
 
     Examples
     --------
@@ -62,13 +65,14 @@ def find_best_peak(
     Parameters
     ----------
     values : torch.Tensor
+        1-D tensor of values to find peaks in.
 
     Returns
     -------
     best_peak : Optional[PositiveInt]
-        Index of best peak
+        Index of best peak.
     snr : Optional[float]
-        Score of peak
+        Score of peak.
 
     Examples
     --------
@@ -127,6 +131,8 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     agnostic to which plotting library is used. Subclasses will naturally have to use
     a particular plotting library, such as matplotlib.
 
+    Concrete subclasses must implement the .__call__ method.
+
     Parameters
     ----------
     root: Path
@@ -161,7 +167,8 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     >>> supplementary_figure_plotter.get_filepath() == Path("foo/bar/baz_0.png")
     True
 
-    The annotation index has now been incremented by 1
+    The annotation index has now been incremented by 1.
+
     >>> supplementary_figure_plotter.annotation_idx
     1
     >>> supplementary_figure_plotter.get_filepath() == Path("foo/bar/baz_1.png")
@@ -176,6 +183,11 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
     def get_filepath(self):
         """Computes the filepath for the supplementary figure and increments
         `self.annotation_idx` by 1.
+
+        Returns
+        -------
+        filepath : Path
+            Full path to supplementary figure file.
         """
         name = f"{self.image_filename.stem}_{self.annotation_idx}{self.suffix}"
         self.annotation_idx += 1
@@ -205,23 +217,60 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
 
 
 class WingbeatExtractor(BaseModel):
+    """Class for measuring wingbeat frequencies of annotated flying insects in an image.
+    A new instance of WingbeatExtractor should be used for each distinct image file.
+
+    Parameters
+    ----------
+    metadata: ViaMetadata
+        Containing annotations of flying insects, as well as file-level image metadata.
+        If file-level metadata is missing (specifically, exposure_time), this will be
+        read from the image file.
+    root: Path
+        Path to root directory containing all image directories.
+    line_rate: PositiveFloat
+        Rolling shutter line rate of the camera used to take the photo, in lines per
+        second. This must be measured separately. See
+        https://camfi.readthedocs.io/en/latest/usage/notebooks/camera_calibration.html
+        for a guide on measuring the rolling shutter line rate.
+    device: str
+        Some steps can run on the GPU. To enable, set e.g. device="cuda".
+    scan_distance: PositiveInt
+        Optional parameter used in WingbeatExtractor.process_blur. This defines the
+        maximum perpendicular distance from the polyline annotation of pixels included
+        in the rotated, cropped, and straightened region of interest images.
+    max_pixel_period: Optional[PositiveInt]
+        Optional parameter used in WingbeatExtractor.process_blur. By default,
+        autocorrelation is calculated up to half the length of each motion blur. For
+        speed of execution or to reduce memory footprint, a maximum value can be set.
+    force_load_exif_metadata: bool
+        If True, EXIF metadata will be read from the image file, regardless of whether
+        exposure_time is already set in metadata.file_attributes. By default, EXIF
+        metadata will only be read if it is missing from metadata.file_attributes.
+    location: Optional[str]
+        Sets location string when loading EXIF metadata, placed in
+        metadata.file_attributes.location. Has no effect if EXIF metadata is not loaded.
+        Recommended to use in conjunction with force_load_exif_metadata.
+    datetime_corrector: Optional[DatetimeCorrector]
+        If provided, will be called while loading EXIF metadata to obtain a corrected
+        timestamp, which is placed in metadata.file_attributes.datetime_corrected. Has
+        no effect if EXIF metadata is not loaded.
+        Recommended to use in conjunction with force_load_exif_metadata.
+    supplementary_figure_plotter: Optional[WingbeatSuppFigPlotter]
+        If set, will be called to plot supplementary figures during self.process_blur.
+        A custom implementation of WingbeatSuppFigPlotter may be used, or one from
+        camfi.plotting.
+    """
+
     metadata: ViaMetadata
     root: Path
     line_rate: PositiveFloat
-
-    # Some processes can run on the GPU. To enable, set e.g. device="cuda"
     device: str = "cpu"
-
-    # Optional parameters to process_blur
     scan_distance: PositiveInt = 50
     max_pixel_period: Optional[PositiveInt] = None
-
-    # Optional extra parameters for when getting exif metadata
     force_load_exif_metadata: bool = False
     location: Optional[str] = None
     datetime_corrector: Optional[DatetimeCorrector] = None
-
-    # Optionally plot supplementary figures during process_blur
     supplementary_figure_plotter: Optional[WingbeatSuppFigPlotter] = None
 
     # image and exposure_time may require expensive IO operations, so should only happen
@@ -230,12 +279,28 @@ class WingbeatExtractor(BaseModel):
     @property  # type: ignore[misc]
     @cache
     def image(self) -> torch.Tensor:
-        """Loads image from file and converts it to a greyscale tensor"""
+        """Loads image from file and converts it to a greyscale tensor. Output is cached
+        (so image is only loaded once for the life of the WingbeatExtractor instance).
+
+        Returns
+        -------
+        image : torch.Tensor
+            Image tensor with shape [height, width].
+        """
         return self.metadata.read_image(root=self.root).mean(axis=-3)  # type: ignore[call-overload]
 
     @property  # type: ignore[misc]
     @cache
     def exposure_time(self) -> PositiveFloat:
+        """Gets exposure time either from self.metadata.file_attributes, or from the
+        EXIF metadata of the image file. Caches output so file is only read once for
+        life of WingbeatExtractor instance.
+
+        Returns
+        -------
+        expoosure_time : PositiveFloat
+            Exposure time of photograph in seconds.
+        """
         if (
             self.force_load_exif_metadata
             or self.metadata.file_attributes.exposure_time is None
@@ -264,16 +329,16 @@ class WingbeatExtractor(BaseModel):
         Parameters
         ----------
         polyline: PolylineShapeAttributes
-            Polyline annotation following the path of the flying insect's motion blur
+            Polyline annotation following the path of the flying insect's motion blur.
         score: Optional[float]
-            score parameter to be passed to ViaRegionAttributes constructor (should set
+            Score parameter to be passed to ViaRegionAttributes constructor (should set
             if processing an annotation which was generated automatically, so that the
             score is reflected in the output).
 
         Returns
         -------
-        ViaRegionAttributes
-            with all fields set (including score iff a value was given).
+        region_attributes : ViaRegionAttributes
+            With all fields set (including score iff a value was given).
         """
         # Load region of interest. Mypy complains about self.image not being the right
         roi = polyline.extract_region_of_interest(self.image, self.scan_distance)
@@ -338,6 +403,8 @@ class WingbeatExtractor(BaseModel):
         """Calls self.process_blur on the shape_attributes of all polyline regions in
         self.metadata, replacing the region_attributes of those regions with ones
         containing wingbeat data.
+
+        Operates in place.
         """
         for region in filter(
             lambda r: r.shape_attributes.name == "polyline", self.metadata.regions

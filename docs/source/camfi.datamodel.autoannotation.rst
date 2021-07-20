@@ -3,5 +3,5 @@ camfi.datamodel.autoannotation module
 
 .. automodule:: camfi.datamodel.autoannotation
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

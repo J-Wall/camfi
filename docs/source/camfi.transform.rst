@@ -3,5 +3,5 @@ camfi.transform module
 
 .. automodule:: camfi.transform
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

@@ -3,7 +3,7 @@ camfi.datamodel package
 
 .. automodule:: camfi.datamodel
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:
 
 Submodules

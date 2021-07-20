@@ -15,7 +15,7 @@ help:
 .PHONY: help Makefile
 
 source/modules.rst: Makefile
-	sphinx-apidoc -f -M -H API -e -o source .. ../setup.py
+	SPHINX_APIDOC_OPTIONS='members,special-members,show-inheritance' sphinx-apidoc -f -M -H API -e -o source .. ../setup.py
 
 notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
 

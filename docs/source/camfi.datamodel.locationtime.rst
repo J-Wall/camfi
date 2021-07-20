@@ -3,5 +3,5 @@ camfi.datamodel.locationtime module
 
 .. automodule:: camfi.datamodel.locationtime
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

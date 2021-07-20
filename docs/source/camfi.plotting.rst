@@ -3,7 +3,7 @@ camfi.plotting package
 
 .. automodule:: camfi.plotting
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:
 
 Submodules

@@ -3,5 +3,5 @@ camfi.annotator module
 
 .. automodule:: camfi.annotator
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

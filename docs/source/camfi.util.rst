@@ -3,5 +3,5 @@ camfi.util module
 
 .. automodule:: camfi.util
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:

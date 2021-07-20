@@ -3,7 +3,7 @@ camfi package
 
 .. automodule:: camfi
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:
 
 Subpackages

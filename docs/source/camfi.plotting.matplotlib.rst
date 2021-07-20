@@ -3,5 +3,5 @@ camfi.plotting.matplotlib module
 
 .. automodule:: camfi.plotting.matplotlib
    :members:
-   :undoc-members:
+   :special-members:
    :show-inheritance:
