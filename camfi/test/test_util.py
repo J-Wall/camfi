@@ -9,7 +9,10 @@ from camfi import util
 def test_sec_trivial_colinear():
     points = [
         (0.0, 0.0),
-        (1.0, 1.0,),
+        (
+            1.0,
+            1.0,
+        ),
         (4.0, 4.0),
     ]
 

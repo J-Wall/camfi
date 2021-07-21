@@ -617,7 +617,7 @@ class CamfiDataset(BaseModel, Dataset):
         """Pydantic validation method, called when instantiating CamfiDataset.
         Ensures that min_annotations is only set if in training mode."""
         if "inference_mode" in values and values["inference_mode"] is True:
-            assert v is 0, "Only set if inference_mode=False"
+            assert v == 0, "Only set if inference_mode=False"
         return v
 
     @validator("max_annotations")
@@ -633,7 +633,7 @@ class CamfiDataset(BaseModel, Dataset):
         """Pydantic validation method, called when instantiating CamfiDataset.
         Ensures that box_margin is only set if in training mode."""
         if "inference_mode" in values and values["inference_mode"] is True:
-            assert v is 10, "Only set if inference_mode=False"
+            assert v == 10, "Only set if inference_mode=False"
         return v
 
     @validator("mask_maker", always=True)

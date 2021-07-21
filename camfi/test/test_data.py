@@ -183,7 +183,9 @@ def via_metadata():
         ),
     ]
     return ViaMetadata(
-        file_attributes=ViaFileAttributes(), filename="foo/bar.jpg", regions=regions,
+        file_attributes=ViaFileAttributes(),
+        filename="foo/bar.jpg",
+        regions=regions,
     )
 
 
@@ -355,18 +357,24 @@ class TestViaProject:
 
 class TestLocationTimeZone:
     def test_all_offset_aware_or_naive(self):
-        assert LocationTime(
-            camera_start_time="2021-07-15T14:00",
-            actual_start_time=None,
-            camera_end_time=None,
-            actual_end_time=None,
-        ) == LocationTime(camera_start_time="2021-07-15T14:00")
-        assert LocationTime(
-            camera_start_time="2021-07-15T14:00+10",
-            actual_start_time=None,
-            camera_end_time=None,
-            actual_end_time=None,
-        ) == LocationTime(camera_start_time="2021-07-15T14:00+10")
+        assert (
+            LocationTime(
+                camera_start_time="2021-07-15T14:00",
+                actual_start_time=None,
+                camera_end_time=None,
+                actual_end_time=None,
+            )
+            == LocationTime(camera_start_time="2021-07-15T14:00")
+        )
+        assert (
+            LocationTime(
+                camera_start_time="2021-07-15T14:00+10",
+                actual_start_time=None,
+                camera_end_time=None,
+                actual_end_time=None,
+            )
+            == LocationTime(camera_start_time="2021-07-15T14:00+10")
+        )
         LocationTime(
             camera_start_time="2021-07-15T14:00",
             actual_start_time="2021-07-15T14:00",
@@ -515,7 +523,10 @@ class TestBoundingBox:
 class TestTarget:
     def test_validator_passes(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box], labels=[1], image_id=0, masks=[zeros((2, 2))],
+            boxes=[bounding_box],
+            labels=[1],
+            image_id=0,
+            masks=[zeros((2, 2))],
         )
         target = Target(**kwargs)
         for key, value in kwargs.items():
@@ -523,7 +534,10 @@ class TestTarget:
 
     def test_validator_fails(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box], labels=[1, 1], image_id=0, masks=[zeros((2, 2))],
+            boxes=[bounding_box],
+            labels=[1, 1],
+            image_id=0,
+            masks=[zeros((2, 2))],
         )
         with raises(ValueError):
             Target(**kwargs)
@@ -574,7 +588,10 @@ class TestTarget:
 class TestPrediction:
     def test_validator_passes(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0],
+            boxes=[bounding_box],
+            labels=[1],
+            masks=[zeros((2, 2))],
+            scores=[0.0],
         )
         prediction = Prediction(**kwargs)
         for key, value in kwargs.items():
@@ -582,7 +599,10 @@ class TestPrediction:
 
     def test_validator_fails(self, bounding_box):
         kwargs = dict(
-            boxes=[bounding_box], labels=[1], masks=[zeros((2, 2))], scores=[0.0, 1.0],
+            boxes=[bounding_box],
+            labels=[1],
+            masks=[zeros((2, 2))],
+            scores=[0.0, 1.0],
         )
         with raises(ValueError):
             Prediction(**kwargs)
@@ -711,7 +731,9 @@ class TestCamfiDataset:
     def test_set_iff_not_inference_mode_false_fails(self, via_project):
         with raises(ValidationError):
             CamfiDataset(
-                root="foo/bar", via_project=via_project, inference_mode=False,
+                root="foo/bar",
+                via_project=via_project,
+                inference_mode=False,
             )
 
     def test_init_all_set_passes(self, via_project, mask_maker):
@@ -733,7 +755,9 @@ class TestCamfiDataset:
 
     def test_generate_filtered_keys_minmax_unset(self, via_project):
         dataset = CamfiDataset(
-            root="foo/bar", via_project=via_project, inference_mode=True,
+            root="foo/bar",
+            via_project=via_project,
+            inference_mode=True,
         )
         assert len(dataset.keys) == 4
         assert len(dataset) == 4
@@ -764,7 +788,9 @@ class TestCamfiDataset:
 
     def test_getitem_crop_none_inference_true(self, via_project):
         dataset = CamfiDataset(
-            root="camfi/test/data", via_project=via_project, inference_mode=True,
+            root="camfi/test/data",
+            via_project=via_project,
+            inference_mode=True,
         )
         image, target = dataset[0]
         assert image.shape == (3, 3456, 4608)

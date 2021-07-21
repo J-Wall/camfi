@@ -345,7 +345,9 @@ class Annotator(BaseModel):
         return prediction.get_subset_from_index(list(keep))
 
     def fit_poly(
-        self, box: BoundingBox, mask: torch.Tensor,
+        self,
+        box: BoundingBox,
+        mask: torch.Tensor,
     ) -> PolylineShapeAttributes:
         """Uses polynomial regression to fit a polyline annotation to the provided
         segmentation mask.
@@ -572,7 +574,9 @@ def validate_annotations(
     result = AnnotationValidationResult()
 
     for img_key, metadata in tqdm(
-        annotations.via_img_metadata.items(), desc="Validating annotations", unit="img",
+        annotations.via_img_metadata.items(),
+        desc="Validating annotations",
+        unit="img",
     ):
         gt_metadata = ground_truth.via_img_metadata[img_key]
         ious = sparse.dok_matrix(

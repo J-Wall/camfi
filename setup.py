@@ -57,7 +57,7 @@ setup(
         # that you indicate you support Python 3. These classifiers are *not*
         # checked by 'pip install'. See instead 'python_requires' below.
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3 :: Only",
     ],
     # This field adds keywords for your project which will appear on the
@@ -85,7 +85,7 @@ setup(
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. See
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires=">=3.7, <4",
+    python_requires=">=3.9, <4",
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
     # installed, so they must be valid existing projects.
@@ -94,13 +94,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         "exif",
-        "fire",
-        "imageio",
-        "matplotlib",
-        "multimethod",
         "numpy",
         "pandas",
-        "Pillow",
         "pydantic",
         "scikit-image",
         "scipy",
@@ -114,11 +109,11 @@ setup(
     # `pip` to create the appropriate form of executable for the target
     # platform.
     #
-    entry_points={  # Optional
-        "console_scripts": [
-            "camfi=camfi.camfi:main",
-            "traincamfiannotator=camfi.camfi:_cli_train",
-            "camfiannotate=camfi.camfi:_cli_annotate",
-        ],
-    },
+    # entry_points={  # Optional
+    #     "console_scripts": [
+    #         "camfi=camfi.camfi:main",
+    #         "traincamfiannotator=camfi.camfi:_cli_train",
+    #         "camfiannotate=camfi.camfi:_cli_annotate",
+    #     ],
+    # },
 )

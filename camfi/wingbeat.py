@@ -3,6 +3,7 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -12,7 +13,7 @@ import torch
 from camfi.datamodel.geometry import PolylineShapeAttributes
 from camfi.datamodel.via import ViaRegionAttributes, ViaRegion, ViaMetadata
 
-from camfi.util import cache, DatetimeCorrector
+from camfi.util import DatetimeCorrector
 
 
 def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.Tensor:
@@ -107,11 +108,12 @@ def find_best_peak(
     snrs: List[float] = []
 
     for peak in sorted_peaks:
+        peak_idx = int(peak)
         # Find snr
         trough_values = torch.cat(
             [
-                values[peak // 3 : (peak * 3) // 4],
-                values[(peak * 5) // 3 : (peak * 7) // 4],
+                values[peak_idx // 3 : (peak_idx * 3) // 4],
+                values[(peak_idx * 5) // 3 : (peak_idx * 7) // 4],
             ]
         )
         snr = float((values[peak] - trough_values.mean()) / trough_values.std())
@@ -276,8 +278,7 @@ class WingbeatExtractor(BaseModel):
     # image and exposure_time may require expensive IO operations, so should only happen
     # once each, if at all. They should also be treated as immutable for the life of the
     # WingbeatExtractor instance. Hence, the property and cache decorators.
-    @property  # type: ignore[misc]
-    @cache
+    @cached_property
     def image(self) -> torch.Tensor:
         """Loads image from file and converts it to a greyscale tensor. Output is cached
         (so image is only loaded once for the life of the WingbeatExtractor instance).
@@ -289,8 +290,7 @@ class WingbeatExtractor(BaseModel):
         """
         return self.metadata.read_image(root=self.root).mean(axis=-3)  # type: ignore[call-overload]
 
-    @property  # type: ignore[misc]
-    @cache
+    @cached_property
     def exposure_time(self) -> PositiveFloat:
         """Gets exposure time either from self.metadata.file_attributes, or from the
         EXIF metadata of the image file. Caches output so file is only read once for
@@ -312,6 +312,9 @@ class WingbeatExtractor(BaseModel):
             )
         assert isinstance(self.metadata.file_attributes.exposure_time, float)
         return self.metadata.file_attributes.exposure_time
+
+    class Config:
+        keep_untouched = (cached_property,)
 
     # In order to use the cache decorator, we need to define __eq__ and __hash__
     def __eq__(self, other):

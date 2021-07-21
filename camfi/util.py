@@ -1,5 +1,4 @@
 from datetime import datetime
-import functools
 import itertools
 from math import sqrt
 from pathlib import Path
@@ -25,22 +24,6 @@ DatetimeCorrector = Callable[[datetime], datetime]
 
 # Hack to get cache decorator to play nice with mypy
 T = TypeVar("T")
-
-
-def cache(func: Callable[..., T]) -> T:
-    """Decorator to cache ouput of function or method, called with specific parameters.
-
-    Parameters
-    ----------
-    func: Callable[..., T]
-        Function to decorate.
-
-    Returns
-    -------
-    return_value : T
-        Return value of func.
-    """
-    return functools.lru_cache(maxsize=None)(func)  # type: ignore
 
 
 def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, float]:
@@ -168,7 +151,10 @@ def smallest_enclosing_circle(
 
 
 def dilate_idx(
-    rr: np.ndarray, cc: np.ndarray, d: int, img_shape: Optional[Tuple[int, int]] = None,
+    rr: np.ndarray,
+    cc: np.ndarray,
+    d: int,
+    img_shape: Optional[Tuple[int, int]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Takes index arrays rr and cc and performs a morphological dilation of size d on
     them.

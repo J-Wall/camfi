@@ -21,7 +21,8 @@ def circle():
 @fixture
 def polyline():
     return PolylineShapeAttributes(
-        all_points_x=[3589, 3913, 4140, 4264], all_points_y=[1107, 1095, 1083, 1079],
+        all_points_x=[3589, 3913, 4140, 4264],
+        all_points_y=[1107, 1095, 1083, 1079],
     )
 
 
