@@ -39,6 +39,11 @@ class LocationTime(BaseModel):
     actual_end_time: Optional[datetime] = None
     location: Optional[str] = None
 
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+        }
+
     @validator("actual_start_time", always=True)
     def default_actual_start_time(cls, v, values):
         if v is None and "camera_start_time" in values:
@@ -129,6 +134,24 @@ class LocationTime(BaseModel):
         >>> location_corrector(datetime.fromisoformat("2021-07-15T17:00+11:00"))
         datetime.datetime(2021, 7, 15, 15, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=36000)))
 
+        If self.camera_start_time is offset aware, but the argument to the
+        DatetimeCorrector function is not, it will be assumed that the argument has the
+        same offset as self.camera_start_time.
+
+        >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00+10")
+        >>> location_corrector = location_time.corrector(2.)
+        >>> location_corrector(datetime.fromisoformat("2021-07-15T16:00"))
+        datetime.datetime(2021, 7, 15, 15, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=36000)))
+
+        However, the converse raises a TypeError.
+
+        >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00")
+        >>> location_corrector = location_time.corrector(2.)
+        >>> location_corrector(datetime.fromisoformat("2021-07-15T16:00+10:00"))
+        Traceback (most recent call last):
+        ...
+        TypeError: Cannot call offset-naive DatetimeCorrector with offset-aware datetime.
+
         Raises an error if camera_time_to_actual_time_ratio cannot be determined.
 
         >>> location_time = LocationTime(camera_start_time="2021-07-15T14:00")
@@ -150,6 +173,15 @@ class LocationTime(BaseModel):
             assert isinstance(camera_time_to_actual_time_ratio, float)
             assert isinstance(self.actual_start_time, datetime)
 
+            if datetime_original.tzinfo is None:
+                datetime_original = datetime_original.replace(
+                    tzinfo=self.camera_start_time.tzinfo
+                )
+            elif self.camera_start_time.tzinfo is None:
+                raise TypeError(
+                    "Cannot call offset-naive DatetimeCorrector with offset-aware datetime."
+                )
+
             camera_elapsed_time = datetime_original - self.camera_start_time
             actual_elapsed_time = camera_elapsed_time / camera_time_to_actual_time_ratio
             return self.actual_start_time + actual_elapsed_time
@@ -163,7 +195,7 @@ class LocationTimeCollector(BaseModel):
 
     Parameters
     -----------
-    items: Dict[Path, LocationTime]
+    camera_placements: Dict[str, LocationTime]
         Dictionary mapping directories to LocationTime instances. For example, you
         might have one LocationTime for each camera placement, and each camera placement
         also has it's own directory for images.
@@ -174,13 +206,13 @@ class LocationTimeCollector(BaseModel):
     The first has enough information to get a float from its .get_time_rato method,
     However the second doesn't.
 
-    >>> lt_collector = LocationTimeCollector(items={
-    ...     Path("data"): LocationTime(
+    >>> lt_collector = LocationTimeCollector(camera_placements={
+    ...     "data": LocationTime(
     ...         camera_start_time="2021-07-15T14:00",
     ...         camera_end_time="2021-07-15T16:00",
     ...         actual_end_time="2021-07-15T15:00",
     ...     ),
-    ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+    ...     "foo": LocationTime(camera_start_time="2021-07-15T13:00"),
     ... })
 
     When calling the .get_time_ratio method on a LocationTimeCollector instance,
@@ -191,11 +223,11 @@ class LocationTimeCollector(BaseModel):
     2.0
     """
 
-    items: Dict[Path, LocationTime]
+    camera_placements: Dict[str, LocationTime]
 
     def get_time_ratio(self) -> Optional[float]:
         """Gets the mean of calling the .get_time_ratio method on each LocationTime
-        in self.items.
+        in self.camera_placements.
 
         Returns
         -------
@@ -209,14 +241,14 @@ class LocationTimeCollector(BaseModel):
         If there is not enough information to calculate a time ratio, None is
         returned.
 
-        >>> lt_collector = LocationTimeCollector(items={
-        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        >>> lt_collector = LocationTimeCollector(camera_placements={
+        ...     "foo": LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
         >>> print(lt_collector.get_time_ratio())
         None
         """
         time_ratios: List[float] = []
-        for lt in self.items.values():
+        for lt in self.camera_placements.values():
             time_ratio = lt.get_time_ratio()
             if time_ratio is not None:
                 time_ratios.append(time_ratio)
@@ -228,7 +260,7 @@ class LocationTimeCollector(BaseModel):
     def get_correctors(
         self, camera_time_to_actual_time_ratio: Optional[float] = None
     ) -> SubDirDict[DatetimeCorrector]:
-        """Calls the .corrector method on each LocationTime in self.items to
+        """Calls the .corrector method on each LocationTime in self.camera_placements to
         produce a SubDirDict of datetime_corrector functions.
 
         Parameters
@@ -245,13 +277,13 @@ class LocationTimeCollector(BaseModel):
 
         Examples
         --------
-        >>> lt_collector = LocationTimeCollector(items={
-        ...     Path("data"): LocationTime(
+        >>> lt_collector = LocationTimeCollector(camera_placements={
+        ...     "data": LocationTime(
         ...         camera_start_time="2021-07-15T14:00",
         ...         camera_end_time="2021-07-15T16:00",
         ...         actual_end_time="2021-07-15T15:00",
         ...     ),
-        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ...     "foo": LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
         >>> datetime_correctors = lt_collector.get_correctors(
         ...     camera_time_to_actual_time_ratio=2.0
@@ -260,7 +292,7 @@ class LocationTimeCollector(BaseModel):
         datetime.datetime(2021, 7, 15, 16, 0)
 
         If camera_time_to_actual_time_ratio is not set, it is calculated from
-        the items in the LocationTimeCollector
+        the camera_placements in the LocationTimeCollector
 
         >>> datetime_correctors = lt_collector.get_correctors()
         >>> datetime_correctors["data"](datetime(2021, 7, 15, 18, 0))
@@ -268,8 +300,8 @@ class LocationTimeCollector(BaseModel):
 
         But don't do this if there isn't enough information
 
-        >>> lt_collector = LocationTimeCollector(items={
-        ...     Path("foo"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        >>> lt_collector = LocationTimeCollector(camera_placements={
+        ...     "foo": LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
         >>> print(lt_collector.get_time_ratio())
         None
@@ -287,8 +319,8 @@ class LocationTimeCollector(BaseModel):
             )
 
         datetime_correctors: SubDirDict[DatetimeCorrector] = SubDirDict()
-        for directory, location_time in self.items.items():
-            datetime_correctors[directory] = location_time.corrector(
+        for directory, location_time in self.camera_placements.items():
+            datetime_correctors[Path(directory)] = location_time.corrector(
                 camera_time_to_actual_time_ratio
             )
 
@@ -304,24 +336,24 @@ class LocationTimeCollector(BaseModel):
 
         Examples
         --------
-        >>> lt_collector = LocationTimeCollector(items={
-        ...     Path("data"): LocationTime(
+        >>> lt_collector = LocationTimeCollector(camera_placements={
+        ...     "data": LocationTime(
         ...         camera_start_time="2021-07-15T14:00",
         ...         camera_end_time="2021-07-15T16:00",
         ...         actual_end_time="2021-07-15T15:00",
         ...         location="loc0",
         ...     ),
-        ...     Path("foo"): LocationTime(
+        ...     "foo": LocationTime(
         ...         camera_start_time="2021-07-15T13:00",
         ...         location="loc1",
         ...     ),
-        ...     Path("bar"): LocationTime(camera_start_time="2021-07-15T13:00"),
+        ...     "bar": LocationTime(camera_start_time="2021-07-15T13:00"),
         ... })
         >>> lt_collector.get_location_dict()
         SubDirDict({Path('data'): 'loc0', Path('foo'): 'loc1', Path('bar'): None})
         """
         location_dict: SubDirDict[Optional[str]] = SubDirDict()
-        for directory, location_time in self.items.items():
-            location_dict[directory] = location_time.location
+        for directory, location_time in self.camera_placements.items():
+            location_dict[Path(directory)] = location_time.location
 
         return location_dict

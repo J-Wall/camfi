@@ -4,9 +4,10 @@ camfi.datamodel.geometry."""
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 import exif
+import pandas as pd
 from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, validator
 import torch
 import torchvision.io
@@ -506,3 +507,27 @@ class ViaProject(BaseModel):
                 location=location_dict[metadata.filename],
                 datetime_corrector=datetime_correctors[metadata.filename],
             )
+
+    def to_region_dataframe(self) -> pd.DataFrame:
+        """Returns a Pandas DataFrame with one row per region (annotation).
+
+        Returns
+        -------
+        regions : pd.DataFrame
+            DataFrame with a row for every annotation in self.via_img_metadata. Contains
+            a column for every field in ViaFileAttributes and ViaRegionAttributes, as
+            well as img_key, filename, and name columns.
+        """
+        rows: List[Dict[str, Any]] = []
+        for img_key, metadata in self.via_img_metadata.items():
+            for region in metadata.regions:
+                row = {
+                    "img_key": img_key,
+                    "filename": metadata.filename,
+                    "name": region.shape_attributes.name,
+                }
+                row.update(dict(metadata.file_attributes))
+                row.update(dict(region.region_attributes))
+                rows.append(row)
+
+        return pd.DataFrame(rows)
