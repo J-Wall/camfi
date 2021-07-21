@@ -378,7 +378,7 @@ class WingbeatExtractor(BaseModel):
                 .values
             )
             period = [
-                torch.arange(1, max_pixel_period) * float(et) / roi.shape[1]
+                torch.arange(1, max_pixel_period) * float(et) / roi.shape[1] + 1
                 for et in corrected_exposure_time
             ]
             wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
