@@ -1,4 +1,3 @@
-import bz2
 from pathlib import Path
 import random
 from typing import Dict, Tuple
@@ -337,12 +336,6 @@ class TestViaProject:
 
     def test_parse_no_metadata(self):
         with open("camfi/test/data/sample_project_no_metadata.json") as f:
-            via_project_raw = f.read()
-
-        ViaProject.parse_raw(via_project_raw)
-
-    def test_parse_bz2(self):
-        with bz2.open("examples/data/cabramurra_all_annotations.json.bz2") as f:
             via_project_raw = f.read()
 
         ViaProject.parse_raw(via_project_raw)
