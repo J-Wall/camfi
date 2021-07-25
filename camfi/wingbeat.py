@@ -2,16 +2,15 @@
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime
 from functools import cached_property
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from pydantic import BaseModel, NonNegativeInt, PositiveFloat, PositiveInt
 import torch
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
-from camfi.datamodel.via import ViaRegionAttributes, ViaRegion, ViaMetadata
+from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata
 
 from camfi.util import DatetimeCorrector
 

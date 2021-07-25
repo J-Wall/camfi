@@ -4,7 +4,7 @@ camfi.util."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from math import atan2, cos, degrees, sin, sqrt
+from math import atan2, degrees, sqrt
 from typing import List, Optional, Tuple
 
 from pydantic import (
