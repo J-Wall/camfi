@@ -236,10 +236,12 @@ class WingbeatExtractor(BaseModel):
         https://camfi.readthedocs.io/en/latest/usage/notebooks/camera_calibration.html
         for a guide on measuring the rolling shutter line rate.
     device: str
-        Some steps can run on the GPU. To enable, set e.g. device="cuda".
+        Some steps can run on the GPU, which can give speedups of over 4x. To enable,
+        set e.g. device="cuda".
     backup_device: Optional[str]
         If a step raises a RuntimeError, it can be re-attempted on an alternative
-        device.
+        device. It is recommended to set to "cpu" if running on a GPU with limited
+        memory.
     scan_distance: PositiveInt
         Optional parameter used in WingbeatExtractor.process_blur. This defines the
         maximum perpendicular distance from the polyline annotation of pixels included
