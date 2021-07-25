@@ -4,14 +4,22 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel, NonNegativeInt, PositiveFloat, PositiveInt
+import bces
+import numpy as np
+from pydantic import (
+    BaseModel,
+    NonNegativeInt,
+    PositiveFloat,
+    PositiveInt,
+    ValidationError,
+    validator,
+)
 import torch
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
 from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata
-
 from camfi.util import DatetimeCorrector
 
 
@@ -436,3 +444,132 @@ class WingbeatExtractor(BaseModel):
 
             # Update region attributes with wingbeat data
             region.region_attributes = self.process_blur(polyline, score=score)
+
+
+class BcesEM(BaseModel):
+    """Implements one step of the expectation-maximisation algorithm for fitting
+    multiple BCES linear regresssions to a dataset.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Independent variable values.
+    y : np.ndarray
+        Dependent variable values. Should have same shape as x.
+    n_classes : int
+        Number of classes (i.e. number of regressions in multiple regression).
+    xerr : Union[float, np.ndarray]
+        Error of independent variable measurments. Should have same shape as x. If float
+        is given, it will be converted to an array.
+    yerr : Union[float, np.ndarray]
+        Error of dependent variable measurements. Should have same shape as x. If float
+        is given, it will be converted to an array.
+    cov : Union[float, np.ndarray]
+        Covariance of independent and dependent variable measurements. Should have same
+        shape as x. If float is given, it will be converted to an array.
+    class_mask: Union[None, int, np.random.Generator, np.ndarray]
+        Array of integers defining classes of measurements. Accepts values
+        from the set {0, 1, ..., n_classes - 1}. Should have same shape as x.
+        Alternatively, give a seed for a random number generator (or the Generator
+        itself), and class_mask will be generated.
+    prob_class : np.ndarray
+        Marginal probabilities of each class. Should have shape (n_classes,), and sum
+        to 1.
+    """
+
+    x: np.ndarray
+    y: np.ndarray
+    n_classes: int
+    xerr: Union[float, np.ndarray] = 0.0
+    yerr: Union[float, np.ndarray] = 0.0
+    cov: Union[float, np.ndarray] = 0.0
+    class_mask: Union[None, int, np.random.Generator, np.ndarray] = None
+    prob_class: np.ndarray = None
+
+    @validator("y", "xerr", "yerr", "cov")
+    def values_same_length_as_x(cls, v, values):
+        if isinstance(v, float):
+            v = np.ones_like(values) * v
+        if v.shape != values["x"].shape:
+            raise ValidationError(
+                f"Data must have same shape. {values['x'].shape}, {v.shape}."
+            )
+        return v
+
+    @validator("class_mask", pre=True, always=True)
+    def check_class_mask(cls, v, values):
+        if v is None or isinstance(v, int):
+            rng = np.random.default_rng(v)
+            v = rng.integers(0, values["n_classes"], len(values["x"]), "u1")
+        elif isinstance(v, np.random.Generator):
+            v = v.integers(0, values["n_classes"], len(values["x"]), "u1")
+
+        if v.shape != values["x"].shape:
+            raise ValidationError(
+                f"Data must have same shape. {values['x'].shape}, {v.shape}."
+            )
+
+        assert (
+            v.max() < values["n_classes"]
+        ), f"class_mask must not contain values greter than n_classes. Got {v.max()}."
+
+        return v
+
+
+def bces_em(
+    x: np.ndarray,
+    y: np.ndarray,
+    xerr: np.ndarray,
+    yerr: np.ndarray,
+    cov: np.ndarray,
+    class_mask: np.ndarray,
+    prob_class: np.ndarray,
+    n_classes: int,
+):
+    """Implements one step of the expectation-maximisation algorithm for fitting
+    multiple BCES linear regresssions to a dataset. Note, no argument validation is
+    applied.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Independent variable values.
+    y : np.ndarray
+        Dependent variable values. Should have same shape as x.
+    xerr : np.ndarray
+        Error of independent variable measurments. Should have same shape as x.
+    yerr : np.ndarray
+        Error of dependent variable measurements. Should have same shape as x.
+    cov : np.ndarray
+        Covariance of independent and dependent variable measurements. Should have same
+        shape as x.
+    class_mask : np.ndarray
+        Array of integers defining classes of measurements. Accepts values
+        from the set {0, 1, ..., n_classes - 1}. Should have same shape as x.
+    prob_class : np.ndarray
+        Marginal probabilities of each class. Should have shape (n_classes,), and sum
+        to 1.
+    n_classes : int
+        Number of classes (i.e. number of regressions in multiple regression).
+
+    Returns
+    -------
+    estimates : List[Tuple[float, float, float, float, float]]
+        List of (gradient, y_intercept, gradient_stderr, y_intercept_stderr, cov_xy)
+        tuples of estimates and standard errors. Has length n_classes.
+    err : np.ndarray
+        Array of weighted errors for each measurement from each regression line. Has
+        shape (n_classes, len(x)).
+    """
+    estimates = []
+    err = np.zeros((n_classes, len(x)))
+    for class_id in range(n_classes):
+        mask = class_mask == class_id
+        gradient, y_intercept, gradient_err, y_intercept_err, cov_xy = (
+            e[0] for e in bces.bces(x[mask], xerr[mask], y[mask], yerr[mask], cov[mask])
+        )
+        estimates.append((gradient, y_intercept, gradient_err, y_intercept_err, cov_xy))
+
+        err[class_id, :] = (y_intercept + gradient * x - y) ** 2 / prob_class[class_id]
+
+    return estimates, err
