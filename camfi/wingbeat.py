@@ -288,7 +288,7 @@ class WingbeatExtractor(BaseModel):
         image : torch.Tensor
             Image tensor with shape [height, width].
         """
-        return self.metadata.read_image(root=self.root).mean(axis=-3)  # type: ignore[call-overload]
+        return self.metadata.read_image(root=self.root).to(self.device).mean(axis=-3)  # type: ignore[call-overload]
 
     @cached_property
     def exposure_time(self) -> PositiveFloat:

@@ -4,7 +4,7 @@ camfi.util."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from math import atan2, cos, sin, sqrt
+from math import atan2, cos, degrees, sin, sqrt
 from typing import List, Optional, Tuple
 
 from pydantic import (
@@ -16,8 +16,9 @@ from pydantic import (
     validator,
 )
 from shapely.geometry import LineString
-from skimage.transform import EuclideanTransform, warp
 import torch
+from torchvision.transforms import InterpolationMode
+from torchvision.transforms.functional import pad, rotate
 
 from camfi.util import smallest_enclosing_circle
 
@@ -801,28 +802,35 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         def pair(items):
             return zip(items[:-1], items[1:])
 
-        img = image.numpy()  # Using skimage, which operates on numpy arrays
+        img = image.reshape((1,) + image.shape)  # Torch transforms need colour channel
 
         sections = []
         for (x0, x1), (y0, y1) in zip(pair(self.all_points_x), pair(self.all_points_y)):
             # Calculate angle of section
             rotation = atan2(y1 - y0, x1 - x0)
 
-            # Calculate upper corner of ROI
-            x_translation = x0 + (scan_distance - 1) * sin(rotation)
-            y_translation = y0 - (scan_distance - 1) * cos(rotation)
+            # Calculate section length
+            section_length = int(round(sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)))
+
+            # Determine if image needs extra padding
+            if img.shape[-1] - x0 < section_length:
+                img = pad(img, [0, 0, int(section_length + x0 - img.shape[-1] + 1), 0])
 
             # Rotate and translate image
-            transform_matrix = EuclideanTransform(
-                rotation=rotation, translation=(x_translation, y_translation)
+            rotated_img = rotate(
+                img,
+                degrees(rotation),
+                interpolation=InterpolationMode.BILINEAR,
+                center=[x0 + 0.5, y0 + 0.5],
             )
-            warped_img = warp(img, transform_matrix)
 
             # Crop rotated image to ROI
-            section_length = int(round(sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)))
-            cropped_img = warped_img[: 2 * scan_distance - 1, :section_length]
+            cropped_img = rotated_img.reshape(rotated_img.shape[1:])[
+                int(y0) - scan_distance + 1 : int(y0) + scan_distance,
+                int(x0) : int(x0) + section_length,
+            ]
 
-            sections.append(torch.from_numpy(cropped_img))  # Convert back to Tensor
+            sections.append(cropped_img)
 
         # Join sections to form complete ROI
         joined_img = torch.hstack(sections)
