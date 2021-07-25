@@ -830,7 +830,8 @@ class PolylineShapeAttributes(ViaShapeAttributes):
                 int(x0) : int(x0) + section_length,
             ]
 
-            sections.append(cropped_img)
+            if cropped_img.shape[-1] > 0:  # Otherwise torch.hstack will raise an error.
+                sections.append(cropped_img)
 
         # Join sections to form complete ROI
         joined_img = torch.hstack(sections)
