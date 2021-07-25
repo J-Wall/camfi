@@ -802,36 +802,40 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         def pair(items):
             return zip(items[:-1], items[1:])
 
-        img = image.reshape((1,) + image.shape)  # Torch transforms need colour channel
+        # Torch transforms need colour channel, and image needs to be padded
+        img = pad(image.reshape((1,) + image.shape), scan_distance)
 
         sections = []
         for (x0, x1), (y0, y1) in zip(pair(self.all_points_x), pair(self.all_points_y)):
+            # Correct for padding
+            cx = x0 + scan_distance + 0.5
+            cy = y0 + scan_distance + 0.5
+
             # Calculate angle of section
             rotation = atan2(y1 - y0, x1 - x0)
 
             # Calculate section length
             section_length = int(round(sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)))
 
-            # Determine if image needs extra padding
-            if img.shape[-1] - x0 < section_length:
-                img = pad(img, [0, 0, int(section_length + x0 - img.shape[-1] + 1), 0])
+            # Determine if image needs extra padding along x-axis
+            if img.shape[-1] - cx < section_length:
+                img = pad(img, [0, 0, int(section_length + cx - img.shape[-1] + 1), 0])
 
             # Rotate and translate image
             rotated_img = rotate(
                 img,
                 degrees(rotation),
                 interpolation=InterpolationMode.BILINEAR,
-                center=[x0 + 0.5, y0 + 0.5],
+                center=[cx, cy],
             )
 
             # Crop rotated image to ROI
             cropped_img = rotated_img.reshape(rotated_img.shape[1:])[
-                int(y0) - scan_distance + 1 : int(y0) + scan_distance,
-                int(x0) : int(x0) + section_length,
+                int(cy) - scan_distance + 1 : int(cy) + scan_distance,
+                int(cx) : int(cx) + section_length,
             ]
 
-            if cropped_img.shape[-1] > 0:  # Otherwise torch.hstack will raise an error.
-                sections.append(cropped_img)
+            sections.append(cropped_img)
 
         # Join sections to form complete ROI
         joined_img = torch.hstack(sections)
