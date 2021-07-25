@@ -237,6 +237,9 @@ class WingbeatExtractor(BaseModel):
         for a guide on measuring the rolling shutter line rate.
     device: str
         Some steps can run on the GPU. To enable, set e.g. device="cuda".
+    backup_device: Optional[str]
+        If a step raises a RuntimeError, it can be re-attempted on an alternative
+        device.
     scan_distance: PositiveInt
         Optional parameter used in WingbeatExtractor.process_blur. This defines the
         maximum perpendicular distance from the polyline annotation of pixels included
@@ -268,6 +271,7 @@ class WingbeatExtractor(BaseModel):
     root: Path
     line_rate: PositiveFloat
     device: str = "cpu"
+    backup_device: Optional[str] = None
     scan_distance: PositiveInt = 50
     max_pixel_period: Optional[PositiveInt] = None
     force_load_exif_metadata: bool = False
@@ -344,7 +348,14 @@ class WingbeatExtractor(BaseModel):
             With all fields set (including score iff a value was given).
         """
         # Load region of interest. Mypy complains about self.image not being the right
-        roi = polyline.extract_region_of_interest(self.image, self.scan_distance)
+        try:
+            roi = polyline.extract_region_of_interest(self.image, self.scan_distance)
+        except RuntimeError:
+            if self.backup_device is None:
+                raise
+            roi = polyline.extract_region_of_interest(
+                self.image.to(self.backup_device), self.scan_distance
+            ).to(self.device)
 
         # Infer max_pixel_period if not set
         max_pixel_period = roi.shape[1] // 2
@@ -352,9 +363,14 @@ class WingbeatExtractor(BaseModel):
             max_pixel_period = min(max_pixel_period, self.max_pixel_period)
 
         # Calculate autocorrelation. This step can run on the GPU
-        mean_autocorrelation = autocorrelation(
-            roi.to(self.device), max_pixel_period
-        ).cpu()
+        try:
+            mean_autocorrelation = autocorrelation(roi, max_pixel_period).cpu()
+        except RuntimeError:
+            if self.backup_device is None:
+                raise
+            mean_autocorrelation = autocorrelation(
+                roi.to(self.backup_device), max_pixel_period
+            ).cpu()
 
         # Find wingbeat peak
         best_peak, snr = find_best_peak(mean_autocorrelation)
