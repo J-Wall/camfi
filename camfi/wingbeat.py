@@ -752,11 +752,40 @@ class GMM(BaseModel):
         assert len(v.shape) == 1, "Data must be 1-D. Got array with shape {v.shape}."
         return v
 
+    @classmethod
+    def log10_from_region_dataframe(
+        cls, regions: pd.DataFrame, n_classes: int, seed: Optional[int] = None
+    ) -> GMM:
+        """Initialises a GMM object from a regions dataframe, taking the log10 values
+        of preliminary wingbeat frequency.
+
+        Parameters
+        ----------
+        regions : pd.DataFrame
+            DataFrame containing wingbeat-extracted polylines. SNR threshold should
+            already have been applied. Must contain columns "wb_freq_down" and
+            "wb_freq_up".
+        n_classes : int
+            Number of target classes.
+        seed : Optional[int]
+            Sets the seed for the EM algorithm.
+
+        Returns
+        -------
+        gmm : GMM
+            Model to fit by calling gmm.fit().
+        """
+        return GMM(
+            x=np.concatenate([regions["wb_freq_down"], regions["wb_freq_up"]]),
+            n_classes=n_classes,
+            seed=seed,
+        )
+
     def fit(self) -> List[WeightedGaussian]:
         gmm = sklearn.mixture.GaussianMixture(
             n_components=self.n_classes, random_state=self.seed
         )
-        gmm.fit(self.x)
+        gmm.fit(self.x.reshape(-1, 1))
         components: List[WeightedGaussian] = []
         for i in range(self.n_classes):
             components.append(
