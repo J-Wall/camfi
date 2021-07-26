@@ -685,7 +685,7 @@ class BcesEM(BaseModel):
                 break
 
             # Reinitialise for next iteration
-            self.class_mask[:] == class_mask
+            self.class_mask[:] = class_mask
             self.prob_class[:] = np.array(
                 [np.mean(self.class_mask == i) for i in range(self.n_classes)]
             )
