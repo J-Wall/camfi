@@ -523,6 +523,11 @@ class BcesEM(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+    @validator("x", pre=True)
+    def x_is_1d(cls, v):
+        assert len(v.shape) == 1
+        return v
+
     @validator("y", "xerr", "yerr", "cov", pre=True, always=True)
     def values_same_length_as_x(cls, v, values):
         if isinstance(v, float):
