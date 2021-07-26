@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -147,6 +147,11 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         "tab:purple",
         "k",
     ]
+    snr_vs_pwf_title: str = " (a)"
+    snr_vs_pwf_title_y: float = 0.88
+    l_vs_pdt_title: str = " (b)"
+    l_vs_pdt_title_y: float = 0.88
+    title_font_dict: Dict[str, Any] = {"fontweight": "bold"}
     fig: plt.Figure = None  # type: ignore[assignment]
     snr_vs_pwf_ax: plt.Axes = None  # type: ignore[assignment]
     histx_ax: plt.Axes = None  # type: ignore[assignment]
@@ -385,6 +390,22 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
                     c=self.class_colours[i],
                 )
 
+    def _add_titles(self) -> None:
+        """Adds titles to subfigures."""
+        title_y = 0.88
+        a_title = self.snr_vs_pwf_ax.set_title(
+            self.snr_vs_pwf_title,
+            fontdict=self.title_font_dict,
+            loc="left",
+            y=self.snr_vs_pwf_title_y,
+        )
+        b_title = self.l_vs_pdt_ax.set_title(
+            self.l_vs_pdt_title,
+            fontdict=self.title_font_dict,
+            loc="left",
+            y=self.l_vs_pdt_title_y,
+        )
+
     def plot(self) -> plt.Figure:
         """Produces plots."""
         # Initialise axes
@@ -398,5 +419,6 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         self._plot_marginal_hists()
         self._plot_l_vs_pdt()
         self._plot_l_vs_pdt_regressions()
+        self._add_titles()
 
         return self.fig
