@@ -523,7 +523,7 @@ class BcesEM(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    @validator("y", "xerr", "yerr", "cov")
+    @validator("x", "y", "xerr", "yerr", "cov")
     def values_same_length_as_x(cls, v, values):
         if isinstance(v, float):
             v = np.ones_like(values) * v
