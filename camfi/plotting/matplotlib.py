@@ -328,7 +328,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
 
     def _plot_l_vs_pdt(self) -> None:
         """Plot blur length vs. pixel-period * ∆t for above thresh data only."""
-        for class_i in self.class_mask.unique():
+        for class_i in np.unique(self.class_mask):
             mask = self.class_mask == class_i
             plot_herror_bars(
                 self.l_vs_pdt_ax,
