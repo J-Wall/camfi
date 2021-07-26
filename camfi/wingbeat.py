@@ -527,7 +527,7 @@ class BcesEM(BaseModel):
     def values_same_length_as_x(cls, v, values):
         if isinstance(v, float):
             v = np.ones_like(values) * v
-        if "x" in values and v.shape != values["x"].shape:
+        if v.shape != values["x"].shape:
             raise ValidationError(
                 f"Data must have same shape. {values['x'].shape}, {v.shape}."
             )
@@ -602,7 +602,7 @@ class BcesEM(BaseModel):
         yerr = np.zeros_like(y)
         cov = np.zeros_like(y)
 
-        return cls(x=x, y=y, n_classes=n_classes, xerr=xerr, yerr=yerr, cov=cov)
+        return BcesEM(x=x, y=y, n_classes=n_classes, xerr=xerr, yerr=yerr, cov=cov)
 
     def fit_bces(self):
         """Fits BCES linear regressions to the data, subdivided into self.n_classes
