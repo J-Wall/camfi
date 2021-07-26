@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import cached_property
+from functools import cached_property, total_ordering
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -449,6 +449,7 @@ class WingbeatExtractor(BaseModel):
             region.region_attributes = self.process_blur(polyline, score=score)
 
 
+@total_ordering
 class BcesResult(BaseModel):
     """Stores parameters of one BCES linear regression.
 
@@ -478,6 +479,21 @@ class BcesResult(BaseModel):
     gradient_stderr: float
     y_intercept_stderr: float
     cov_xy: float
+
+    def __lt__(self, other: BcesResult) -> bool:
+        return (
+            self.gradient,
+            self.y_intercept,
+            self.gradient_stderr,
+            self.y_intercept_stderr,
+            cov_xy,
+        ) < (
+            other.gradient,
+            other.y_intercept,
+            other.gradient_stderr,
+            other.y_intercept_stderr,
+            other.cov_xy,
+        )
 
 
 class BcesEM(BaseModel):
