@@ -161,7 +161,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
             values["polyline_regions"]["snr"] >= values["snr_thresh"]
         )
         if v is None:
-            v = np.zeros((n_abovethresh,)) - 1
+            v = np.zeros((n_abovethresh,), dtype="i4") - 1
         assert (
             len(v) == n_abovethresh
         ), "class_mask must have one value for each above-snr-thresh datapoint."
