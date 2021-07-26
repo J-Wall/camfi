@@ -143,6 +143,14 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         "tab:purple",
         "k",
     ]
+    fig: plt.Figure = None  # type: ignore[assignment]
+    snr_vs_pwf_ax: plt.Axes = None  # type: ignore[assignment]
+    histx_ax: plt.Axes = None  # type: ignore[assignment]
+    histy_ax: plt.Axes = None  # type: ignore[assignment]
+    l_vs_pdt_ax: plt.Axes = None  # type: ignore[assignment]
+    above_thresh: pd.DataFrame = None  # type: ignore[assignment]
+    below_thresh: pd.DataFrame = None  # type: ignore[assignment]
+
 
     class Config:
         arbitrary_types_allowed = True
