@@ -595,14 +595,22 @@ class BcesEM(BaseModel):
         bces_em : BcesEM
             Model to fit by calling bces_em.fit().
         """
-        x = np.array(
-            regions["best_peak"] * regions["et_up"]
-            + regions["best_peak"] * regions["et_up"]
-        ) / 2
-        xerr = np.array(
-            regions["best_peak"] * regions["et_up"]
-            - regions["best_peak"] * regions["et_up"]
-        ).abs() / 2
+        x = (
+            np.array(
+                regions["best_peak"] * regions["et_up"]
+                + regions["best_peak"] * regions["et_up"]
+            )
+            / 2
+        )
+        xerr = (
+            np.abs(
+                np.array(
+                    regions["best_peak"] * regions["et_up"]
+                    - regions["best_peak"] * regions["et_up"]
+                )
+            )
+            / 2
+        )
         y = np.array(regions["blur_length"])
         yerr = np.zeros_like(y)
         cov = np.zeros_like(y)
