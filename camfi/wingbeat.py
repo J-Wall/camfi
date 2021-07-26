@@ -8,7 +8,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
-import bces
+from bces import bces
 import numpy as np
 import pandas as pd
 from pydantic import (
