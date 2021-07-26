@@ -653,9 +653,9 @@ class BcesEM(BaseModel):
                 )
             )
 
-            err[class_id, :] = (y_intercept + gradient * x - y) ** 2 / self.prob_class[
-                class_id
-            ]
+            err[class_id, :] = (
+                y_intercept + gradient * self.x - self.y
+            ) ** 2 / self.prob_class[class_id]
 
         return estimates, err
 
