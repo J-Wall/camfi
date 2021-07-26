@@ -4,10 +4,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, validator
+import scipy.stats
 from torch import Tensor
 
 from camfi.datamodel.via import ViaRegionAttributes
-from camfi.wingbeat import WingbeatSuppFigPlotter, BcesResult
+from camfi.wingbeat import WingbeatSuppFigPlotter, BcesResult, WeightedGaussian
 
 
 class MatplotlibWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
@@ -121,6 +122,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     polyline_regions: pd.DataFrame
     snr_thresh: float = 4.0
     class_mask: np.ndarray = None  # type: ignore[assignment]
+    gmm_results: Optional[List[WeightedGaussian]] = None
     bces_results: Optional[List[BcesResult]] = None
     figsize: Tuple[float, float] = (7.5, 5.2)
     left_border: float = 0.1
@@ -134,6 +136,8 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     snr_vs_pwf_belowthresh_c: str = "grey"
     snr_thresh_line_c: str = "r"
     errorbar_lw: float = 1
+    gmm_plot_range_stdevs: float = 4.0
+    gmm_lw: float = 3
     l_vs_pdt_alpha: float = 0.5
     class_colours: List[str] = [
         "tab:blue",
@@ -292,6 +296,30 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
             facecolor=self.snr_vs_pwf_abovethresh_c,
             alpha=self.snr_vs_pwf_alpha,
         )
+
+        # Plot GMM
+        if self.gmm_results is not None:
+            scaling = np.mean(hx_filt * (bx_filt[1:] - bx_filt[:-1])) / 2
+            for class_i in range(len(self.gmm_results)):
+                pdf_x = np.logspace(
+                    self.gmm_results[class_i].mean
+                    - self.gmm_results[class_i].std * self.gmm_plot_range_stdevs,
+                    self.gmm_results[class_i].mean
+                    + self.gmm_results[class_i].std * self.gmm_plot_range_stdevs,
+                    num=100,
+                )
+                self.histx_ax.plot(
+                    pdf_x,
+                    scaling
+                    * self.gmm_results[class_i].weight
+                    * scipy.stats.norm.pdf(
+                        np.log10(pdf_x),
+                        loc=self.gmm_results[class_i].mean,
+                        scale=self.gmm_results[class_i].std,
+                    ),
+                    c=self.class_colours[class_i],
+                    linewidth=self.gmm_lw,
+                )
 
         # Vertial marginal
         # First need to pin bin edges to snr_thresh to avoid overlap

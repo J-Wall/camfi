@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import cached_property, total_ordering
+from math import sqrt
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -19,6 +20,7 @@ from pydantic import (
     ValidationError,
     validator,
 )
+import sklearn.mixture
 import torch
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
@@ -529,7 +531,7 @@ class BcesEM(BaseModel):
 
     x: np.ndarray
     y: np.ndarray
-    n_classes: int
+    n_classes: PositiveInt
     xerr: Union[float, np.ndarray] = 0.0
     yerr: Union[float, np.ndarray] = 0.0
     cov: Union[float, np.ndarray] = 0.0
@@ -721,3 +723,48 @@ class BcesEM(BaseModel):
             )
 
         return estimates
+
+
+@total_ordering
+class WeightedGaussian(BaseModel):
+    mean: float
+    std: float
+    weight: float = 1.0
+
+    def __lt__(self, other: WeightedGaussian):
+        return (self.mean, self.std, self.weight) < (
+            other.mean,
+            other.std,
+            other.weight,
+        )
+
+
+class GMM(BaseModel):
+    x: np.ndarray
+    n_classes: PositiveInt
+    seed: Optional[int] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @validator("x")
+    def x_is_1d(cls, v):
+        assert len(v.shape) == 1, "Data must be 1-D. Got array with shape {v.shape}."
+        return v
+
+    def fit(self) -> List[WeightedGaussian]:
+        gmm = sklearn.mixture.GaussianMixture(
+            n_components=self.n_classes, random_state=self.seed
+        )
+        gmm.fit(self.x)
+        components: List[WeightedGaussian] = []
+        for i in range(self.n_classes):
+            components.append(
+                WeightedGaussian(
+                    mean=gmm.means_[i][0],
+                    std=sqrt(gmm.covariances_[i][0]),
+                    weight=gmm.weights_[i],
+                )
+            )
+
+        return components
