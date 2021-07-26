@@ -1,6 +1,8 @@
 """Implements wingbeat frequency measurement from annotated images of flying insects.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
@@ -8,6 +10,7 @@ from typing import List, Optional, Tuple, Union
 
 import bces
 import numpy as np
+import pandas as pd
 from pydantic import (
     BaseModel,
     NonNegativeInt,
@@ -568,6 +571,38 @@ class BcesEM(BaseModel):
             abs(1.0 - v.sum()) <= 1e-6
         ), f"Probabilities should sum to 1, but sum to {v.sum()}."
         return v
+
+    @classmethod
+    def from_region_dataframe(cls, regions: pd.DataFrame, n_classes: int) -> BcesEM:
+        """Initialises a BcesEM object from a regions dataframe.
+
+        Parameters
+        ----------
+        regions : pd.DataFrame
+            DataFrame containing wingbeat-extracted polylines. SNR threshold should
+            already have been applied. Must contain columns "best_peak", "et_up",
+            "et_dn", and "blur_length".
+        n_classes : int
+            Number of target classes.
+
+        Returns
+        -------
+        bces_em : BcesEM
+            Model to fit by calling bces_em.fit().
+        """
+        x = (
+            regions["best_peak"] * regions["et_up"]
+            + regions["best_peak"] * regions["et_up"]
+        ) / 2
+        xerr = (
+            regions["best_peak"] * regions["et_up"]
+            - regions["best_peak"] * regions["et_up"]
+        ).abs() / 2
+        y = regions["blur_length"]
+        yerr = np.zeros_like(y)
+        cov = np.zeros_like(y)
+
+        return cls(x=x, y=y, n_classes=n_classes, xerr=xerr, yerr=yerr, cov=cov)
 
     def fit_bces(self):
         """Fits BCES linear regressions to the data, subdivided into self.n_classes
