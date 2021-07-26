@@ -517,7 +517,7 @@ class BcesEM(BaseModel):
     xerr: Union[float, np.ndarray] = 0.0
     yerr: Union[float, np.ndarray] = 0.0
     cov: Union[float, np.ndarray] = 0.0
-    class_mask: np.ndarray = None  # type: ignore[assignment]
+    class_mask: Union[None, int, np.random.Generator, np.ndarray] = None
     prob_class: np.ndarray = None  # type: ignore[assignment]
 
     class Config:
@@ -578,7 +578,9 @@ class BcesEM(BaseModel):
         return v
 
     @classmethod
-    def from_region_dataframe(cls, regions: pd.DataFrame, n_classes: int) -> BcesEM:
+    def from_region_dataframe(
+        cls, regions: pd.DataFrame, n_classes: int, seed: Optional[int] = None
+    ) -> BcesEM:
         """Initialises a BcesEM object from a regions dataframe.
 
         Parameters
@@ -589,6 +591,8 @@ class BcesEM(BaseModel):
             "et_dn", and "blur_length".
         n_classes : int
             Number of target classes.
+        seed : Optional[int]
+            Sets the seed for initialisation of class_mask.
 
         Returns
         -------
@@ -615,7 +619,15 @@ class BcesEM(BaseModel):
         yerr = np.zeros_like(y)
         cov = np.zeros_like(y)
 
-        return BcesEM(x=x, y=y, n_classes=n_classes, xerr=xerr, yerr=yerr, cov=cov)
+        return BcesEM(
+            x=x,
+            y=y,
+            n_classes=n_classes,
+            xerr=xerr,
+            yerr=yerr,
+            cov=cov,
+            class_mask=seed,
+        )
 
     def fit_bces(self):
         """Fits BCES linear regressions to the data, subdivided into self.n_classes
@@ -629,6 +641,7 @@ class BcesEM(BaseModel):
             Array of weighted errors for each measurement from each regression line. Has
             shape (n_classes, len(x)).
         """
+        assert isinstance(self.class_mask, np.ndarray)
         estimates: List[BcesResult] = []
         err = np.zeros((self.n_classes, len(self.x)))
         for class_id in range(self.n_classes):
@@ -673,6 +686,7 @@ class BcesEM(BaseModel):
         estimates : List[BcesResult]
             List of self.n_classes BcesResult instances.
         """
+        assert isinstance(self.class_mask, np.ndarray)
         for i in range(max_iterations):
             # Fit BCES regressions based on existing class data
             estimates, err = self.fit_bces()
