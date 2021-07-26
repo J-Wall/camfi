@@ -119,6 +119,82 @@ def plot_herror_bars(
 
 
 class MatplotlibWingbeatFrequencyPlotter(BaseModel):
+    """Produces plots of wingbeat frequency measurements. Most parameters are just to
+    control exactly how the plot looks, and the defaults should make it look pretty.
+    Probably only need to set polyline_regions, snr_thresh, class_mask, gmm_results, and
+    bces_results parameters, but everything else is exposed for fine control.
+
+    A few fields come up in the class signature, but should not be set manually. These
+    are ommitted from the parameter list.
+
+    Parameters
+    ----------
+    polyline_regions : pd.DataFrame
+        Dataframe containing wingbeat data. Each entry should be a polyline region with
+        all columns filled. (See camfi.datamodel.via.ViaProject.to_region_dataframe for
+        dataframe creation).
+    snr_thresh : float
+        SNR threshold to plot.
+    class_mask : Optional[np.ndarray]
+        Array of class indices. Should have same length as the thresholded dataset,
+        obtained by calling polyline_regions[polyline_regions["snr"] >= snr_thresh.
+    gmm_results : Optional[List[WeightedGaussian]]
+        If provided, a log10 Gaussian mixture model will be plotted on the horizontal
+        marginal distribution histogram of the snr_vs_pwf plot. See camfi.wingbeat.GMM
+        for creating this list.
+    bces_results : Optional[List[BcesResult]]
+        If provided, BCES regression lines will be plotted on the l_vs_pdt plot. See
+        camfi.wingbeat.BcesEM for creating this list.
+    figsize : Tuple[float, float]
+        Size (width, height) of figure in inches (*shudders* ...This is the units
+        matplotlib uses).
+    left_border : float
+        Proportion of figure width to pad on left side.
+    bottom_border : float
+        Proportion of figure height to pad on bottom side.
+    snr_vs_pwf_ax_width : float
+        Width of snr_vs_pwf plot as a proportion of total figure width.
+    snr_vs_pwf_ax_height : float
+        Height of snr_vs_pwf plot as a proportion of total figure height.
+    hist_height : float
+        Height of snr_vs_pwf marginal histograms as a proportion of total figure height
+        and width.
+    l_vs_pdt_spacing : float
+        Horizontal spacing between l_vs_pdt plot and snr_vs_pwf plot. Negative values
+        indicate that plots should overlap.
+    snr_vs_pwf_alpha : float
+        Alpha level (opacity) to apply to error bars and histograms for snr_vs_pwf plot.
+    snr_vs_pwf_abovethresh_c : str
+        Colour for above-threshold error bars on snr_vs_pwf plot.
+    snr_vs_pwf_belowthresh_c : str
+        Colour for below-threshold error bars on snr_vs_pwf plot.
+    snr_thresh_line_c : str
+        Colour of SNR threshold line.
+    errorbar_lw : float
+        Line width of error bars. Applied across both subfigures.
+    gmm_plot_range_stdevs : float
+        Number of standard deviations either side of means to plot for GMM pdfs.
+    gmm_lw : float
+        Line width for GMM pdfs. By default this is bold for easier viewing.
+    l_vs_pdt_alpha : float
+        Alpha level (opacity) to apply to error bars for l_vs_pdt plot.
+    class_colours : List[str]
+        List of colours to use for plotting multiple classes (both for GMM and BCES,
+        and class_mask). This will apply the colours to the classes in the order they
+        are given. If class_mask is not supplied, the last colour in the list is used
+        for all datapoints.
+    snr_vs_pwf_title : str
+        Title for snr_vs_pwf plot.
+    snr_vs_pwf_title_y : float = 0.87
+        Vertical position of title for snr_vs_pwf plot.
+    l_vs_pdt_title : str = " (b)"
+        Title for l_vs_pdt plot.
+    l_vs_pdt_title_y : float = 0.91
+        Vertical position of title for l_vs_pdt plot.
+    title_font_dict : Dict[str, Any] = {"fontweight" : "bold"}
+        Defines font parameters for subfig titles.
+    """
+
     polyline_regions: pd.DataFrame
     snr_thresh: float = 4.0
     class_mask: np.ndarray = None  # type: ignore[assignment]
@@ -148,9 +224,9 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         "k",
     ]
     snr_vs_pwf_title: str = " (a)"
-    snr_vs_pwf_title_y: float = 0.88
+    snr_vs_pwf_title_y: float = 0.87
     l_vs_pdt_title: str = " (b)"
-    l_vs_pdt_title_y: float = 0.88
+    l_vs_pdt_title_y: float = 0.91
     title_font_dict: Dict[str, Any] = {"fontweight": "bold"}
     fig: plt.Figure = None  # type: ignore[assignment]
     snr_vs_pwf_ax: plt.Axes = None  # type: ignore[assignment]
