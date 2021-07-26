@@ -486,7 +486,7 @@ class BcesResult(BaseModel):
             self.y_intercept,
             self.gradient_stderr,
             self.y_intercept_stderr,
-            cov_xy,
+            self.cov_xy,
         ) < (
             other.gradient,
             other.y_intercept,
