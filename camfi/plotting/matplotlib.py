@@ -151,7 +151,6 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     above_thresh: pd.DataFrame = None  # type: ignore[assignment]
     below_thresh: pd.DataFrame = None  # type: ignore[assignment]
 
-
     class Config:
         arbitrary_types_allowed = True
 
@@ -329,15 +328,17 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
 
     def _plot_l_vs_pdt(self) -> None:
         """Plot blur length vs. pixel-period * ∆t for above thresh data only."""
-        plot_herror_bars(
-            self.l_vs_pdt_ax,
-            self.above_thresh["best_peak"] * self.above_thresh["et_up"],
-            self.above_thresh["best_peak"] * self.above_thresh["et_dn"],
-            self.above_thresh["blur_length"],
-            c=np.array(self.class_colours)[self.class_mask],
-            alpha=self.l_vs_pdt_alpha,
-            lw=self.errorbar_lw,
-        )
+        for class_i in self.class_mask.unique():
+            mask = self.class_mask == class_i
+            plot_herror_bars(
+                self.l_vs_pdt_ax,
+                self.above_thresh["best_peak"][mask] * self.above_thresh["et_up"][mask],
+                self.above_thresh["best_peak"][mask] * self.above_thresh["et_dn"][mask],
+                self.above_thresh["blur_length"][mask],
+                c=self.class_colours[class_i],
+                alpha=self.l_vs_pdt_alpha,
+                lw=self.errorbar_lw,
+            )
 
     def _plot_l_vs_pdt_regressions(self) -> None:
         """Plots regression lines."""
