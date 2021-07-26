@@ -776,7 +776,9 @@ class GMM(BaseModel):
             Model to fit by calling gmm.fit().
         """
         return GMM(
-            x=np.concatenate([regions["wb_freq_down"], regions["wb_freq_up"]]),
+            x=np.log10(
+                np.concatenate([regions["wb_freq_down"], regions["wb_freq_up"]])
+            ),
             n_classes=n_classes,
             seed=seed,
         )
