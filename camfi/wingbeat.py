@@ -446,9 +446,40 @@ class WingbeatExtractor(BaseModel):
             region.region_attributes = self.process_blur(polyline, score=score)
 
 
+class BcesResult(BaseModel):
+    """Stores parameters of one BCES linear regression.
+
+    estimates : List[Tuple[float, float, float, float, float]]
+        List of (gradient, y_intercept, gradient_stderr, y_intercept_stderr, cov_xy)
+        tuples of estimates and standard errors. Has length n_classes.
+    err : np.ndarray
+        Array of weighted errors for each measurement from each regression line. Has
+        shape (n_classes, len(x)).
+
+    Parameters
+    ----------
+    gradient : float
+        Gradient Estimate.
+    y_intercept : float
+        Intercept estimate.
+    gradient_stderr : float
+        Standard error of the gradient esitmate.
+    y_intercept_stderr : float
+        Standard error of the y_intercept estimate.
+    cov_xy : float
+        Covariance estimate.
+    """
+
+    gradient: float
+    y_intercept: float
+    gradient_stderr: float
+    y_intercept_stderr: float
+    cov_xy: float
+
+
 class BcesEM(BaseModel):
-    """Implements one step of the expectation-maximisation algorithm for fitting
-    multiple BCES linear regresssions to a dataset.
+    """Implements an expectation-maximisation algorithm for fitting multiple BCES
+    linear regresssions to a dataset.
 
     Parameters
     ----------
@@ -483,8 +514,11 @@ class BcesEM(BaseModel):
     xerr: Union[float, np.ndarray] = 0.0
     yerr: Union[float, np.ndarray] = 0.0
     cov: Union[float, np.ndarray] = 0.0
-    class_mask: Union[None, int, np.random.Generator, np.ndarray] = None
-    prob_class: np.ndarray = None
+    class_mask: np.ndarray = None  # type: ignore[assignment]
+    prob_class: np.ndarray = None  # type: ignore[assignment]
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @validator("y", "xerr", "yerr", "cov")
     def values_same_length_as_x(cls, v, values):
@@ -510,66 +544,102 @@ class BcesEM(BaseModel):
             )
 
         assert (
+            v.min() >= 0
+        ), f"class_mask must not contain negative values. Got {v.min()}."
+        assert (
             v.max() < values["n_classes"]
         ), f"class_mask must not contain values greter than n_classes. Got {v.max()}."
 
         return v
 
+    @validator("prob_class", pre=True, always=True)
+    def check_prob_class(cls, v, values):
+        if v is None:
+            v = np.array(
+                [np.mean(values["class_mask"] == i) for i in range(values["n_classes"])]
+            )
+        assert isinstance(v, np.ndarray), f"Expected np.ndarray, got {type(v)}."
+        assert (
+            len(v) == values["n_classes"]
+        ), f"Expected {values['n_classes']} probabilities, got {len(v)}."
+        assert v.min() >= 0.0, f"Probabilities cannot be negative. Got {v.min()}."
+        assert v.max() <= 1.0, f"Probabilities cannot be greater than 1. got {v.max()}."
+        assert (
+            abs(1.0 - v.sum()) <= 1e-6
+        ), f"Probabilities should sum to 1, but sum to {v.sum()}."
+        return v
 
-def bces_em(
-    x: np.ndarray,
-    y: np.ndarray,
-    xerr: np.ndarray,
-    yerr: np.ndarray,
-    cov: np.ndarray,
-    class_mask: np.ndarray,
-    prob_class: np.ndarray,
-    n_classes: int,
-):
-    """Implements one step of the expectation-maximisation algorithm for fitting
-    multiple BCES linear regresssions to a dataset. Note, no argument validation is
-    applied.
+    def fit_bces(self):
+        """Fits BCES linear regressions to the data, subdivided into self.n_classes
+        classes by self.class_mask.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Independent variable values.
-    y : np.ndarray
-        Dependent variable values. Should have same shape as x.
-    xerr : np.ndarray
-        Error of independent variable measurments. Should have same shape as x.
-    yerr : np.ndarray
-        Error of dependent variable measurements. Should have same shape as x.
-    cov : np.ndarray
-        Covariance of independent and dependent variable measurements. Should have same
-        shape as x.
-    class_mask : np.ndarray
-        Array of integers defining classes of measurements. Accepts values
-        from the set {0, 1, ..., n_classes - 1}. Should have same shape as x.
-    prob_class : np.ndarray
-        Marginal probabilities of each class. Should have shape (n_classes,), and sum
-        to 1.
-    n_classes : int
-        Number of classes (i.e. number of regressions in multiple regression).
+        Returns
+        -------
+        estimates : List[BcesResult]
+            List of self.n_classes BcesResult instances.
+        err : np.ndarray
+            Array of weighted errors for each measurement from each regression line. Has
+            shape (n_classes, len(x)).
+        """
+        estimates: List[BcesResult] = []
+        err = np.zeros((self.n_classes, len(self.x)))
+        for class_id in range(self.n_classes):
+            mask = self.class_mask == class_id
+            gradient, y_intercept, gradient_err, y_intercept_err, cov_xy = (
+                e[0]
+                for e in bces.bces(
+                    self.x[mask],
+                    self.xerr[mask],
+                    self.y[mask],
+                    self.yerr[mask],
+                    self.cov[mask],
+                )
+            )
+            estimates.append(
+                BcesResult(
+                    gradient=gradient,
+                    y_intercept=y_intercept,
+                    gradient_stderr=gradient_err,
+                    y_intercept_stderr=y_intercept_err,
+                    cov_xy=cov_xy,
+                )
+            )
 
-    Returns
-    -------
-    estimates : List[Tuple[float, float, float, float, float]]
-        List of (gradient, y_intercept, gradient_stderr, y_intercept_stderr, cov_xy)
-        tuples of estimates and standard errors. Has length n_classes.
-    err : np.ndarray
-        Array of weighted errors for each measurement from each regression line. Has
-        shape (n_classes, len(x)).
-    """
-    estimates = []
-    err = np.zeros((n_classes, len(x)))
-    for class_id in range(n_classes):
-        mask = class_mask == class_id
-        gradient, y_intercept, gradient_err, y_intercept_err, cov_xy = (
-            e[0] for e in bces.bces(x[mask], xerr[mask], y[mask], yerr[mask], cov[mask])
-        )
-        estimates.append((gradient, y_intercept, gradient_err, y_intercept_err, cov_xy))
+            err[class_id, :] = (y_intercept + gradient * x - y) ** 2 / self.prob_class[
+                class_id
+            ]
 
-        err[class_id, :] = (y_intercept + gradient * x - y) ** 2 / prob_class[class_id]
+        return estimates, err
 
-    return estimates, err
+    def fit(self, max_iterations: int = 100):
+        """Performs expectation-maximisation to fit data to self.n_classes BCES linear
+        regression lines. Modifies self.class_mask and self.prob_class.
+
+        Parameters
+        ----------
+        max_iterations : int
+            Maximum number of EM-iterations.
+
+        Returns
+        -------
+        estimates : List[BcesResult]
+            List of self.n_classes BcesResult instances.
+        """
+        for i in range(max_iterations):
+            # Fit BCES regressions based on existing class data
+            estimates, err = self.fit_bces()
+
+            # Update self.class_mask
+            class_mask = np.argmin(err, axis=0)
+
+            # Check if converged
+            if (class_mask == self.class_mask).all():
+                break
+
+            # Reinitialise for next iteration
+            self.class_mask[:] == class_mask
+            self.prob_class[:] = np.array(
+                [np.mean(self.class_mask == i) for i in range(self.n_classes)]
+            )
+
+        return estimates

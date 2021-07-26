@@ -1,13 +1,13 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from torch import Tensor
 
 from camfi.datamodel.via import ViaRegionAttributes
-from camfi.wingbeat import WingbeatSuppFigPlotter
+from camfi.wingbeat import WingbeatSuppFigPlotter, BcesResult
 
 
 class MatplotlibWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
@@ -120,6 +120,8 @@ def plot_herror_bars(
 class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     polyline_regions: pd.DataFrame
     snr_thresh: float = 4.0
+    class_mask: np.ndarray = None  # type: ignore[assignment]
+    bces_results: Optional[List[BcesResult]] = None
     figsize: Tuple[float, float] = (7.5, 5.2)
     left_border: float = 0.1
     bottom_border: float = 0.1
@@ -133,6 +135,29 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     snr_thresh_line_c: str = "r"
     errorbar_lw: float = 1
     l_vs_pdt_alpha: float = 0.5
+    class_colours: List[str] = [
+        "tab:blue",
+        "tab:green",
+        "tab:orange",
+        "tab:red",
+        "tab:purple",
+        "k",
+    ]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @validator("class_mask", pre=True, always=True)
+    def class_mask_same_length_as_abovethresh(cls, v, values):
+        n_abovethresh = np.count_nonzero(
+            values["polyline_regions"]["snr"] >= values["snr_thresh"]
+        )
+        if v is None:
+            v = np.zeros((n_abovethresh,)) - 1
+        assert (
+            len(v) == n_abovethresh
+        ), "class_mask must have one value for each above-snr-thresh datapoint."
+        return v
 
     def _init_figure(self) -> None:
         """Initialises Figure and all Axes into self.fig."""
@@ -217,7 +242,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
             self.above_thresh["snr"],
             c=self.snr_vs_pwf_abovethresh_c,
             alpha=self.snr_vs_pwf_alpha,
-            lw=errorbar_lw,
+            lw=self.errorbar_lw,
         )
         # Plot below-threshold data
         plot_herror_bars(
@@ -227,7 +252,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
             self.below_thresh["snr"],
             c=self.snr_vs_pwf_belowthresh_c,
             alpha=self.snr_vs_pwf_alpha,
-            lw=errorbar_lw,
+            lw=self.errorbar_lw,
         )
 
         self.snr_vs_pwf_ax.axhline(
@@ -301,7 +326,40 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
             self.above_thresh["best_peak"] * self.above_thresh["et_up"],
             self.above_thresh["best_peak"] * self.above_thresh["et_dn"],
             self.above_thresh["blur_length"],
-            c="k",
+            c=np.array(self.class_colours)[self.class_mask],
             alpha=self.l_vs_pdt_alpha,
             lw=self.errorbar_lw,
         )
+
+    def _plot_l_vs_pdt_regressions(self) -> None:
+        """Plots regression lines."""
+        if self.bces_results is not None:
+            for i in range(len(self.bces_results)):
+                xmax = (
+                    self.above_thresh["best_peak"] * self.above_thresh["et_dn"]
+                ).max()
+                self.l_vs_pdt_ax.plot(
+                    [0, xmax],
+                    [
+                        self.bces_results[i].y_intercept,
+                        self.bces_results[i].y_intercept
+                        + self.bces_results[i].gradient * xmax,
+                    ],
+                    c=self.class_colours[i],
+                )
+
+    def plot(self) -> plt.Figure:
+        """Produces plots."""
+        # Initialise axes
+        self._init_figure()
+
+        # Apply snr threshold
+        self._apply_snr_thresh()
+
+        # Plot
+        self._plot_snr_vs_pwf()
+        self._plot_marginal_hists()
+        self._plot_l_vs_pdt()
+        self._plot_l_vs_pdt_regressions()
+
+        return self.fig
