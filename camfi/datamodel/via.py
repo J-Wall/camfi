@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 import exif
 import pandas as pd
 from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, validator
+import pytz
 import torch
 import torchvision.io
 
@@ -529,5 +530,50 @@ class ViaProject(BaseModel):
                 row.update(dict(metadata.file_attributes))
                 row.update(dict(region.region_attributes))
                 rows.append(row)
+
+        return pd.DataFrame(rows)
+
+    def to_image_dataframe(
+        self, tz: Union[None, str, pytz.timezone] = None
+    ) -> pd.DataFrame:
+        """Returns a Pandas DataFrame with one row per image.
+
+        Parameters
+        ----------
+        tz: Optional[timezone]
+           If set, all datetime_corrected values will be converted to the specified
+           timezone.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame with one row per image. Contains columns for each field in
+            ViaFileAttributes, as well as img_key, filename, and n_annotations.
+            Note: values in datetime_corrected (but not datetime_original) will be
+            converted to pandas.Timestamp, with timezone conversion/localization applied
+            if applicable.
+        """
+        rows: List[Dict[str, Any]] = []
+        for img_key, metadata in self.via_img_metadata.items():
+            row = {
+                "img_key": img_key,
+                "filename": metadata.filename,
+                "n_annotations": len(metadata.regions),
+            }
+            row.update(dict(metadata.file_attributes))
+
+            # Convert datetime to pandas.Timestamp before putting in the DataFrame
+            row["datetime_corrected"] = pd.to_datetime(row["datetime_corrected"])
+
+            if row["datetime_corrected"] is not None and tz is not None:
+                # Fix timezone
+                if row["datetime_corrected"].tzinfo is not None:
+                    row["datetime_corrected"] = row["datetime_corrected"].astimezone(tz)
+                else:
+                    row["datetime_corrected"] = row["datetime_corrected"].tz_localize(
+                        tz
+                    )
+
+            rows.append(row)
 
         return pd.DataFrame(rows)
