@@ -20,9 +20,10 @@ These can all be overwritten by setting environment variables with the same name
 from datetime import date, datetime, time, timedelta, timezone
 import os
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, List, Sequence
 
 import numpy as np
+import pandas as pd
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
@@ -165,7 +166,7 @@ class Location:
         times = timescale.from_datetimes(datetimes)
         return self._dark_twilight_day(times)
 
-    def sun_times(self, day: date) -> Dict[str, datetime]:
+    def search_sun_times(self, day: date) -> Dict[str, datetime]:
         """Gets sunrise, sunset, and twilight times for a given date.
 
         Parameters
@@ -190,7 +191,7 @@ class Location:
         ...     tz=timezone(timedelta(hours=10)),
         ... )
         >>> day = date(2021, 7, 28)
-        >>> tt = location.sun_times(day)
+        >>> tt = location.search_sun_times(day)
 
         The ordering of the transitions is as expected.
 
@@ -231,3 +232,61 @@ class Location:
             )
 
         return twilight_times
+
+    def get_sun_time_dataframe(self, days: Sequence[date]) -> pd.DataFrame:
+        """Calls self.search_sun_times on each day in days, and builds a DataFrame of
+        sun times.
+
+        Parameters
+        ----------
+        days : Sequence[date]
+            Dates which will become index for dataframe.
+
+        Returns
+        -------
+        sun_df : pd.DataFrame
+            DataFrame indexed by days, and with columns "astronomical_twilight_start",
+            "nautical_twilight_start", "civil_twilight_start", "sunrise", "sunset",
+            "nautical_twilight_end", "civil_twilight_end", "astronomical_twilight_end".
+
+        Examples
+        --------
+        >>> location = Location(
+        ...     name="canberra",
+        ...     lat=-35.293056,
+        ...     lon=149.126944,
+        ...     elevation_m=578,
+        ...     tz=timezone(timedelta(hours=10)),
+        ... )
+        >>> days = [date(2021, 7, 23), date(2021, 7, 24), date(2021, 7, 25)]
+        >>> sun_df = location.get_sun_time_dataframe(days)
+        >>> np.all(sun_df["sunset"] > sun_df["sunrise"])
+        True
+        >>> sun_df
+                        astronomical_twilight_start  ...        astronomical_twilight_end
+        date                                         ...
+        2021-07-23 2021-07-23 05:36:52.178788+10:00  ... 2021-07-23 18:43:25.223475+10:00
+        2021-07-24 2021-07-24 05:36:20.903963+10:00  ... 2021-07-24 18:43:59.629041+10:00
+        2021-07-25 2021-07-25 05:35:48.170485+10:00  ... 2021-07-25 18:44:34.315154+10:00
+        <BLANKLINE>
+        [3 rows x 8 columns]
+        """
+        sun_times: Dict[str, List[pd.Timestamp]] = {
+            "astronomical_twilight_start": [],
+            "nautical_twilight_start": [],
+            "civil_twilight_start": [],
+            "sunrise": [],
+            "sunset": [],
+            "nautical_twilight_end": [],
+            "civil_twilight_end": [],
+            "astronomical_twilight_end": [],
+        }
+        for day in days:
+            sun_time_dict = self.search_sun_times(day)
+            for key in sun_times.keys():
+                sun_times[key].append(pd.Timestamp(sun_time_dict[key]))
+
+        sun_times["date"] = [pd.Timestamp(day) for day in days]
+        sun_df = pd.DataFrame(data=sun_times)
+        sun_df.set_index("date", inplace=True)
+        return sun_df
