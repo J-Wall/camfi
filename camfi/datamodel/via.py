@@ -2,7 +2,7 @@
 camfi.datamodel.geometry."""
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union
 
@@ -533,14 +533,12 @@ class ViaProject(BaseModel):
 
         return pd.DataFrame(rows)
 
-    def to_image_dataframe(
-        self, tz: Union[None, str, pytz.timezone] = None
-    ) -> pd.DataFrame:
+    def to_image_dataframe(self, tz: Union[None, str, tzinfo] = None) -> pd.DataFrame:
         """Returns a Pandas DataFrame with one row per image.
 
         Parameters
         ----------
-        tz: Optional[timezone]
+        tz: Optional[tzinfo]
            If set, all datetime_corrected values will be converted to the specified
            timezone.
 
@@ -564,6 +562,7 @@ class ViaProject(BaseModel):
 
             # Convert datetime to pandas.Timestamp before putting in the DataFrame
             row["datetime_corrected"] = pd.to_datetime(row["datetime_corrected"])
+            assert isinstance(row["datetime_corrected"], pd.Timestamp)
 
             if row["datetime_corrected"] is not None and tz is not None:
                 # Fix timezone
