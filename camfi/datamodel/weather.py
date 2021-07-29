@@ -24,6 +24,7 @@ from typing import Dict, List, Sequence
 
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel, NonNegativeFloat, ValidationError, validator
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
@@ -50,22 +51,87 @@ TWILIGHT_TRANSITIONS = {
 }
 
 
-class Location:
-    def __init__(
-        self,
-        name: str,
-        lat: float,
-        lon: float,
-        elevation_m: float,
-        tz: timezone,
-    ):
-        self.name = name
-        self.lat = lat
-        self.lon = lon
-        self.elevation_m = elevation_m
-        self.tz = tz
+def _parse_timezone(value: str) -> timezone:
+    if value == "Z":
+        return timezone.utc
 
-        self._dark_twilight_day = almanac.dark_twilight_day(
+    offset_mins = int(value[-2:]) if len(value) > 3 else 0
+    offset = 60 * int(value[1:3]) + offset_mins
+    if value[0] == "-":
+        offset = -offset
+    return timezone(timedelta(minutes=offset))
+
+
+class Location(BaseModel):
+    """Provides methods for working with locations.
+
+    Parameters
+    ----------
+    name : str
+        Name of location.
+    lat : float
+        Decimal latitude.
+    lon : float
+        Decimal longitude.
+    elevation_m : NonNegativeFloat
+        Elevation in metres.
+    tz : timezone
+        Timezone offset. Can be given as ISO8601 timezone offset str (e.g. 'Z' or
+        '+10:00' or simply '+10').
+
+    Examples
+    --------
+    >>> Location(
+    ...     name="canberra",
+    ...     lat=-35.293056,
+    ...     lon=149.126944,
+    ...     elevation_m=578,
+    ...     tz="+10:00",
+    ... )
+    Location(name='canberra', lat=-35.293056, lon=149.126944, elevation_m=578.0, tz=datetime.timezone(datetime.timedelta(seconds=36000)))
+    >>> Location(
+    ...     name="greenwich",
+    ...     lat=51.48,
+    ...     lon=0,
+    ...     elevation_m=47,
+    ...     tz="Z",
+    ... )
+    Location(name='greenwich', lat=51.48, lon=0.0, elevation_m=47.0, tz=datetime.timezone.utc)
+    >>> Location(
+    ...     name="nyc",
+    ...     lat=40.712778,
+    ...     lon=-74.006111,
+    ...     elevation_m=10,
+    ...     tz="-05",
+    ... )
+    Location(name='nyc', lat=40.712778, lon=-74.006111, elevation_m=10.0, tz=datetime.timezone(datetime.timedelta(days=-1, seconds=68400)))
+    """
+
+    name: str
+    lat: float
+    lon: float
+    elevation_m: NonNegativeFloat
+    tz: timezone
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    @validator("tz", pre=True)
+    def validate_tz(cls, v):
+        if isinstance(v, timezone):
+            return v
+        elif isinstance(v, str):
+            try:
+                return _parse_timezone(v)
+            except ValueError:
+                raise ValidationError(
+                    f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
+                )
+        raise ValidationError(f"tz must be timezone or str, not {type(v)}")
+
+    @property
+    def _dark_twilight_day(self):
+        return almanac.dark_twilight_day(
             ephemeris, wgs84.latlon(self.lat, self.lon, elevation_m=self.elevation_m)
         )
 
@@ -103,7 +169,7 @@ class Location:
         ...     lat=-35.293056,
         ...     lon=149.126944,
         ...     elevation_m=578,
-        ...     tz=timezone(timedelta(hours=10)),
+        ...     tz="+10:00",
         ... )
         >>> location.twilight_state(datetime.fromisoformat("2021-07-28T12:00:00+10:00"))
         4
