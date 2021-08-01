@@ -20,13 +20,16 @@ These can all be overwritten by setting environment variables with the same name
 from datetime import date, datetime, time, timedelta, timezone
 import os
 from pathlib import Path
-from typing import Dict, List, Sequence
+import re
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, NonNegativeFloat, ValidationError, validator
+from pydantic import BaseModel, FilePath, NonNegativeFloat, ValidationError, validator
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
+
+from camfi.util import parse_timezone, encode_timezone
 
 
 # Initialise skyfield
@@ -49,17 +52,6 @@ TWILIGHT_TRANSITIONS = {
     7: "civil_twilight_end",
     8: "sunset",
 }
-
-
-def _parse_timezone(value: str) -> timezone:
-    if value == "Z":
-        return timezone.utc
-
-    offset_mins = int(value[-2:]) if len(value) > 3 else 0
-    offset = 60 * int(value[1:3]) + offset_mins
-    if value[0] == "-":
-        offset = -offset
-    return timezone(timedelta(minutes=offset))
 
 
 class Location(BaseModel):
@@ -115,6 +107,15 @@ class Location(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        json_encoders = {timezone: encode_timezone}
+
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema["tz"] = dict(
+            title="Timezone",
+            pattern=r"^Z|[+-]\d{2}(?::?\d{2})?$",
+            examples=["Z", "+10:00", "-05"],
+        )
 
     @validator("tz", pre=True)
     def validate_tz(cls, v):
@@ -122,7 +123,7 @@ class Location(BaseModel):
             return v
         elif isinstance(v, str):
             try:
-                return _parse_timezone(v)
+                return parse_timezone(v)
             except ValueError:
                 raise ValidationError(
                     f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
@@ -311,9 +312,10 @@ class Location(BaseModel):
         Returns
         -------
         sun_df : pd.DataFrame
-            DataFrame indexed by days, and with columns "astronomical_twilight_start",
-            "nautical_twilight_start", "civil_twilight_start", "sunrise", "sunset",
-            "nautical_twilight_end", "civil_twilight_end", "astronomical_twilight_end".
+            DataFrame indexed by location and date, with columns
+            "astronomical_twilight_start", "nautical_twilight_start",
+            "civil_twilight_start", "sunrise", "sunset", "nautical_twilight_end",
+            "civil_twilight_end", "astronomical_twilight_end".
 
         Examples
         --------
@@ -329,11 +331,11 @@ class Location(BaseModel):
         >>> np.all(sun_df["sunset"] > sun_df["sunrise"])
         True
         >>> sun_df
-                        astronomical_twilight_start  ...        astronomical_twilight_end
-        date                                         ...
-        2021-07-23 2021-07-23 05:36:52.178788+10:00  ... 2021-07-23 18:43:25.223475+10:00
-        2021-07-24 2021-07-24 05:36:20.903963+10:00  ... 2021-07-24 18:43:59.629041+10:00
-        2021-07-25 2021-07-25 05:35:48.170485+10:00  ... 2021-07-25 18:44:34.315154+10:00
+                                 astronomical_twilight_start  ...        astronomical_twilight_end
+        location date                                         ...
+        canberra 2021-07-23 2021-07-23 05:36:52.178788+10:00  ... 2021-07-23 18:43:25.223475+10:00
+                 2021-07-24 2021-07-24 05:36:20.903963+10:00  ... 2021-07-24 18:43:59.629041+10:00
+                 2021-07-25 2021-07-25 05:35:48.170485+10:00  ... 2021-07-25 18:44:34.315154+10:00
         <BLANKLINE>
         [3 rows x 8 columns]
         """
@@ -353,6 +355,146 @@ class Location(BaseModel):
                 sun_times[key].append(pd.Timestamp(sun_time_dict[key]))
 
         sun_times["date"] = [pd.Timestamp(day) for day in days]
+        sun_times["location"] = [self.name for _ in range(len(days))]
         sun_df = pd.DataFrame(data=sun_times)
-        sun_df.set_index("date", inplace=True)
+        sun_df.set_index(["location", "date"], inplace=True)
         return sun_df
+
+
+class WeatherStation(BaseModel):
+    location: Location
+    data_file: FilePath
+
+    def load_dataframe(self):
+        """Loads weather data from self.data_file into a pd.DataFrame
+
+        Returns
+        -------
+        weather_df : pd.DataFrame
+            DataFrame with daily weather data, indexed by "weather_station" and "date".
+        """
+        weather_df = pd.read_csv(
+            self.data_file, skiprows=5, header=0, parse_dates=["date"]
+        )
+        weather_df["weather_station"] = self.location.name
+        weather_df.set_index(["weather_station", "date"], inplace=True)
+        return weather_df
+
+
+class LocationWeatherStationCollector(BaseModel):
+    locations: List[Location]
+    weather_stations: List[WeatherStation]
+    location_weather_station_mapping: Dict[str, str]
+
+    @validator("location_weather_station_mapping")
+    def mapping_contains_all_locations(cls, v, values):
+        if "locations" not in values:
+            return v
+        for location in values["locations"]:
+            assert (
+                location.name in v
+            ), f"{location.name} missing from location_weather_station_mapping."
+        return v
+
+    @validator("location_weather_station_mapping")
+    def all_weather_stations_included(cls, v, values):
+        if "weather_stations" not in values:
+            return v
+        weather_station_location_names = set(
+            ws.location.name for ws in values["weather_stations"]
+        )
+        for val in v.values():
+            assert (
+                val in weather_station_location_names
+            ), f"Undefined weather station {val}. Either remove from mapping or define."
+        return v
+
+    def get_sun_time_dataframe(self, days: Dict[str, Sequence[date]]) -> pd.DataFrame:
+        """Calls .get_sun_time_dataframe on each location in self.locations, and builds
+        a DataFrame of sun times.
+
+        Parameters
+        ----------
+        days : Dict[str, Sequence[date]]
+            Mapping from location name to sequences of dates which will become index for
+            the dataframe.
+
+        Returns
+        -------
+        sun_df : pd.DataFrame
+            DataFrame indexed by location and date, with columns
+            "astronomical_twilight_start", "nautical_twilight_start",
+            "civil_twilight_start", "sunrise", "sunset", "nautical_twilight_end",
+            "civil_twilight_end", "astronomical_twilight_end".
+        """
+        sun_dfs = []
+        for location in self.locations:
+            dates = days[location.name]
+            sun_dfs.append(location.get_sun_time_dataframe(dates))
+
+        return pd.concat(sun_dfs)
+
+    def get_weather_dataframe(self) -> pd.DataFrame:
+        """Calls .load_dataframe() on each WeatherStation in self.weather_stations, and
+        builds a DataFrame of weather data.
+
+        Returns
+        -------
+        weather_df : pd.DataFrame
+            DataFrame with daily weather data, indexed by "weather_station" and "date".
+        """
+        weather_dfs = []
+        for weather_station in self.weather_stations:
+            weather_dfs.append(weather_station.load_dataframe())
+
+        return pd.concat(weather_dfs)
+
+    def get_weather_sun_dataframe(
+        self, days: Optional[Dict[str, Sequence[date]]] = None
+    ) -> pd.DataFrame:
+        """Calls self.get_weather_dataframe and self.get_sun_time_dataframe, and merges
+        the results into a single DataFrame.
+
+        Parameters
+        ----------
+        days : Optional[Dict[str, Sequence[date]]]
+            Mapping from location name to sequences of dates which will become index for
+            the dataframe. If None (default), this will be inferred from the weather
+            dataframe.
+
+        Returns
+        -------
+        weather_sun_df : pd.DataFrame
+            Merged weather and sun time DataFrame.
+        """
+        # Get weather_df
+        weather_df = self.get_weather_dataframe()
+
+        # Infer days from self.locations and weather_df, if not already set.
+        if days is None:
+            days = {}
+            for location in self.locations:
+                weather_station: str = self.location_weather_station_mapping[
+                    location.name
+                ]
+                days[location.name] = weather_df.loc[weather_station].index.date
+
+        # Get sun_df
+        sun_df = self.get_sun_time_dataframe(days)
+
+        # Add "weather_station" column to sun_df to prepare for merge
+        for location in self.locations:
+            weather_station = self.location_weather_station_mapping[location.name]
+            sun_df.loc[location.name, "weather_station"] = weather_station
+
+        # Demote index to regular columns before merge to prevent "location" from
+        # disappearing mysteriously.
+        sun_df.reset_index(inplace=True)
+
+        # Merge and reindex
+        weather_sun_df = pd.merge(
+            sun_df, weather_df, how="left", on=["weather_station", "date"], sort=True
+        )
+        weather_sun_df.set_index(["location", "date"], inplace=True)
+
+        return weather_sun_df

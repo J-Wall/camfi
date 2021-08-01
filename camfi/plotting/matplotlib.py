@@ -498,3 +498,223 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         self._add_titles()
 
         return self.fig
+
+
+def plot_activity_levels_summary(
+    df: pd.DataFrame,
+    ax: plt.Axes,
+    x_column: str = "daynumber",
+    bin_width: float = 10 / 1440,
+    **kwargs,
+) -> List[plt.Line2D]:
+    """Produces a histogram plot of df["n_annotations"] vs. df[x_column].
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame which must contain columns "n_annotations" and x_column.
+    ax : plt.Axes
+        Matplotlib axes to plot histogram on.
+    x_column : str
+        Column of df to use as x-axis data.
+    bin_width : float
+        Width of histogram bins, in same units as x_column.
+    **kwargs
+        Passed to plt.Axes.plot.
+
+    Returns
+    -------
+    lines : List[plt.Line2D]
+        List of plot lines.
+    """
+    h, bx, by = np.histogram2d(
+        df[x_column],
+        df["n_annotations"],
+        bins=[
+            np.arange(
+                min(df[x_column]) - bin_width / 2,
+                max(df[x_column]) + bin_width,
+                bin_width,
+            ),
+            np.arange(-0.5, max(df["n_annotations"]) + 1, 1),
+        ],
+    )
+    b_midpoints = (bx[:-1] + bx[1:]) / 2
+    n_annotations_perbin = (h * np.arange(h.shape[1]).reshape((1, h.shape[1]))).sum(
+        axis=1
+    )
+    n_annotations_perbin[h.sum(axis=1) == 0.0] = np.nan
+
+    return ax.plot(b_midpoints, n_annotations_perbin, drawstyle="steps-mid", **kwargs)
+
+
+def plot_activity_levels_summaries(
+    df: pd.DataFrame,
+    locations: List[str],
+    sub_figsize: Tuple[float, float] = (9, 5),
+    ax_kwargs: Dict = {},
+    separate_plots: bool = True,
+    **kwargs,
+) -> plt.Figure:
+    """Calls plot_activity_levels_summary for multiple locations, to produce multiple
+    histogram plots of activity levels.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame which must contain columns "n_annotations", and be indexed by location
+        in locations.
+    locations : List[str]
+        List of locations to plot data for. [df.loc[location] for location in locations]
+        should be valid.
+    sub_figsize : Tuple[float, float]
+        Figure size (in inches). If separate_plots is True, then each subfigure will be
+        this size.
+    ax_kwargs : Dict
+        Keyword arguments passed to plt.Figure.add_subplot.
+    separate_plots : bool
+        If True (default), each plot will be put on a separate subfigure. If False, they
+        will all be plotted on the same axes.
+    **kwargs
+        Passed to plot_activity_levels_summary.
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure containing plots.
+    """
+    fig = plt.figure(figsize=(sub_figsize[0], sub_figsize[1] * len(locations)))
+    sharex: Optional[plt.Axes] = None
+    if separate_plots is False:
+        ax = fig.add_subplot(111, **ax_kwargs)
+    for i, location in enumerate(locations):
+        if separate_plots is True:
+            ax = fig.add_subplot(
+                100 * len(locations) + 11 + i,
+                title=location,
+                sharex=sharex,
+                **ax_kwargs,
+            )
+            sharex = ax
+        plot_activity_levels_summary(df.loc[location], ax, label=location, **kwargs)
+
+    return fig
+
+
+def plot_daily_temperatures(
+    df: pd.DataFrame,
+    ax: plt.Axes,
+    minimum_col: str = "temperature_minimum_evening_degC",
+    **kwargs,
+) -> List[plt.Line2D]:
+    """Plots daily temperature values on ax.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+       DataFrame with columns "daynumber", "temperature_maximum_degC",
+       "temperature_3pm_degC", "temperature_9am_degC", and minimum_col.
+    ax : plt.Axes
+        Axes to put plots on.
+    minimum_col : str
+       Name of column for minimum daily temperature. E.g. "temperature_minimum_degC", or
+       "temperature_minimum_evening_degC" (default).
+    **kwargs
+       Passed to each call to ax.plot.
+
+    Returns
+    -------
+    lines : List[plt.Line2D]
+        List of plot lines.
+    """
+    lines = []
+    lines.extend(
+        ax.plot(
+            df["daynumber"],
+            df["temperature_maximum_degC"],
+            c="r",
+            label="Daily Max.",
+            **kwargs,
+        )
+    )
+    lines.extend(
+        ax.plot(
+            df["daynumber"],
+            df["temperature_3pm_degC"],
+            c="r",
+            alpha=0.4,
+            label="3pm Temp.",
+            **kwargs,
+        )
+    )
+    lines.extend(
+        ax.plot(
+            df["daynumber"],
+            df[minimum_col],
+            c="b",
+            label="Daily Min.",
+            **kwargs,
+        )
+    )
+    lines.extend(
+        ax.plot(
+            df["daynumber"],
+            df["temperature_9am_degC"],
+            c="b",
+            alpha=0.4,
+            label="9am Temp.",
+            **kwargs,
+        )
+    )
+    return lines
+
+
+def plot_maelstroms(df: pd.DataFrame, ax: plt.Axes, **kwargs) -> List[plt.Line2D]:
+    """Plots "n_annotations" vs "daynumber", with data taken from df.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with columns "daynumber" and "n_annotations".
+    ax : plt.Axes
+        Axes to plot onto.
+    **kwargs
+        Passed to ax.plot.
+    """
+    return ax.plot(df["daynumber"], df["n_annotations"], **kwargs)
+
+
+def plot_maelstroms_with_temperature(
+    df: pd.DataFrame,
+    ax: plt.Axes,
+    maelstrom_kwargs: Dict = {},
+    temperatures_kwargs: Dict = {},
+) -> Tuple[List[plt.Line2D], List[plt.Line2D]]:
+    """Calls plot_maelstrom, then makes a twinx axes from ax, and calls
+    plot_daily_temperatures.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Passed to plot_maelstrom and plot_daily_temperatures.
+    ax : plt.Axes
+        Axes to plot maelstrom data onto. Temperature data is put on a new Axes created
+        by calling ax.twinx().
+    maelstrom_kwargs : Dict
+        Keyword arguments passed to plot_maelstrom.
+    temperatures_kwargs : Dict
+        Keyword arguments passed to plot_daily_temperatures.
+
+    Returns
+    -------
+    maelstrom_lines : List[plt.Line2D]
+        Maelstrom plot lines.
+    temperature_lines : List[plt.Line2D]
+        Temperature plot lines.
+    """
+    maelstrom_lines = plot_maelstroms(df, ax, **maelstrom_kwargs)
+    ax2 = ax.twinx()
+    ax2.set_ylabel("Temperature (°C)")
+    temperature_lines = plot_daily_temperatures(df, ax2, **temperatures_kwargs)
+
+    return maelstrom_lines, temperature_lines

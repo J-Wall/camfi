@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import itertools
 from math import sqrt
 from pathlib import Path
@@ -444,3 +444,25 @@ def weighted_intersection_over_minimum(
     return float(torch.minimum(mask0, mask1).sum()) / min(
         float(mask0.sum()), float(mask1.sum())
     )
+
+
+def parse_timezone(value: str) -> timezone:
+    if value == "Z":
+        return timezone.utc
+
+    offset_mins = int(value[-2:]) if len(value) > 3 else 0
+    offset = 60 * int(value[1:3]) + offset_mins
+    if value[0] == "-":
+        offset = -offset
+    return timezone(timedelta(minutes=offset))
+
+
+def encode_timezone(tz: Optional[timezone]) -> Optional[str]:
+    if tz is None:
+        return None
+    if tz == timezone.utc:
+        return "Z"
+    tot_seconds = int(tz.utcoffset(None).total_seconds())  # type: ignore[union-attr]
+    hours, minutes = divmod(abs(tot_seconds) // 60, 60)
+    sign = "-" if tot_seconds < 0 else "+"
+    return f"{sign}{hours:02}:{minutes:02}"
