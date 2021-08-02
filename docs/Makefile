@@ -17,6 +17,11 @@ help:
 source/modules.rst: Makefile
 	SPHINX_APIDOC_OPTIONS='members,special-members,show-inheritance' sphinx-apidoc -f -M -H API -e -o source .. ../setup.py
 
+source/config_schema.json: FORCE
+	python -c "from camfi.projectconfig import CamfiConfig; print(CamfiConfig.schema_json(indent=2))" > $@
+
+FORCE: ;
+
 notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
 
 $(notebooks): usage/notebooks/%.rst: ../examples/%.ipynb

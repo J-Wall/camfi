@@ -1,0 +1,270 @@
+{
+  "title": "CamfiConfig",
+  "description": "Camfi configuration.",
+  "type": "object",
+  "properties": {
+    "root": {
+      "title": "Root",
+      "description": "Directory containing all images for the project.",
+      "default": ".",
+      "format": "directory-path",
+      "type": "string"
+    },
+    "via_project_file": {
+      "title": "Via Project File",
+      "description": "Path to file containing VIA project.",
+      "format": "file-path",
+      "type": "string"
+    },
+    "day_zero": {
+      "title": "Day Zero",
+      "description": "Used as reference date for plotting etc.",
+      "type": "string",
+      "format": "date"
+    },
+    "output_tz": {
+      "title": "Timezone",
+      "description": "Sets a global timezone used for various analyses.",
+      "pattern": "^Z|[+-]\\d{2}(?::?\\d{2})?$",
+      "examples": [
+        "Z",
+        "+10:00",
+        "-05"
+      ],
+      "type": "string"
+    },
+    "camera": {
+      "$ref": "#/definitions/CameraConfig"
+    },
+    "time": {
+      "$ref": "#/definitions/LocationTimeCollector"
+    },
+    "place": {
+      "$ref": "#/definitions/LocationWeatherStationCollector"
+    },
+    "wingbeat_extraction": {
+      "$ref": "#/definitions/WingbeatExtractorConfig"
+    }
+  },
+  "definitions": {
+    "CameraConfig": {
+      "title": "CameraConfig",
+      "description": "Camera hardware-related configuration.",
+      "type": "object",
+      "properties": {
+        "camera_time_to_actual_time_ratio": {
+          "title": "Camera Time To Actual Time Ratio",
+          "description": "Used for correcting timestamps from an inaccurate clock.",
+          "type": "number"
+        },
+        "line_rate": {
+          "title": "Line Rate",
+          "description": "Rolling-shutter line rate of camera (lines per second).",
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      }
+    },
+    "LocationTime": {
+      "description": "Camera placement data",
+      "type": "object",
+      "properties": {
+        "camera_start_time": {
+          "title": "Camera Start Time",
+          "description": "Camera placement datetime (according to camera's clock).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "actual_start_time": {
+          "title": "Actual Start Time",
+          "description": "Actual camera placement datetime (defaults to camera_start_time).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "camera_end_time": {
+          "title": "Camera End Time",
+          "description": "Camera retrieval time (according to camera's clock).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "actual_end_time": {
+          "title": "Actual End Time",
+          "description": "Actual camera retrieval time.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "location": {
+          "title": "Location",
+          "description": "Name of location the camera was placed in.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "camera_start_time"
+      ]
+    },
+    "LocationTimeCollector": {
+      "title": "LocationTimeCollector",
+      "description": "Contains data for multiple camera placements.",
+      "type": "object",
+      "properties": {
+        "camera_placements": {
+          "title": "Camera Placements",
+          "descriptiion": "Mapping from directories to LocationTime instances.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LocationTime"
+          }
+        }
+      },
+      "required": [
+        "camera_placements"
+      ]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "Contains spatial data on locations, including timezone.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "description": "Name of location. Used to link to camera placements.",
+          "type": "string"
+        },
+        "lat": {
+          "title": "Lat",
+          "description": "Decimal latitude.",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "description": "Decimal longitude.",
+          "type": "number"
+        },
+        "elevation_m": {
+          "title": "Elevation M",
+          "description": "Elevation in metres.",
+          "minimum": 0,
+          "type": "number"
+        },
+        "tz": {
+          "title": "Timezone",
+          "description": "ISO8601 timezone offset.",
+          "pattern": "^Z|[+-]\\d{2}(?::?\\d{2})?$",
+          "examples": [
+            "Z",
+            "+10:00",
+            "-05"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "lat",
+        "lon",
+        "elevation_m",
+        "tz"
+      ]
+    },
+    "WeatherStation": {
+      "title": "WeatherStation",
+      "description": "Contains information on a weather station.",
+      "type": "object",
+      "properties": {
+        "location": {
+          "title": "Location",
+          "description": "Location of weather station.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Location"
+            }
+          ]
+        },
+        "data_file": {
+          "title": "Data File",
+          "description": "Path to csv file containing weather data from weather station.",
+          "format": "file-path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "data_file"
+      ]
+    },
+    "LocationWeatherStationCollector": {
+      "title": "LocationWeatherStationCollector",
+      "description": "Defines Locations and Weather stations.",
+      "type": "object",
+      "properties": {
+        "locations": {
+          "title": "Locations",
+          "description": "List of locations where cameras have been placed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Location"
+          }
+        },
+        "weather_stations": {
+          "title": "Weather Stations",
+          "description": "List of weather stations.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WeatherStation"
+          }
+        },
+        "location_weather_station_mapping": {
+          "title": "Location Weather Station Mapping",
+          "description": "A mapping between location names and weather_station names.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "locations",
+        "weather_stations",
+        "location_weather_station_mapping"
+      ]
+    },
+    "WingbeatExtractorConfig": {
+      "title": "WingbeatExtractorConfig",
+      "description": "Contains configurable parameters for WingbeatExtractor.",
+      "type": "object",
+      "properties": {
+        "device": {
+          "title": "Device",
+          "description": "Using GPU ('cuda') can give 4x speedups for certain operations.",
+          "default": "cpu",
+          "type": "string"
+        },
+        "backup_device": {
+          "title": "Backup Device",
+          "description": "Used when computation fails on main device due to memory limit.",
+          "type": "string"
+        },
+        "scan_distance": {
+          "title": "Scan Distance",
+          "description": "Max. distance from polyline used for wingbeat extraction.",
+          "default": 50,
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "max_pixel_period": {
+          "title": "Max Pixel Period",
+          "description": "Max. pixel period to check during wingbeat extraction.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "force_load_exif_metadata": {
+          "title": "Force Load Exif Metadata",
+          "description": "Forces EXIF metadata to be read from image instead of ViaProject.",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
