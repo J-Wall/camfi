@@ -1,5 +1,5 @@
 {
-  "root": "data/images",
+  "root": "data",
   "via_project_file": "data/cabramurra_all_annotations.json",
   "day_zero": "2019-01-01",
   "output_tz": "+10:00",

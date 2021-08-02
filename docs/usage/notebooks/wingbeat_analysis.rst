@@ -13,21 +13,19 @@ First, load the required libraries.
     from matplotlib import pyplot as plt
     import numpy as np
     
-    from camfi.datamodel.locationtime import LocationTime, LocationTimeCollector
-    from camfi.datamodel.via import ViaProject
+    from camfi.projectconfig import CamfiConfig
     from camfi.plotting.matplotlib import MatplotlibWingbeatFrequencyPlotter
-    from camfi.wingbeat import WingbeatExtractor, BcesEM, GMM
+    from camfi.wingbeat import BcesEM, GMM
 
 To run ``via_project.load_all_exif_metadata`` and
 ``wingbeat_extractor.extract_wingbeats()`` below, you will first need to
 download the dataset ``2019-11_cabramurra.zip`` from the Zenodo
 repository. The link to the repository is here:
-
-`DOI <https://doi.org/10.5281/zenodo.4950570>`__
+https://doi.org/10.5281/zenodo.4950570.
 
 If you uncomment the code in the next three code cells, it is assumed
 you have extracted the images to ``"data/"``. Of course you can extract
-it elsewhere and change ``image_root`` accordingly.
+it elsewhere and change ``root`` config variable accordingly.
 
 ``"data/cabramurra_all_annotations.json"`` already contains all the
 wingbeat data we need, so in this instance, we don’t need to re-run the
@@ -41,57 +39,140 @@ is often the case for cheap cameras).
 
 .. code:: ipython3
 
-    image_root = Path("data/")
-    data_path = "data/cabramurra_all_annotations.json"
+    config_path = "data/cabramurra_config.json"
     
-    via_project = ViaProject.parse_file(data_path)
-        
-    locationtime_path = "data/cabramurra_locationtimes.json"
-    locationtimes = LocationTimeCollector.parse_file(locationtime_path)
+    config = CamfiConfig.parse_file(config_path)
+    
+    # We can print out our config using config.json()
+    print(config.json(exclude_unset=True, indent=2))
+
+
+.. parsed-literal::
+
+    {
+      "root": "data",
+      "via_project_file": "data/cabramurra_all_annotations.json",
+      "day_zero": "2019-01-01",
+      "output_tz": "+10:00",
+      "camera": {
+        "camera_time_to_actual_time_ratio": 1.0,
+        "line_rate": 90500.0
+      },
+      "time": {
+        "camera_placements": {
+          "2019-11_cabramurra/0001": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0002": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0003": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0004": {
+            "camera_start_time": "2019-10-14T13:00:00+11:00",
+            "actual_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0005": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0006": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0007": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0008": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0009": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra/0010": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          }
+        }
+      },
+      "place": {
+        "locations": [
+          {
+            "name": "cabramurra",
+            "lat": -35.9507,
+            "lon": 148.3972,
+            "elevation_m": 1513.9,
+            "tz": "+10:00"
+          }
+        ],
+        "weather_stations": [
+          {
+            "location": {
+              "name": "cabramurra_smhea_aws_072161",
+              "lat": -35.94,
+              "lon": 148.38,
+              "elevation_m": 1482.4,
+              "tz": "+10:00"
+            },
+            "data_file": "data/cabramurra_bom_weather_201911.csv"
+          }
+        ],
+        "location_weather_station_mapping": {
+          "cabramurra": "cabramurra_smhea_aws_072161"
+        }
+      },
+      "wingbeat_extraction": {
+        "device": "cpu",
+        "scan_distance": 50
+      }
+    }
+
 
 To get the timestamps for the images, we need to read the EXIF metadata
 from the image files. Here we also apply time correction. The code is
 commented out since the metadata has already been loaded into
 ``"data/cabramurra_all_annotations.json"``, but if you are working with
-a different dataset, or would like to re-run this step, uncomment the
-code.
+a different dataset, or would like to re-run IO intensive this step,
+uncomment the code.
 
 .. code:: ipython3
 
     # Uncomment if exif metadata hasn't been loaded already.
-    # via_project.load_all_exif_metadata(
-    #     root=image_root,
-    #     location_dict=locationtimes.get_location_dict(),
-    #     datetime_correctors=locationtimes.get_correctors(
-    #         camera_time_to_actual_time_ratio=1.0
-    #     )
-    # )
+    # config.load_all_exif_metadata()
 
 After the EXIF metadata has been loaded, we can run the camfi algorithm
 to measure the wingbeat frequencies of moths seen in the images. Again,
 this has already been run and the data is included in
 ``"data/cabramurra_all_annotations.json"``, so only uncomment if you
 have downloaded the image dataset and want to re-run (or you are running
-on your own dataset).
+on your own dataset). This step may take a while to run.
+
+**Note:** This step can be accelerated using a GPU. If you have one on
+your system, consider setting
+``"wingbeat_extraction":{"device":"cuda","backup_device":"cpu"}`` in
+``data/cabramurra_config.json``.
 
 .. code:: ipython3
 
     # Uncomment if wingbeat data hasn't been extracted already
-    # for img_key, metadata in via_project.via_img_metadata.items():
-    #     wingbeat_extractor = WingbeatExtractor(
-    #         metadata=metadata,
-    #         root=image_root,
-    #         line_rate=9.05e+04,   # This needs to be measured beforehand.
-    #         device="cuda",        # Set to "cpu" if you don't have an
-    #                               # Nvidia GPU. Or use another device
-    #                               # supported by torch.
-    #         backup_device="cpu",  # This allows the algorithm to recover
-    #                               # from RuntimeErrors caused by running
-    #                               # out of memory on the GPU. Delete if
-    #                               # you set device="cpu".
-    #     )
-    #     wingbeat_extractor.extract_wingbeats()
-    #     via_project.via_img_metadata[img_key] = wingbeat_extractor.metadata
+    # config.extract_all_wingbeats()
+
+After running the above two steps, you might like to save the results to
+a new VIA project file. Uncommenting the following will save a new VIA
+project file to ``"data/all_annotations_with_wingbeats.json"``.
+
+.. code:: ipython3
+
+    # with open("data/all_annotations_with_wingbeats.json", "w") as f:
+    #     f.write(config.via_project.json(indent=2, exclude_unset=True))
 
 The ``camfi.datamodel.via.ViaProject`` class is useful for loading and
 validating files which are compatible with VIA, however for some
@@ -101,7 +182,7 @@ makes this conversion simple.
 
 .. code:: ipython3
 
-    regions = via_project.to_region_dataframe()
+    regions = config.via_project.to_region_dataframe()
     regions
 
 
@@ -397,7 +478,7 @@ red line.
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_13_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_15_0.png
 
 
 Based on the above plots, we now wish to select a number of target
@@ -423,8 +504,34 @@ Gaussian mixture-model.
     )
     gmm_results = sorted(gmm.fit())  # Order of classes is random, so we sort
                                      # to make it predictable.
+    
+    print("log10 Gaussian Mixture Model parameters:")
+    print("\n".join(str(r) for r in gmm_results))
 
-We can then plot the figure with the Gaussian mixture model shown.
+
+.. parsed-literal::
+
+    log10 Gaussian Mixture Model parameters:
+    mean=1.3968704095248994 std=0.0755076055338635 weight=0.14025772662404282
+    mean=1.6913164856912772 std=0.07106824294152196 weight=0.8597422733759577
+
+
+In Hz, the mean preliminary wingbeat frequencies for the respective
+classes are
+
+.. code:: ipython3
+
+    print("\n".join(f"{10 ** r.mean} Hz" for r in gmm_results))
+
+
+.. parsed-literal::
+
+    24.93850468145082 Hz
+    49.126574840025675 Hz
+
+
+We can set the ``gmm_results`` parameter to plot the figure with the
+Gaussian mixture model shown.
 
 .. code:: ipython3
 
@@ -437,7 +544,7 @@ We can then plot the figure with the Gaussian mixture model shown.
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_19_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_23_0.png
 
 
 Now we use an EM algorithm to classify the data using BCES regressions
@@ -465,6 +572,17 @@ This can do this re-mapping with some indexing trickery using
     inverse_index = np.argsort(np.argsort(bces_results))
     class_mask = inverse_index[bces_em.class_mask]
     bces_results = sorted(bces_results)
+    
+    print("Multiple BCES linear regression parameters:")
+    print("\n".join(str(b) for b in bces_results))
+
+
+.. parsed-literal::
+
+    Multiple BCES linear regression parameters:
+    gradient=23.684945219639722 y_intercept=21.164640791557133 gradient_stderr=1.8436575083709323 y_intercept_stderr=30.356672106881156 cov_xy=-54.37303718722761
+    gradient=48.648490469072115 y_intercept=30.410128999818426 gradient_stderr=1.4469572965456388 y_intercept_stderr=18.927271182452444 cov_xy=-26.431054889875146
+
 
 Finally, we reproduce the figure from the publication, which includes
 both the GMM and EM classification
@@ -483,7 +601,7 @@ both the GMM and EM classification
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_25_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_29_0.png
 
 
 ``fig`` is just a matplotlib ``Figure`` instance, so we can save it

@@ -16,3 +16,4 @@ Submodules
    camfi.datamodel.geometry
    camfi.datamodel.locationtime
    camfi.datamodel.via
+   camfi.datamodel.weather

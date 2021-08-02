@@ -132,4 +132,4 @@ dmypy.json
 *.swp
 
 models/*.pth
-examples/data/images
+examples/data/2019-11_cabramurra

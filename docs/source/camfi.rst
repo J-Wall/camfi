@@ -24,6 +24,7 @@ Submodules
    camfi.activity
    camfi.annotator
    camfi.models
+   camfi.projectconfig
    camfi.transform
    camfi.util
    camfi.wingbeat
