@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 import exif
 import pandas as pd
 from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, validator
-import pytz
 import torch
 import torchvision.io
 

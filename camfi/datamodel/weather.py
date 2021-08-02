@@ -20,7 +20,6 @@ These can all be overwritten by setting environment variables with the same name
 from datetime import date, datetime, time, timedelta, timezone
 import os
 from pathlib import Path
-import re
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np

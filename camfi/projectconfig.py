@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from datetime import date, timezone
 from functools import cached_property
+from pathlib import Path
 from typing import Dict, Optional, Union, Sequence
 
 import pandas as pd
@@ -57,7 +58,7 @@ class CamfiConfig(BaseModel):
     and processing Camfi data.
     """
 
-    root: Optional[DirectoryPath] = None
+    root: DirectoryPath = Path()
     via_project_file: Optional[FilePath] = None
     day_zero: Optional[date] = None
     output_tz: timezone
@@ -201,12 +202,22 @@ class CamfiConfig(BaseModel):
         """Calls self.via_project.load_all_exif_metadata with appropriate arguments,
         set by config. Operates in place.
         """
+        time_ratio = None
+        if self.camera is not None:
+            time_ratio = self.camera.camera_time_to_actual_time_ratio
+
+        location_dict = None
+        datetime_correctors = None
+        if self.time is not None:
+            location_dict = self.time.get_location_dict()
+            datetime_correctors = self.time.get_correctors(
+                camera_time_to_actual_time_ratio=time_ratio
+            )
+
         self.via_project.load_all_exif_metadata(
             root=self.root,
-            location_dict=self.time.get_location_dict(),
-            datetime_correctors=self.time.get_correctors(
-                camera_time_to_actual_time_ratio=self.camera.camera_time_to_actual_time_ratio
-            ),
+            location_dict=location_dict,
+            datetime_correctors=datetime_correctors,
         )
 
     def extract_all_wingbeats(self) -> None:
