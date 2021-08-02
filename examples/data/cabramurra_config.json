@@ -1,8 +1,12 @@
 {
-  "root": null,
+  "root": "data/images",
   "via_project_file": "data/cabramurra_all_annotations.json",
   "day_zero": "2019-01-01",
   "output_tz": "+10:00",
+  "camera": {
+    "camera_time_to_actual_time_ratio": 1.0,
+    "line_rate": 9.05e+04
+  },
   "time": {
     "camera_placements": {
       "2019-11_cabramurra/0001": {
@@ -73,5 +77,9 @@
     "location_weather_station_mapping": {
       "cabramurra": "cabramurra_smhea_aws_072161"
     }
+  },
+  "wingbeat_extraction": {
+    "device": "cpu",
+    "scan_distance": 50
   }
 }

@@ -132,3 +132,4 @@ dmypy.json
 *.swp
 
 models/*.pth
+examples/data/images

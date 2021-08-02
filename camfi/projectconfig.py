@@ -12,6 +12,7 @@ from pydantic import (
     BaseModel,
     DirectoryPath,
     FilePath,
+    PositiveFloat,
     ValidationError,
     root_validator,
     validator,
@@ -21,14 +22,34 @@ from camfi.datamodel.locationtime import LocationTimeCollector
 from camfi.datamodel.via import ViaProject
 from camfi.datamodel.weather import LocationWeatherStationCollector
 from camfi.util import encode_timezone, parse_timezone
+from camfi.wingbeat import WingbeatExtractorConfig, extract_all_wingbeats
 
 
-class ViaProjectUnspecifiedError(Exception):
+class ParameterUnspecifiedError(Exception):
+    """Base exception called when a parameter which needs to be specified is not."""
+
+
+class ViaProjectUnspecifiedError(ParameterUnspecifiedError):
     """Raised by CamfiConfig.load_via_project."""
 
 
-class PlaceUnspecifiedError(Exception):
+class PlaceUnspecifiedError(ParameterUnspecifiedError):
     """Raised when CamfiConfig.place is requested, but it is unspecified."""
+
+
+class WingbeatExtractorConfigUnspecifiedError(ParameterUnspecifiedError):
+    """Raised when a WingbeatExtractorConfig is needed, but was not supplied."""
+
+
+class CameraConfigUnspecifiedError(ParameterUnspecifiedError):
+    """Raised when a method requies a camera config but none was supplied."""
+
+
+class CameraConfig(BaseModel):
+    """Camera hardware-related configuration."""
+
+    camera_time_to_actual_time_ratio: Optional[float]
+    line_rate: Optional[PositiveFloat]
 
 
 class CamfiConfig(BaseModel):
@@ -36,12 +57,14 @@ class CamfiConfig(BaseModel):
     and processing Camfi data.
     """
 
-    root: Optional[DirectoryPath]
-    via_project_file: Optional[FilePath]
-    day_zero: Optional[date]
+    root: Optional[DirectoryPath] = None
+    via_project_file: Optional[FilePath] = None
+    day_zero: Optional[date] = None
     output_tz: timezone
-    time: Optional[LocationTimeCollector]
-    place: Optional[LocationWeatherStationCollector]
+    camera: Optional[CameraConfig] = None
+    time: Optional[LocationTimeCollector] = None
+    place: Optional[LocationWeatherStationCollector] = None
+    wingbeat_extraction: Optional[WingbeatExtractorConfig] = None
 
     @property
     def timestamp_zero(self) -> Optional[pd.Timestamp]:
@@ -173,3 +196,29 @@ class CamfiConfig(BaseModel):
         merged_df.set_index(["location", "date"], inplace=True)
 
         return merged_df
+
+    def load_all_exif_metadata(self) -> None:
+        """Calls self.via_project.load_all_exif_metadata with appropriate arguments,
+        set by config. Operates in place.
+        """
+        self.via_project.load_all_exif_metadata(
+            root=self.root,
+            location_dict=self.time.get_location_dict(),
+            datetime_correctors=self.time.get_correctors(
+                camera_time_to_actual_time_ratio=self.camera.camera_time_to_actual_time_ratio
+            ),
+        )
+
+    def extract_all_wingbeats(self) -> None:
+        """Calls extract_all_wingbeats on self.via_project with parameters taken from
+        configuration."""
+        if self.wingbeat_extraction is None:
+            raise WingbeatExtractorConfigUnspecifiedError
+        if self.camera is None or self.camera.line_rate is None:
+            raise CameraConfigUnspecifiedError
+        extract_all_wingbeats(
+            self.via_project,
+            root=self.root,
+            line_rate=self.camera.line_rate,
+            **self.wingbeat_extraction.dict(),
+        )

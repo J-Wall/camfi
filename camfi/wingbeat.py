@@ -24,7 +24,7 @@ import sklearn.mixture
 import torch
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
-from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata
+from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata, ViaProject
 from camfi.util import DatetimeCorrector
 
 
@@ -230,7 +230,46 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
         """
 
 
-class WingbeatExtractor(BaseModel):
+class WingbeatExtractorConfig(BaseModel):
+    """Contains configurable parameters for WingbeatExtractor. Provides a creation
+    methods for WingbeatExtractor."""
+
+    device: str = "cpu"
+    backup_device: Optional[str] = None
+    scan_distance: PositiveInt = 50
+    max_pixel_period: Optional[PositiveInt] = None
+    force_load_exif_metadata: bool = False
+
+    @validator("device", "backup_device")
+    def check_device_available(cls, v):
+        if v == "cuda" and not torch.cuda.is_available():
+            raise ValueError(
+                "No NVIDIA driver on your system. Install one or set device to 'cpu'."
+            )
+        try:
+            torch.tensor([], device=v)
+        except RuntimeError as e:
+            raise ValueError(*e.args())
+
+        return v
+
+    def get_wingbeat_extractor(self, **kwargs):
+        """Instantiates WingbeatExtractor.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to WingbeatExtractor
+
+        Returns
+        -------
+        wingbeat_extractor : WingbeatExtractor
+            WingbeatExtractor with fields taken from self and kwargs.
+        """
+        return WingbeatExtractor(**self.dict(), **kwargs)
+
+
+class WingbeatExtractor(WingbeatExtractorConfig):
     """Class for measuring wingbeat frequencies of annotated flying insects in an image.
     A new instance of WingbeatExtractor should be used for each distinct image file.
 
@@ -284,11 +323,6 @@ class WingbeatExtractor(BaseModel):
     metadata: ViaMetadata
     root: Path
     line_rate: PositiveFloat
-    device: str = "cpu"
-    backup_device: Optional[str] = None
-    scan_distance: PositiveInt = 50
-    max_pixel_period: Optional[PositiveInt] = None
-    force_load_exif_metadata: bool = False
     location: Optional[str] = None
     datetime_corrector: Optional[DatetimeCorrector] = None
     supplementary_figure_plotter: Optional[WingbeatSuppFigPlotter] = None
@@ -449,6 +483,24 @@ class WingbeatExtractor(BaseModel):
 
             # Update region attributes with wingbeat data
             region.region_attributes = self.process_blur(polyline, score=score)
+
+
+def extract_all_wingbeats(via_project: ViaProject, **kwargs) -> None:
+    """Extracts wingbeat data from all images in via_project, inserting that data into
+    via_project (operates in place). Overwrites any existing annotation data (so you
+    can use the same VIA project file as input to training and inference).
+
+    Parameters
+    ----------
+    via_project : ViaProject
+        Contains metadata for each image to process.
+    **kwargs
+        Passed to WingbeatExtractor constructor (once for each image).
+    """
+    for img_key, metadata in via_project.via_img_metadata.items():
+        wingbeat_extractor = WingbeatExtractor(metadata=metadata, **kwargs)
+        wingbeat_extractor.extract_wingbeats()
+        via_project.via_img_metadata[img_key] = wingbeat_extractor.metadata
 
 
 @total_ordering
