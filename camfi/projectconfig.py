@@ -73,7 +73,8 @@ class CamfiConfig(BaseModel):
         None, description="Used as reference date for plotting etc."
     )
     output_tz: Timezone = Field(
-        ..., description="Sets a global timezone used for various analyses."
+        description="Sets a global timezone used for various analyses.",
+        default_factory=lambda: Timezone("Z"),
     )
     camera: Optional[CameraConfig] = None
     time: Optional[LocationTimeCollector] = None
@@ -84,7 +85,7 @@ class CamfiConfig(BaseModel):
     def timestamp_zero(self) -> Optional[pd.Timestamp]:
         if self.day_zero is None:
             return None
-        return pd.to_datetime(self.day_zero).tz_localize(self.output_tz)
+        return pd.to_datetime(self.day_zero).tz_localize(self.output_tz._timezone)
 
     @cached_property
     def via_project(self) -> ViaProject:
@@ -101,6 +102,7 @@ class CamfiConfig(BaseModel):
         return ViaProject.parse_file(self.via_project_file)
 
     class Config:
+        json_encoders = {Timezone: str}
         keep_untouched = (cached_property,)
         schema_extra = {"description": "Camfi configuration."}
 
@@ -127,7 +129,7 @@ class CamfiConfig(BaseModel):
         result."""
         if self.place is None:
             raise PlaceUnspecifiedError
-        return self.via_project.to_image_dataframe(tz=self.output_tz)
+        return self.via_project.to_image_dataframe(tz=self.output_tz._timezone)
 
     def get_weather_dataframe(self) -> pd.DataFrame:
         """Calls self.place.get_weather_dataframe(), returning the result."""

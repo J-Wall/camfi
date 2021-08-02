@@ -86,7 +86,7 @@ class Location(BaseModel):
     ...     elevation_m=578,
     ...     tz="+10:00",
     ... )
-    Location(name='canberra', lat=-35.293056, lon=149.126944, elevation_m=578.0, tz=datetime.timezone(datetime.timedelta(seconds=36000)))
+    Location(name='canberra', lat=-35.293056, lon=149.126944, elevation_m=578.0, tz=Timezone(datetime.timezone(datetime.timedelta(seconds=36000))))
     >>> Location(
     ...     name="greenwich",
     ...     lat=51.48,
@@ -94,7 +94,7 @@ class Location(BaseModel):
     ...     elevation_m=47,
     ...     tz="Z",
     ... )
-    Location(name='greenwich', lat=51.48, lon=0.0, elevation_m=47.0, tz=datetime.timezone.utc)
+    Location(name='greenwich', lat=51.48, lon=0.0, elevation_m=47.0, tz=Timezone(datetime.timezone.utc))
     >>> Location(
     ...     name="nyc",
     ...     lat=40.712778,
@@ -102,7 +102,7 @@ class Location(BaseModel):
     ...     elevation_m=10,
     ...     tz="-05",
     ... )
-    Location(name='nyc', lat=40.712778, lon=-74.006111, elevation_m=10.0, tz=datetime.timezone(datetime.timedelta(days=-1, seconds=68400)))
+    Location(name='nyc', lat=40.712778, lon=-74.006111, elevation_m=10.0, tz=Timezone(datetime.timezone(datetime.timedelta(days=-1, seconds=68400))))
     """
 
     name: str = Field(
@@ -114,7 +114,6 @@ class Location(BaseModel):
     tz: Timezone = Field(..., description="ISO8601 timezone offset.")
 
     class Config:
-        arbitrary_types_allowed = True
         schema_extra = {
             "description": "Contains spatial data on locations, including timezone."
         }
@@ -127,7 +126,7 @@ class Location(BaseModel):
 
     def _get_tz_aware_dt(self, dt: datetime) -> datetime:
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=self.tz)
+            dt = dt.replace(tzinfo=self.tz._timezone)
         return dt
 
     def twilight_state(self, dt: datetime) -> int:
@@ -271,7 +270,7 @@ class Location(BaseModel):
         >>> all(d.date() == day for d in tt.values())
         True
         """
-        start_time = datetime.combine(date=day, time=time(0), tzinfo=self.tz)
+        start_time = datetime.combine(date=day, time=time(0), tzinfo=self.tz._timezone)
         end_time = start_time + timedelta(days=1)
         t0 = timescale.from_datetime(start_time)
         t1 = timescale.from_datetime(end_time)
@@ -284,7 +283,7 @@ class Location(BaseModel):
         twilight_times: Dict[str, datetime] = {}
         for t, tt in zip(times, twilight_transitions):
             twilight_times[TWILIGHT_TRANSITIONS[tt]] = t.utc_datetime().astimezone(
-                self.tz
+                self.tz._timezone
             )
 
         return twilight_times

@@ -471,6 +471,32 @@ def encode_timezone(tz: Optional[tzinfo]) -> Optional[str]:
 class Timezone(tzinfo):
     """Provides pydantic validation for timezones."""
 
+    _timezone: timezone
+
+    def __init__(self, v):
+        if isinstance(v, str):
+            self._timezone = parse_timezone(v)
+        elif isinstance(v, timezone):
+            self._timezone = v
+        else:
+            self._timezone = timezone(v)
+
+    def utcoffset(self, dt: Optional[datetime]) -> Optional[timedelta]:
+        return self._timezone.utcoffset(dt)
+
+    def dst(self, dt: Optional[datetime]) -> Optional[timedelta]:
+        return self._timezone.dst(dt)
+
+    def tzname(self, dt: Optional[datetime]) -> Optional[str]:
+        return self._timezone.tzname(dt)
+
+    def fromutc(self, dt: datetime) -> datetime:
+        if dt.tzinfo is not self:
+            raise ValueError
+        return self._timezone.fromutc(dt.replace(tzinfo=self._timezone)).replace(
+            tzinfo=self
+        )
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
@@ -486,16 +512,10 @@ class Timezone(tzinfo):
 
     @classmethod
     def validate(cls, v):
-        if isinstance(v, tzinfo):
-            return v
-        elif isinstance(v, str):
-            try:
-                return parse_timezone(v)
-            except ValueError:
-                raise ValidationError(
-                    f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
-                )
-        raise ValidationError(f"tz must be timezone or str, not {type(v)}")
+        return cls(v)
+
+    def __str__(self):
+        return encode_timezone(self._timezone)
 
     def __repr__(self):
-        return encode_timezone(self)
+        return f"Timezone({self._timezone!r})"
