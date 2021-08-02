@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 import itertools
 from math import sqrt
 from pathlib import Path
@@ -457,7 +457,7 @@ def parse_timezone(value: str) -> timezone:
     return timezone(timedelta(minutes=offset))
 
 
-def encode_timezone(tz: Optional[timezone]) -> Optional[str]:
+def encode_timezone(tz: Optional[tzinfo]) -> Optional[str]:
     if tz is None:
         return None
     if tz == timezone.utc:
@@ -466,3 +466,36 @@ def encode_timezone(tz: Optional[timezone]) -> Optional[str]:
     hours, minutes = divmod(abs(tot_seconds) // 60, 60)
     sign = "-" if tot_seconds < 0 else "+"
     return f"{sign}{hours:02}:{minutes:02}"
+
+
+class Timezone(tzinfo):
+    """Provides pydantic validation for timezones."""
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(
+            title="Timezone",
+            pattern=r"^Z|[+-]\d{2}(?::?\d{2})?$",
+            examples=["Z", "+10:00", "-05"],
+            type="string",
+        )
+
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, tzinfo):
+            return v
+        elif isinstance(v, str):
+            try:
+                return parse_timezone(v)
+            except ValueError:
+                raise ValidationError(
+                    f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
+                )
+        raise ValidationError(f"tz must be timezone or str, not {type(v)}")
+
+    def __repr__(self):
+        return encode_timezone(self)

@@ -12,6 +12,7 @@ import pandas as pd
 from pydantic import (
     BaseModel,
     DirectoryPath,
+    Field,
     FilePath,
     PositiveFloat,
     ValidationError,
@@ -22,7 +23,7 @@ from pydantic import (
 from camfi.datamodel.locationtime import LocationTimeCollector
 from camfi.datamodel.via import ViaProject
 from camfi.datamodel.weather import LocationWeatherStationCollector
-from camfi.util import encode_timezone, parse_timezone
+from camfi.util import Timezone
 from camfi.wingbeat import WingbeatExtractorConfig, extract_all_wingbeats
 
 
@@ -49,19 +50,31 @@ class CameraConfigUnspecifiedError(ParameterUnspecifiedError):
 class CameraConfig(BaseModel):
     """Camera hardware-related configuration."""
 
-    camera_time_to_actual_time_ratio: Optional[float]
-    line_rate: Optional[PositiveFloat]
+    camera_time_to_actual_time_ratio: Optional[float] = Field(
+        None, description="Used for correcting timestamps from an inaccurate clock."
+    )
+    line_rate: Optional[PositiveFloat] = Field(
+        None, description="Rolling-shutter line rate of camera (lines per second)."
+    )
 
 
 class CamfiConfig(BaseModel):
     """Defines structure of Camfi's config.json files, and provides methods for loading
-    and processing Camfi data.
+    data from various sources.
     """
 
-    root: DirectoryPath = Path()
-    via_project_file: Optional[FilePath] = None
-    day_zero: Optional[date] = None
-    output_tz: timezone
+    root: DirectoryPath = Field(
+        Path(), description="Directory containing all images for the project."
+    )
+    via_project_file: Optional[FilePath] = Field(
+        None, description="Path to file containing VIA project."
+    )
+    day_zero: Optional[date] = Field(
+        None, description="Used as reference date for plotting etc."
+    )
+    output_tz: Timezone = Field(
+        ..., description="Sets a global timezone used for various analyses."
+    )
     camera: Optional[CameraConfig] = None
     time: Optional[LocationTimeCollector] = None
     place: Optional[LocationWeatherStationCollector] = None
@@ -88,32 +101,8 @@ class CamfiConfig(BaseModel):
         return ViaProject.parse_file(self.via_project_file)
 
     class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {timezone: encode_timezone}
         keep_untouched = (cached_property,)
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema["output_tz"] = dict(
-            title="Timezone Output",
-            pattern=r"^Z|[+-]\d{2}(?::?\d{2})?$",
-            examples=["Z", "+10:00", "-05"],
-        )
-
-    @validator("output_tz", pre=True)
-    def validate_tz(cls, v):
-        if isinstance(v, timezone):
-            return v
-        elif isinstance(v, str):
-            try:
-                return parse_timezone(v)
-            except ValueError:
-                raise ValidationError(
-                    f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
-                )
-        elif v is None:
-            return timezone.utc
-        raise ValidationError(f"tz must be timezone or str, not {type(v)}")
+        schema_extra = {"description": "Camfi configuration."}
 
     @root_validator
     def check_all_loctions_defined(cls, values):

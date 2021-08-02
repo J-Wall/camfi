@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from pydantic import (
     BaseModel,
+    Field,
     NonNegativeInt,
     PositiveFloat,
     PositiveInt,
@@ -232,13 +233,33 @@ class WingbeatSuppFigPlotter(ABC, BaseModel):
 
 class WingbeatExtractorConfig(BaseModel):
     """Contains configurable parameters for WingbeatExtractor. Provides a creation
-    methods for WingbeatExtractor."""
+    methods for WingbeatExtractor. See WingbeatExtractor for futher documentation.
+    """
 
-    device: str = "cpu"
-    backup_device: Optional[str] = None
-    scan_distance: PositiveInt = 50
-    max_pixel_period: Optional[PositiveInt] = None
-    force_load_exif_metadata: bool = False
+    device: str = Field(
+        "cpu",
+        description="Using GPU ('cuda') can give 4x speedups for certain operations.",
+    )
+    backup_device: Optional[str] = Field(
+        None,
+        description="Used when computation fails on main device due to memory limit.",
+    )
+    scan_distance: PositiveInt = Field(
+        50,
+        description="Max. distance from polyline used for wingbeat extraction.",
+    )
+    max_pixel_period: Optional[PositiveInt] = Field(
+        None, description="Max. pixel period to check during wingbeat extraction."
+    )
+    force_load_exif_metadata: bool = Field(
+        False,
+        description="Forces EXIF metadata to be read from image instead of ViaProject.",
+    )
+
+    class Config:
+        schema_extra = {
+            "description": "Contains configurable parameters for WingbeatExtractor."
+        }
 
     @validator("device", "backup_device")
     def check_device_available(cls, v):

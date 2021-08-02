@@ -24,11 +24,18 @@ from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, FilePath, NonNegativeFloat, ValidationError, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    FilePath,
+    NonNegativeFloat,
+    ValidationError,
+    validator,
+)
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
-from camfi.util import parse_timezone, encode_timezone
+from camfi.util import Timezone
 
 
 # Initialise skyfield
@@ -98,36 +105,19 @@ class Location(BaseModel):
     Location(name='nyc', lat=40.712778, lon=-74.006111, elevation_m=10.0, tz=datetime.timezone(datetime.timedelta(days=-1, seconds=68400)))
     """
 
-    name: str
-    lat: float
-    lon: float
-    elevation_m: NonNegativeFloat
-    tz: timezone
+    name: str = Field(
+        ..., description="Name of location. Used to link to camera placements."
+    )
+    lat: float = Field(..., description="Decimal latitude.")
+    lon: float = Field(..., description="Decimal longitude.")
+    elevation_m: NonNegativeFloat = Field(..., description="Elevation in metres.")
+    tz: Timezone = Field(..., description="ISO8601 timezone offset.")
 
     class Config:
         arbitrary_types_allowed = True
-        json_encoders = {timezone: encode_timezone}
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema["tz"] = dict(
-            title="Timezone",
-            pattern=r"^Z|[+-]\d{2}(?::?\d{2})?$",
-            examples=["Z", "+10:00", "-05"],
-        )
-
-    @validator("tz", pre=True)
-    def validate_tz(cls, v):
-        if isinstance(v, timezone):
-            return v
-        elif isinstance(v, str):
-            try:
-                return parse_timezone(v)
-            except ValueError:
-                raise ValidationError(
-                    f"{value} is not a valid tz str. Expected 'Z' or e.g. '+10:00'."
-                )
-        raise ValidationError(f"tz must be timezone or str, not {type(v)}")
+        schema_extra = {
+            "description": "Contains spatial data on locations, including timezone."
+        }
 
     @property
     def _dark_twilight_day(self):
@@ -361,8 +351,24 @@ class Location(BaseModel):
 
 
 class WeatherStation(BaseModel):
-    location: Location
-    data_file: FilePath
+    """Contains information on a weather station.
+
+    Parameters
+    ----------
+    location : Location
+        Location of weather station.
+    data_file : FilePath
+        Path to csv file containing weather data from weather station.
+    """
+
+    location: Location = Field(..., description="Location of weather station.")
+    data_file: FilePath = Field(
+        ...,
+        description="Path to csv file containing weather data from weather station.",
+    )
+
+    class Config:
+        schema_extra = {"description": "Contains information on a weather station."}
 
     def load_dataframe(self):
         """Loads weather data from self.data_file into a pd.DataFrame
@@ -381,9 +387,30 @@ class WeatherStation(BaseModel):
 
 
 class LocationWeatherStationCollector(BaseModel):
-    locations: List[Location]
-    weather_stations: List[WeatherStation]
-    location_weather_station_mapping: Dict[str, str]
+    """Contains lists of Locations and Weather stations, and a mapping between them.
+
+    Parameters
+    ----------
+    locations : List[Location]
+        List of locations where cameras have been placed.
+    weather_stations : List[WeatherStation]
+        List of weather stations.
+    location_weather_station_mapping : Dict[str, str]
+        A mapping between location names and weather_station names.
+    """
+
+    locations: List[Location] = Field(
+        ..., description="List of locations where cameras have been placed."
+    )
+    weather_stations: List[WeatherStation] = Field(
+        ..., description="List of weather stations."
+    )
+    location_weather_station_mapping: Dict[str, str] = Field(
+        ..., description="A mapping between location names and weather_station names."
+    )
+
+    class Config:
+        schema_extra = {"description": "Defines Locations and Weather stations."}
 
     @validator("location_weather_station_mapping")
     def mapping_contains_all_locations(cls, v, values):

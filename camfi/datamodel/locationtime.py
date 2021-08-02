@@ -1,12 +1,14 @@
 """Provides classes for operating on location and time information for camera
 placements. Depends on camfi.util."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from math import fsum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel, Field, root_validator, validator
 
 from camfi.util import DatetimeCorrector, SubDirDict
 
@@ -33,16 +35,33 @@ class LocationTime(BaseModel):
         String specifying the location the camera was placed in.
     """
 
-    camera_start_time: datetime
-    actual_start_time: Optional[datetime] = None  # Defaults to camera_start_time
-    camera_end_time: Optional[datetime] = None
-    actual_end_time: Optional[datetime] = None
-    location: Optional[str] = None
+    camera_start_time: datetime = Field(
+        ..., description="Camera placement datetime (according to camera's clock)."
+    )
+    actual_start_time: Optional[datetime] = Field(
+        None,
+        description="Actual camera placement datetime (defaults to camera_start_time).",
+    )
+    camera_end_time: Optional[datetime] = Field(
+        None, description="Camera retrieval time (according to camera's clock)."
+    )
+    actual_end_time: Optional[datetime] = Field(
+        None, description="Actual camera retrieval time."
+    )
+    location: Optional[str] = Field(
+        None, description="Name of location the camera was placed in."
+    )
 
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat(),
         }
+
+        @staticmethod
+        def schema_extra(schema: Dict[str, Any], model: LocationTime) -> None:
+            # Remove title from schema
+            schema.pop("title", None)
+            schema["description"] = "Camera placement data"
 
     @validator("actual_start_time", always=True)
     def default_actual_start_time(cls, v, values):
@@ -223,7 +242,12 @@ class LocationTimeCollector(BaseModel):
     2.0
     """
 
-    camera_placements: Dict[str, LocationTime]
+    camera_placements: Dict[str, LocationTime] = Field(
+        ..., descriptiion="Mapping from directories to LocationTime instances."
+    )
+
+    class Config:
+        schema_extra = {"description": "Contains data for multiple camera placements."}
 
     def get_time_ratio(self) -> Optional[float]:
         """Gets the mean of calling the .get_time_ratio method on each LocationTime
