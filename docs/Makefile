@@ -24,6 +24,8 @@ FORCE: ;
 
 notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
 
+notebook_files = usage/notebooks/activity_analysis_files usage/notebooks/annotation_evaluation_files usage/notebooks/camera_calibration_files usage/notebooks/wingbeat_analysis_files
+
 $(notebooks): usage/notebooks/%.rst: ../examples/%.ipynb
 	cp $< usage/notebooks/
 	jupyter nbconvert --to rst usage/notebooks/$*.ipynb
@@ -35,3 +37,7 @@ usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rs
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst source/config_schema.json $(usages) $(notebooks)
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+clean:
+	rm -f source/modules.rst source/config_schema.json $(notebooks)
+	rm -rf _build $(notebook_files)
