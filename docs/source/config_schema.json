@@ -44,6 +44,9 @@
     },
     "wingbeat_extraction": {
       "$ref": "#/definitions/WingbeatExtractorConfig"
+    },
+    "annotator": {
+      "$ref": "#/definitions/AnnotatorConfig"
     }
   },
   "definitions": {
@@ -263,6 +266,306 @@
           "description": "Forces EXIF metadata to be read from image instead of ViaProject.",
           "default": false,
           "type": "boolean"
+        }
+      }
+    },
+    "BoundingBox": {
+      "title": "BoundingBox",
+      "description": "Defines a bounding box with integer (pixel) coordinates.",
+      "type": "object",
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "description": "Minimum inclusive (horizontal) x-coordinate of box.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y0": {
+          "title": "Y0",
+          "description": "Minimum inclusive (vertical) y-coordinate of box.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "x1": {
+          "title": "X1",
+          "description": "Maximum exclusive (horizontal) x-coordinate of box.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "y1": {
+          "title": "Y1",
+          "description": "Maximum exclusive (vertical) y-coordinate of box.",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ]
+    },
+    "MaskMaker": {
+      "title": "MaskMaker",
+      "description": "Contains settings for segmentation mask generation.",
+      "type": "object",
+      "properties": {
+        "shape": {
+          "title": "Shape",
+          "description": "Shape of images (height, width) in pixels.",
+          "type": "array",
+          "items": [
+            {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          ]
+        },
+        "mask_dilate": {
+          "title": "Mask Dilate",
+          "description": "Morphological dilation to apply to segmentation skeletons.",
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shape"
+      ]
+    },
+    "TrainingConfig": {
+      "title": "TrainingConfig",
+      "description": "Contains settings for camfi annotator model training.",
+      "type": "object",
+      "properties": {
+        "mask_maker": {
+          "$ref": "#/definitions/MaskMaker"
+        },
+        "min_annotations": {
+          "title": "Min Annotations",
+          "description": "Only train on images which have at least this many annotations.",
+          "type": "integer"
+        },
+        "max_annotations": {
+          "title": "Max Annotations",
+          "description": "Only train on images which have at most this many annotations.",
+          "type": "integer"
+        },
+        "box_margin": {
+          "title": "Box Margin",
+          "description": "Margin to add to bounding boxes of object annotations.",
+          "default": 10,
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "test_set": {
+          "title": "Test Set",
+          "description": "List of images to exclude from training.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "path"
+          }
+        },
+        "load_pretrained_model": {
+          "title": "Load Pretrained Model",
+          "description": "Path or url to model parameters file to initialise training.",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "path"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "device": {
+          "title": "Device",
+          "description": "Device to run training on (e.g. cuda or cpu).",
+          "default": "cpu",
+          "type": "string"
+        },
+        "batch_size": {
+          "title": "Batch Size",
+          "description": "Number of images to load at once.",
+          "default": 5,
+          "type": "integer"
+        },
+        "num_workers": {
+          "title": "Num Workers",
+          "description": "Number of worker processes for data loader to spawn.",
+          "default": 2,
+          "type": "integer"
+        },
+        "num_epochs": {
+          "title": "Num Epochs",
+          "description": "Number of epochs to train.",
+          "default": 10,
+          "type": "integer"
+        },
+        "outdir": {
+          "title": "Outdir",
+          "description": "Path to directory where to save model(s).",
+          "default": ".",
+          "format": "directory-path",
+          "type": "string"
+        },
+        "model_name": {
+          "title": "Model Name",
+          "description": "Identifier to include in model save file. Default YYYYmmdd.",
+          "type": "string"
+        },
+        "save_intermediate": {
+          "title": "Save Intermediate",
+          "description": "If True, model is saved after each epoch.",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "InferenceConfig": {
+      "title": "InferenceConfig",
+      "description": "Contains settings for camfi annotator inference.",
+      "type": "object",
+      "properties": {
+        "output_path": {
+          "title": "Output Path",
+          "description": "If set, automatically generated annotations will be saved to file.",
+          "type": "string",
+          "format": "path"
+        },
+        "model": {
+          "title": "Model",
+          "description": "Path or url to model .pth file or one of camfi.models.model_urls.",
+          "default": "release",
+          "examples": [
+            "release"
+          ],
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "path"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "device": {
+          "title": "Device",
+          "description": "Specifies device to run inference on.",
+          "default": "cpu",
+          "examples": [
+            "cpu",
+            "cuda"
+          ],
+          "type": "string"
+        },
+        "backup_device": {
+          "title": "Backup Device",
+          "description": "Used for images which fail on device due to memory constraints.",
+          "type": "string"
+        },
+        "split_angle": {
+          "title": "Split Angle",
+          "description": "Approximate maximum angle between polyline segments in degrees.",
+          "default": 15.0,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "poly_order": {
+          "title": "Poly Order",
+          "description": "Order of polynomial used for fitting motion blur paths.",
+          "default": 2,
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "endpoint_method": {
+          "title": "Endpoint Method",
+          "description": "Method to find endpoints of motion blurs.",
+          "default": "truncate",
+          "examples": [
+            "truncate"
+          ],
+          "type": "string"
+        },
+        "endpoint_extra_args": {
+          "title": "Endpoint Extra Args",
+          "description": "Extra arguments to pass to endpoint method function.",
+          "default": [
+            10
+          ],
+          "type": "array",
+          "items": {}
+        },
+        "score_thresh": {
+          "title": "Score Thresh",
+          "description": "Score threshold between 0.0 and 1.0 for automatic annotations to be kept.",
+          "default": 0.4,
+          "type": "number"
+        },
+        "overlap_thresh": {
+          "title": "Overlap Thresh",
+          "description": "Minimum weighted IoM for non-maximum suppression of detections.",
+          "default": 0.4,
+          "type": "number"
+        },
+        "edge_thresh": {
+          "title": "Edge Thresh",
+          "description": "Polyline annotations this close to edge of image are converted to circles.",
+          "default": 20,
+          "minimum": 0,
+          "type": "integer"
+        }
+      }
+    },
+    "ValidationConfig": {
+      "title": "ValidationConfig",
+      "description": "Contains settings for camfi annotator validation.",
+      "type": "object",
+      "properties": {
+        "autoannotated_via_project_file": {
+          "title": "Autoannotated Via Project File",
+          "description": "Path to file containing VIA Project with annotations to validate.",
+          "type": "string",
+          "format": "path"
+        },
+        "iou_thresh": {
+          "title": "Iou Thresh",
+          "description": "Threshold of intersection-over-union to match annotations.",
+          "default": 0.5,
+          "type": "number"
+        },
+        "output_file": {
+          "title": "Output File",
+          "description": "If set, results of validation will be saved here in json format.",
+          "type": "string",
+          "format": "path"
+        }
+      }
+    },
+    "AnnotatorConfig": {
+      "title": "AnnotatorConfig",
+      "description": "Settings for automatic annotation training and inference.",
+      "type": "object",
+      "properties": {
+        "crop": {
+          "$ref": "#/definitions/BoundingBox"
+        },
+        "training": {
+          "$ref": "#/definitions/TrainingConfig"
+        },
+        "inference": {
+          "$ref": "#/definitions/InferenceConfig"
+        },
+        "validation": {
+          "$ref": "#/definitions/ValidationConfig"
         }
       }
     }

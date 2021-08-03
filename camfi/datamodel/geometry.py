@@ -39,10 +39,23 @@ class BoundingBox(BaseModel):
         Maximum exclusive (vertical) y-coordinate of box.
     """
 
-    x0: NonNegativeInt
-    y0: NonNegativeInt
-    x1: NonNegativeInt
-    y1: NonNegativeInt
+    x0: NonNegativeInt = Field(
+        ..., description="Minimum inclusive (horizontal) x-coordinate of box."
+    )
+    y0: NonNegativeInt = Field(
+        ..., description="Minimum inclusive (vertical) y-coordinate of box."
+    )
+    x1: NonNegativeInt = Field(
+        ..., description="Maximum exclusive (horizontal) x-coordinate of box."
+    )
+    y1: NonNegativeInt = Field(
+        ..., description="Maximum exclusive (vertical) y-coordinate of box."
+    )
+
+    class Config:
+        schema_extra = {
+            "description": "Defines a bounding box with integer (pixel) coordinates."
+        }
 
     @validator("x1")
     def x1_gt_x0(cls, v, values):
@@ -91,6 +104,22 @@ class BoundingBox(BaseModel):
         return BoundingBox(
             x0=border, y0=border, x1=shape[1] + 1 - border, y1=shape[0] + 1 - border
         )
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        """Gets the (height, width) of the bounding box.
+
+        Returns
+        -------
+        shape : Tuple[int, int]
+            Height and width of the bounding box
+
+        Examples
+        --------
+        >>> BoundingBox(x0=5, y0=1, x1=15, y1=3).shape
+        (2, 10)
+        """
+        return (self.y1 - self.y0, self.x1 - self.x0)
 
     def add_margin(
         self,

@@ -13,6 +13,8 @@ from sys import stderr
 import numpy as np
 from pydantic import (
     BaseModel,
+    DirectoryPath,
+    Field,
     NonNegativeInt,
     NonNegativeFloat,
     PositiveFloat,
@@ -95,7 +97,7 @@ def train_model(
     batch_size: int = 5,
     num_workers: int = 2,
     num_epochs: int = 10,
-    outdir: Path = Path(),
+    outdir: DirectoryPath = Path(),
     model_name: Optional[str] = None,
     save_intermediate: bool = False,
 ) -> None:
@@ -104,27 +106,27 @@ def train_model(
 
     Parameters
     ----------
-    dataset: CamfiDataset
+    dataset : CamfiDataset
         Dataset on which to train the model.
-    load_pretrained_model: path-like
+    load_pretrained_model : Optional[Union[Path, str]]
         Path or url to model parameters file. If set, will load the pretrained
         parameters. By default, will start with a model pre-trained on the Microsoft
         COCO dataset.
-    device: Union[str, torch.device]
+    device : Union[str, torch.device]
         E.g. "cpu" or "cuda". Training is typically much faster on a GPU. Use "cuda" for
         Nvidia GPUs.
-    batch_size: int
+    batch_size : int
         Number of images to load at once.
-    num_workers: int
+    num_workers : int
         Number of worker processes for data loader to spawn.
-    num_epochs: int
+    num_epochs : int
         Number of epochs to train.
-    outdir: Path
+    outdir : DirectoryPath
         Path to directory where to save model(s).
-    model_name: Optional[str]
+    model_name : Optional[str]
         Identifier to include in model save file. By default the current date in
         YYYYmmdd format.
-    save_intermediate: bool
+    save_intermediate : bool
         If True, model is saved after each epoch, not just after all epoch are complete.
         This is recommended, especially if training on a service which could terminate
         unpredicatbly (e.g. Google Colab).

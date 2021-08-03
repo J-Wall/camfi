@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 from numpy import array
 from pydantic import (
     BaseModel,
+    Field,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
@@ -45,8 +46,17 @@ class MaskMaker(BaseModel):
         to produce instance segmentation masks.
     """
 
-    shape: Tuple[PositiveInt, PositiveInt]
-    mask_dilate: Optional[PositiveInt] = None
+    shape: Tuple[PositiveInt, PositiveInt] = Field(
+        ..., description="Shape of images (height, width) in pixels."
+    )
+    mask_dilate: Optional[PositiveInt] = Field(
+        None, description="Morphological dilation to apply to segmentation skeletons."
+    )
+
+    class Config:
+        schema_extra = {
+            "description": "Contains settings for segmentation mask generation."
+        }
 
     def get_point_mask(self, point: PointShapeAttributes) -> torch.Tensor:
         """Produces a mask Tensor for a given point. Raises a ValueError if point lies
@@ -586,8 +596,8 @@ class CamfiDataset(BaseModel, Dataset):
     # Only set if inference_mode = False
     mask_maker: Optional[MaskMaker] = None
     transform: Optional[ImageTransform] = None
-    min_annotations: int = 0
-    max_annotations: float = inf
+    min_annotations: Optional[int] = None
+    max_annotations: Optional[int] = None
     box_margin: PositiveInt = 10
 
     # Optionally exclude some files
@@ -617,7 +627,7 @@ class CamfiDataset(BaseModel, Dataset):
         """Pydantic validation method, called when instantiating CamfiDataset.
         Ensures that min_annotations is only set if in training mode."""
         if "inference_mode" in values and values["inference_mode"] is True:
-            assert v == 0, "Only set if inference_mode=False"
+            assert v is None, "Only set if inference_mode=False"
         return v
 
     @validator("max_annotations")
@@ -625,7 +635,7 @@ class CamfiDataset(BaseModel, Dataset):
         """Pydantic validation method, called when instantiating CamfiDataset.
         Ensures that max_annotations is only set if in training mode."""
         if "inference_mode" in values and values["inference_mode"] is True:
-            assert v is inf, "Only set if inference_mode=False"
+            assert v is None, "Only set if inference_mode=False"
         return v
 
     @validator("box_margin")
@@ -653,7 +663,11 @@ class CamfiDataset(BaseModel, Dataset):
         """Pydantic validation method, called when instantiating CamfiDataset.
         Generates list of image keys."""
         min_annotations = values.get("min_annotations", 0)
+        if min_annotations is None:
+            min_annotations = 0
         max_annotations = values.get("max_annotations", inf)
+        if max_annotations is None:
+            max_annotations = inf
         return list(
             dict(
                 filter(

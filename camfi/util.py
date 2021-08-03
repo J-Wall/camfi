@@ -415,6 +415,9 @@ def endpoint_truncate(
     return (n, len(fit_mask_vals) - n)
 
 
+endpoint_methods = {"truncate": endpoint_truncate}
+
+
 def weighted_intersection_over_minimum(
     mask0: torch.Tensor, mask1: torch.Tensor
 ) -> float:
