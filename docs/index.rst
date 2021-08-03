@@ -26,6 +26,7 @@ or the DOI for the specific version you would like to cite.
    usage/automatic_image_annotation
    usage/data_analysis
    usage/cli
+   usage/configuration
    usage/notebooks/notebooks.rst
    source/modules
 

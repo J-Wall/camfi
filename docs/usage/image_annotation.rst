@@ -53,7 +53,7 @@ Setting up the VIA project file
    Or if using fish-shell, one can easily be more flexible with regard to the
    exact directory structure::
 
-      $ ls -1 moth_images_**.JPG > annotation_image_filelist.txt
+      > ls -1 moth_images_**.JPG > annotation_image_filelist.txt
 
    You will then end with a file called ``annotation_image_filelist.txt`` in
    the ``annotation_project`` directory, which starts something like this (note
@@ -298,22 +298,4 @@ file increases the size of the file substantially, and since it is recommended
 to save all incremental versions of the project file, this could become
 cumbersome if the metadata is included from the start.
 
-For insect activity analysis (see example :doc:`notebooks/activity_analysis`
-notebook) we first need to load the image metadata into the annotation project
-file. This can be done using ``$ camfi add-metadata``. Usage is simple, just
-provide the input file and desired output file::
-
-   $ camfi add-metadata \
-       --i via_annotation_project_file.json \
-       --o via_annotation_project_file_with_metadata.json
-
-There is one optional argument to ``camfi add_metadata``, called
-``--processes`` which enables multiple processes to be spawned. This may
-improve performance to a certain point, but eventually I/O will be the limiting
-factor to how fast this can run (as each image file needs to be opened in order
-to extract the metadata). For example, to run with 8 cores::
-
-   $ camfi add-metadata \
-       --i via_annotation_project_file.json \
-       --o via_annotation_project_file_with_metadata.json \
-       --processes 8
+See example notebook :doc:`notebooks/activity_analysis`.

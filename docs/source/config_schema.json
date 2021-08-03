@@ -113,7 +113,7 @@
       "properties": {
         "camera_placements": {
           "title": "Camera Placements",
-          "descriptiion": "Mapping from directories to LocationTime instances.",
+          "description": "Mapping from sub-directories containing images to LocationTime instances.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/LocationTime"
@@ -451,6 +451,7 @@
           "description": "Path or url to model .pth file or one of camfi.models.model_urls.",
           "default": "release",
           "examples": [
+            "v1",
             "release"
           ],
           "anyOf": [

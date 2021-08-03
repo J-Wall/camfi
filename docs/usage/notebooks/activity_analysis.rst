@@ -54,44 +54,12 @@ Wingbeat Analysis notebook).
       },
       "time": {
         "camera_placements": {
-          "2019-11_cabramurra/0001": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0002": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0003": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
           "2019-11_cabramurra/0004": {
             "camera_start_time": "2019-10-14T13:00:00+11:00",
             "actual_start_time": "2019-11-14T13:00:00+11:00",
             "location": "cabramurra"
           },
-          "2019-11_cabramurra/0005": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0006": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0007": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0008": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0009": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0010": {
+          "2019-11_cabramurra": {
             "camera_start_time": "2019-11-14T13:00:00+11:00",
             "location": "cabramurra"
           }
@@ -1851,10 +1819,10 @@ individually, and plotting the effect:
 .. parsed-literal::
 
     Significant single-effect variables:
-      - temperature_range
+      - temperature_minimum_evening_degC
       - daylight_hours
       - wind_speed_9am_kph
-      - temperature_minimum_evening_degC
+      - temperature_range
 
 
 
@@ -1911,7 +1879,7 @@ and plotting the effect:
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.274
     Date:                Mon, 02 Aug 2021   Deviance:                       24.473
-    Time:                        10:53:11   Pearson chi2:                     24.2
+    Time:                        17:38:46   Pearson chi2:                     24.2
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
@@ -1928,10 +1896,10 @@ and plotting the effect:
     res.aic=108.54753196329011
     
     Significant mixed-effect variables:
-      - Intercept
-      - daylight_hours
       - temperature_minimum_evening_degC
       - temperature_minimum_degC
+      - daylight_hours
+      - Intercept
       - temperature_range
 
 
@@ -1988,19 +1956,19 @@ we get a better model.
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.915
     Date:                Mon, 02 Aug 2021   Deviance:                       25.756
-    Time:                        10:53:11   Pearson chi2:                     25.3
+    Time:                        17:38:46   Pearson chi2:                     25.3
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
                                            coef    std err          z      P>|z|      [0.025      0.975]
     ----------------------------------------------------------------------------------------------------
     Intercept                           39.6614     10.961      3.618      0.000      18.178      61.144
+    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
+    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
     daylight_hours                      -3.0297      0.775     -3.909      0.000      -4.549      -1.511
     temperature_range                    0.1882      0.041      4.562      0.000       0.107       0.269
-    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
-    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
     ====================================================================================================
-    res.aic=105.83037074639358
+    res.aic=105.83037074639392
 
 
 

@@ -60,44 +60,12 @@ is often the case for cheap cameras).
       },
       "time": {
         "camera_placements": {
-          "2019-11_cabramurra/0001": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0002": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0003": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
           "2019-11_cabramurra/0004": {
             "camera_start_time": "2019-10-14T13:00:00+11:00",
             "actual_start_time": "2019-11-14T13:00:00+11:00",
             "location": "cabramurra"
           },
-          "2019-11_cabramurra/0005": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0006": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0007": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0008": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0009": {
-            "camera_start_time": "2019-11-14T13:00:00+11:00",
-            "location": "cabramurra"
-          },
-          "2019-11_cabramurra/0010": {
+          "2019-11_cabramurra": {
             "camera_start_time": "2019-11-14T13:00:00+11:00",
             "location": "cabramurra"
           }

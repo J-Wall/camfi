@@ -195,6 +195,7 @@ class TrainingConfig(BaseModel):
 
 class InferenceConfig(BaseModel):
     """Contains settings for camfi annotator inference.
+
     Parameters
     ----------
     output_path : Optional[Path]

@@ -53,6 +53,7 @@ import sphinx_rtd_theme
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx-jsonschema",
     "sphinx_rtd_theme",
 ]
 

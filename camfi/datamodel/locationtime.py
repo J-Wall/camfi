@@ -243,7 +243,8 @@ class LocationTimeCollector(BaseModel):
     """
 
     camera_placements: Dict[str, LocationTime] = Field(
-        ..., descriptiion="Mapping from directories to LocationTime instances."
+        ...,
+        description="Mapping from sub-directories containing images to LocationTime instances.",
     )
 
     class Config:
