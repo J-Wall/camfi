@@ -362,6 +362,12 @@
           "exclusiveMinimum": 0,
           "type": "integer"
         },
+        "test_set_file": {
+          "title": "Test Set File",
+          "description": "Contains filepaths (one per line). Do not set if test_set is set.",
+          "format": "file-path",
+          "type": "string"
+        },
         "test_set": {
           "title": "Test Set",
           "description": "List of images to exclude from training.",

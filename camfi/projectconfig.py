@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from datetime import date, timezone
 from functools import cached_property
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Sequence
 
@@ -21,6 +22,7 @@ from pydantic import (
     root_validator,
     validator,
 )
+from strictyaml import as_document, load
 
 from camfi.annotator import (
     Annotator,
@@ -106,6 +108,8 @@ class TrainingConfig(BaseModel):
         the number of annotated objects in the image.
     box_margin : PositiveInt
         Margin to add to bounding boxes of object annotations, for model training.
+    test_set_file : Optional[FilePath]
+        Alternative to setting test_set directly, load it from a file.
     test_set : List[Path]
         List of images to exclude from training.
     load_pretrained_model : Optional[Union[Path, str]]
@@ -144,8 +148,13 @@ class TrainingConfig(BaseModel):
     box_margin: PositiveInt = Field(
         10, description="Margin to add to bounding boxes of object annotations."
     )
+    test_set_file: Optional[FilePath] = Field(
+        None,
+        description="Contains filepaths (one per line). Do not set if test_set is set.",
+    )
     test_set: List[Path] = Field(
-        [], description="List of images to exclude from training."
+        [],
+        description="List of images to exclude from training.",
     )
     load_pretrained_model: Optional[Union[Path, str]] = Field(
         None, description="Path or url to model parameters file to initialise training."
@@ -172,6 +181,16 @@ class TrainingConfig(BaseModel):
         schema_extra = {
             "description": "Contains settings for camfi annotator model training."
         }
+
+    @validator("test_set", always=True)
+    def load_test_set(cls, v, values):
+        test_set_file = values.get("test_set_file", None)
+        if test_set_file is not None:
+            if len(v) > 0:
+                raise ValueError("test_set should not be set if test_set_file is set.")
+            with open(test_set_file, "r") as f:
+                v = [Path(l.strip()) for l in f]
+        return v
 
 
 class InferenceConfig(BaseModel):
@@ -389,6 +408,66 @@ class CamfiConfig(BaseModel):
                 )
 
         return values
+
+    @classmethod
+    def parse_yaml(cls, document: str) -> CamfiConfig:
+        """Parses yaml document and returns a CamfiConfig instance.
+
+        Parameters
+        ----------
+        document : str
+            StrictYAML document string.
+
+        Returns
+        -------
+        config : CamfiConfig
+            CamfiConfig instance with settings defined in document.
+        """
+        return cls.parse_obj(load(document).data)
+
+    @classmethod
+    def parse_yaml_file(cls, document_path: Path) -> CamfiConfig:
+        """Parses yaml document read from file and returns a CamfiConfig instance.
+
+        Parameters
+        ----------
+        document_path : Path
+            Path to file containing yaml document.
+
+        Returns
+        -------
+        config : CamfiConfig
+            CamfiConfig instance with settings defined in document.
+        """
+        with open(document_path, "r") as f:
+            document = f.read()
+
+        return cls.parse_yaml(document)
+
+    def yaml(self, **kwargs) -> str:
+        """Serialises self to yaml string.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to self.json(). E.g. exclude_unset. Note that by default,
+            exclude_none=True to avoid YAMLSerializationError. Also, exclude_unset=True
+            by default, as this makes more sense for CamfiConfig. This differs from
+            the defaults of CamfiConfig.json(). Other defaults are the same.
+
+        Returns
+        -------
+        document : str
+            String containing yaml document.
+        """
+        kwargs = kwargs.copy()
+        kwargs.setdefault("exclude_unset", True)
+        if not kwargs.setdefault("exclude_none", True):
+            raise NotImplementedError(
+                "exclude_none=False is not implemented for yaml. "
+                "Consider using json, or leave exclude_none=True."
+            )
+        return as_document(json.loads(self.json(**kwargs))).as_yaml()
 
     def get_image_dataframe(self) -> pd.DataFrame:
         """Calls self.via_project.to_image_dataframe(tz=self.output_tz), returning the

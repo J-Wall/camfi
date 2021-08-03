@@ -102,6 +102,7 @@ setup(
         "scipy",
         "Shapely",
         "skyfield",
+        "strictyaml",
         "torch",
         "torchvision",
         "tqdm",
