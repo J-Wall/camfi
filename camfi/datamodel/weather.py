@@ -14,6 +14,20 @@ These can all be overwritten by setting environment variables with the same name
   ephemeris file will be loaded when this module is imported. The first time this
   happens, the ephemeris file will be downloaded (def4402.bsp is about 37 mb).
 
+**Note:** For testing purposes,
+a tiny abbreviated ephemeris file is included
+in the Camfi git repository.
+Without this, CI testing wouldn't work.
+The included ephemeris limits
+the date range to a few days in 2021,
+so it should not be used when running Camfi normally.
+To use the included ephemeris (for testing purposes only),
+set the following environment variables
+(assuming you are running the tests from the camfi repo root directory)::
+
+    SKYFIELD_DATA_DIR="camfi/test/data"
+    CAMFI_EPHEMERIS="test_ephem.bsp"
+
 .. _choosing an ephemeris: https://rhodesmill.org/skyfield/planets.html#choosing-an-ephemeris
 """
 

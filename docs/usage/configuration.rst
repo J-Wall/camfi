@@ -49,7 +49,7 @@ Example configuration file
 Below is
 an :download:`example configuration file <../../examples/data/cabramurra_config.yml>`
 in yaml format.
-:download:`The same configuration <../../examples/data/cabramurra_config.json>`
+:download:`The same configuration <../source/cabramurra_config.json>`
 is also available
 in json format.
 

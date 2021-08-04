@@ -39,11 +39,11 @@ is often the case for cheap cameras).
 
 .. code:: ipython3
 
-    config_path = "data/cabramurra_config.json"
+    config_path = "data/cabramurra_config.yml"
     
-    config = CamfiConfig.parse_file(config_path)
+    config = CamfiConfig.parse_yaml_file(config_path)
     
-    # We can print out our config using config.json()
+    # We can print out our config using config.json() or config.yaml()
     print(config.json(exclude_unset=True, indent=2))
 
 
@@ -100,6 +100,46 @@ is often the case for cheap cameras).
       "wingbeat_extraction": {
         "device": "cpu",
         "scan_distance": 50
+      },
+      "annotator": {
+        "crop": {
+          "x0": 0,
+          "y0": 0,
+          "x1": 4608,
+          "y1": 3312
+        },
+        "training": {
+          "mask_maker": {
+            "shape": [
+              3312,
+              4608
+            ],
+            "mask_dilate": 5
+          },
+          "min_annotations": 1,
+          "max_annotations": 50,
+          "test_set_file": "data/cabramurra_test_set.txt",
+          "device": "cuda",
+          "batch_size": 5,
+          "num_workers": 2,
+          "num_epochs": 20,
+          "save_intermediate": true
+        },
+        "inference": {
+          "output_path": "data/cabramurra_autoannotated.json",
+          "device": "cuda",
+          "backup_device": "cpu",
+          "score_thresh": 0.0
+        },
+        "validation": {
+          "autoannotated_via_project_file": "data/cabramurra_autoannotated.json",
+          "image_sets": [
+            "all",
+            "test",
+            "train"
+          ],
+          "output_dir": "data"
+        }
       }
     }
 

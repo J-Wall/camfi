@@ -33,11 +33,11 @@ Wingbeat Analysis notebook).
 
 .. code:: ipython3
 
-    config_path = "data/cabramurra_config.json"
+    config_path = "data/cabramurra_config.yml"
     
-    config = CamfiConfig.parse_file(config_path)
+    config = CamfiConfig.parse_yaml_file(config_path)
     
-    # We can print out our config using config.json()
+    # We can print out our config using config.json() or config.yaml()
     print(config.json(exclude_unset=True, indent=2))
 
 
@@ -94,6 +94,46 @@ Wingbeat Analysis notebook).
       "wingbeat_extraction": {
         "device": "cpu",
         "scan_distance": 50
+      },
+      "annotator": {
+        "crop": {
+          "x0": 0,
+          "y0": 0,
+          "x1": 4608,
+          "y1": 3312
+        },
+        "training": {
+          "mask_maker": {
+            "shape": [
+              3312,
+              4608
+            ],
+            "mask_dilate": 5
+          },
+          "min_annotations": 1,
+          "max_annotations": 50,
+          "test_set_file": "data/cabramurra_test_set.txt",
+          "device": "cuda",
+          "batch_size": 5,
+          "num_workers": 2,
+          "num_epochs": 20,
+          "save_intermediate": true
+        },
+        "inference": {
+          "output_path": "data/cabramurra_autoannotated.json",
+          "device": "cuda",
+          "backup_device": "cpu",
+          "score_thresh": 0.0
+        },
+        "validation": {
+          "autoannotated_via_project_file": "data/cabramurra_autoannotated.json",
+          "image_sets": [
+            "all",
+            "test",
+            "train"
+          ],
+          "output_dir": "data"
+        }
       }
     }
 
@@ -1821,8 +1861,8 @@ individually, and plotting the effect:
     Significant single-effect variables:
       - temperature_minimum_evening_degC
       - daylight_hours
-      - wind_speed_9am_kph
       - temperature_range
+      - wind_speed_9am_kph
 
 
 
@@ -1878,8 +1918,8 @@ and plotting the effect:
     Model Family:                 Poisson   Df Model:                            6
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.274
-    Date:                Mon, 02 Aug 2021   Deviance:                       24.473
-    Time:                        17:38:46   Pearson chi2:                     24.2
+    Date:                Wed, 04 Aug 2021   Deviance:                       24.473
+    Time:                        15:50:36   Pearson chi2:                     24.2
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
@@ -1896,10 +1936,10 @@ and plotting the effect:
     res.aic=108.54753196329011
     
     Significant mixed-effect variables:
-      - temperature_minimum_evening_degC
-      - temperature_minimum_degC
       - daylight_hours
       - Intercept
+      - temperature_minimum_evening_degC
+      - temperature_minimum_degC
       - temperature_range
 
 
@@ -1955,8 +1995,8 @@ we get a better model.
     Model Family:                 Poisson   Df Model:                            4
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.915
-    Date:                Mon, 02 Aug 2021   Deviance:                       25.756
-    Time:                        17:38:46   Pearson chi2:                     25.3
+    Date:                Wed, 04 Aug 2021   Deviance:                       25.756
+    Time:                        15:50:36   Pearson chi2:                     25.3
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
@@ -1964,11 +2004,11 @@ we get a better model.
     ----------------------------------------------------------------------------------------------------
     Intercept                           39.6614     10.961      3.618      0.000      18.178      61.144
     temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
-    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
     daylight_hours                      -3.0297      0.775     -3.909      0.000      -4.549      -1.511
+    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
     temperature_range                    0.1882      0.041      4.562      0.000       0.107       0.269
     ====================================================================================================
-    res.aic=105.83037074639392
+    res.aic=105.83037074639378
 
 
 

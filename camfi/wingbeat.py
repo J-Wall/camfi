@@ -23,6 +23,7 @@ from pydantic import (
 )
 import sklearn.mixture
 import torch
+from tqdm import tqdm
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
 from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata, ViaProject
@@ -487,13 +488,19 @@ class WingbeatExtractor(WingbeatExtractorConfig):
 
         return region_attributes
 
-    def extract_wingbeats(self) -> None:
+    def extract_wingbeats(self) -> int:
         """Calls self.process_blur on the shape_attributes of all polyline regions in
         self.metadata, replacing the region_attributes of those regions with ones
         containing wingbeat data.
 
         Operates in place.
+
+        Returns
+        -------
+        polylines_processed : int
+            Number of polyline annotations processed.
         """
+        polylines_processed = 0
         for region in filter(
             lambda r: r.shape_attributes.name == "polyline", self.metadata.regions
         ):
@@ -504,9 +511,14 @@ class WingbeatExtractor(WingbeatExtractorConfig):
 
             # Update region attributes with wingbeat data
             region.region_attributes = self.process_blur(polyline, score=score)
+            polylines_processed += 1
+
+        return polylines_processed
 
 
-def extract_all_wingbeats(via_project: ViaProject, **kwargs) -> None:
+def extract_all_wingbeats(
+    via_project: ViaProject, disable_progress_bar: Optional[bool] = True, **kwargs
+) -> None:
     """Extracts wingbeat data from all images in via_project, inserting that data into
     via_project (operates in place). Overwrites any existing annotation data (so you
     can use the same VIA project file as input to training and inference).
@@ -515,13 +527,28 @@ def extract_all_wingbeats(via_project: ViaProject, **kwargs) -> None:
     ----------
     via_project : ViaProject
         Contains metadata for each image to process.
+    disable_progress_bar : Optional[bool]
+        If True (default), progress bar is disabled.
+        If set to None, disable on non-TTY.
     **kwargs
         Passed to WingbeatExtractor constructor (once for each image).
     """
-    for img_key, metadata in via_project.via_img_metadata.items():
+    postfix = {"polylines_processed": 0}
+    pb = tqdm(
+        via_project.via_img_metadata.items(),
+        disable=disable_progress_bar,
+        desc="Extracting wingbeats",
+        unit="img",
+        dynamic_ncols=True,
+        ascii=True,
+        color="green",
+        postfix=postfix,
+    )
+    for img_key, metadata in pb:
         wingbeat_extractor = WingbeatExtractor(metadata=metadata, **kwargs)
-        wingbeat_extractor.extract_wingbeats()
+        postfix["polylines_processed"] += wingbeat_extractor.extract_wingbeats()
         via_project.via_img_metadata[img_key] = wingbeat_extractor.metadata
+        pb.set_postfix(postfix, refresh=False)
 
 
 @total_ordering

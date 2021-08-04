@@ -10,6 +10,11 @@
       "format": "directory-path",
       "type": "string"
     },
+    "disable_progress_bar": {
+      "title": "Disable Progress Bar",
+      "description": "Disables progress bars. By default, disable on non-TTY.",
+      "type": "boolean"
+    },
     "via_project_file": {
       "title": "Via Project File",
       "description": "Path to file containing VIA project.",
@@ -549,11 +554,30 @@
           "default": 0.5,
           "type": "number"
         },
-        "output_file": {
-          "title": "Output File",
-          "description": "If set, results of validation will be saved here in json format.",
-          "type": "string",
-          "format": "path"
+        "image_sets": {
+          "title": "Image Sets",
+          "description": "Image sets to perform training on.",
+          "default": [
+            "all"
+          ],
+          "pattern": "^(all|test|train)$",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(all|test|train)$"
+          }
+        },
+        "output_dir": {
+          "title": "Output Dir",
+          "description": "If set, results of validation will be saved.",
+          "format": "directory-path",
+          "type": "string"
+        },
+        "output_stem": {
+          "title": "Output Stem",
+          "description": "Stem of output files.",
+          "default": "validation",
+          "type": "string"
         }
       }
     },

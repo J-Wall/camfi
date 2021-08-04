@@ -305,10 +305,16 @@ class ValidationConfig(BaseModel):
     iou_thresh: float = Field(
         0.5, description="Threshold of intersection-over-union to match annotations."
     )
-    output_file: Optional[Path] = Field(
-        None,
-        description="If set, results of validation will be saved here in json format.",
+    image_sets: List[str] = Field(
+        ["all"],
+        description="Image sets to perform training on.",
+        regex="^(all|test|train)$",
     )
+    output_dir: Optional[DirectoryPath] = Field(
+        None,
+        description="If set, results of validation will be saved.",
+    )
+    output_stem: str = Field("validation", description="Stem of output files.")
 
     class Config:
         schema_extra = {
@@ -350,6 +356,9 @@ class CamfiConfig(BaseModel):
 
     root: DirectoryPath = Field(
         Path(), description="Directory containing all images for the project."
+    )
+    disable_progress_bar: Optional[bool] = Field(
+        None, description="Disables progress bars. By default, disable on non-TTY."
     )
     via_project_file: Optional[FilePath] = Field(
         None, description="Path to file containing VIA project."
@@ -555,6 +564,7 @@ class CamfiConfig(BaseModel):
             root=self.root,
             location_dict=location_dict,
             datetime_correctors=datetime_correctors,
+            disable_progress_bar=self.disable_progress_bar,
         )
 
     def extract_all_wingbeats(self) -> None:
@@ -568,6 +578,7 @@ class CamfiConfig(BaseModel):
             self.via_project,
             root=self.root,
             line_rate=self.camera.line_rate,
+            disable_progress_bar=self.disable_progress_bar,
             **self.wingbeat_extraction.dict(),
         )
 
@@ -663,7 +674,9 @@ class CamfiConfig(BaseModel):
             overlap_thresh=self.annotator.inference.overlap_thresh,
             edge_thresh=self.annotator.inference.edge_thresh,
         )
-        annotated_project = annotator.annotate()
+        annotated_project = annotator.annotate(
+            disable_progress_bar=self.disable_progress_bar
+        )
 
         if self.annotator.inference.output_path is not None:
             with open(self.annotator.inference.output_path, "w") as f:
@@ -700,12 +713,12 @@ class CamfiConfig(BaseModel):
 
         return ViaProject.parse_file(self.annotator.inference.output_path)
 
-    def validate_annotations(self) -> AnnotationValidationResult:
+    def validate_annotations(self) -> List[AnnotationValidationResult]:
         """Validates automatically aquired annotations against ground-truth annotations.
 
         Returns
         -------
-        validation_result : AnnotationValidationResult
+        validation_results : List[AnnotationValidationResult]
             Results from validation.
         """
         if self.annotator is None:
@@ -714,15 +727,41 @@ class CamfiConfig(BaseModel):
         if self.annotator.validation is None:
             raise ValidationConfigUnspecifiedError
 
-        validation_result = validate_annotations(
-            annotations=self.get_autoannotated_via_project(),
+        subset_functions = {}
+        for image_set in self.annotator.validation.image_sets:
+            if image_set == "all":
+                subset_functions["all"] = lambda x: True
+            elif image_set == "train":
+                if self.annotator.training is None:
+                    raise TrainingConfigUnspecifiedError
+                exclude_set = set(self.annotator.training.test_set)
+                subset_functions["train"] = lambda x: x.filename not in exclude_set
+            elif image_set == "test":
+                if self.annotator.training is None:
+                    raise TrainingConfigUnspecifiedError
+                include_set = set(self.annotator.training.test_set)
+                subset_functions["test"] = lambda x: x.filename in include_set
+            else:
+                raise ValueError(f"Expected one of all|train|test. Got {image_set}.")
+
+        validation_results = validate_annotations(
+            auto_annotations=self.get_autoannotated_via_project(),
             ground_truth=self.via_project,
             iou_thresh=self.annotator.validation.iou_thresh,
+            subset_functions=subset_functions,
+            disable_progress_bar=self.disable_progress_bar,
         )
 
         # Optionally save to file before returning
-        if self.annotator.validation.output_file is not None:
-            with open(self.annotator.validation.output_file, "w") as f:
-                f.write(validation_result.json(indent=2))
+        if self.annotator.validation.output_dir is not None:
+            for image_set, validation_result in zip(
+                self.annotator.validation.image_sets, validation_results
+            ):
+                output_file = (
+                    self.annotator.validation.output_dir
+                    / f"{self.annotator.validation.output_stem}.{image_set}.json"
+                )
+                with open(output_file, "w") as f:
+                    f.write(validation_result.json(indent=2))
 
-        return validation_result
+        return validation_results

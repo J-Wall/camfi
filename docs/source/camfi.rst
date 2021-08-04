@@ -21,7 +21,6 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   camfi.activity
    camfi.annotator
    camfi.models
    camfi.projectconfig

@@ -5,7 +5,7 @@
   "output_tz": "+10:00",
   "camera": {
     "camera_time_to_actual_time_ratio": 1.0,
-    "line_rate": 9.05e+04
+    "line_rate": 90500.0
   },
   "time": {
     "camera_placements": {
@@ -82,7 +82,12 @@
     },
     "validation": {
       "autoannotated_via_project_file": "data/cabramurra_autoannotated.json",
-      "output_file": "data/validation_all.json"
+      "image_sets": [
+        "all",
+        "test",
+        "train"
+      ],
+      "output_dir": "data"
     }
   }
 }

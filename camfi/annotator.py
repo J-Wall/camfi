@@ -477,10 +477,16 @@ class Annotator(BaseModel):
 
         return regions
 
-    def annotate(self) -> ViaProject:
+    def annotate(self, disable_progress_bar: Optional[bool] = True) -> ViaProject:
         """Calls self.annotate_img on all images and returns a ViaProject instance.
         Copies the `via_attributes` and `via_settings` fields from
         `self.dataset.via_project`, and just replaces the `via_img_metadata` field.
+
+        Parameters
+        ----------
+        disable_progress_bar : Optional[bool]
+            If True (default), progress bar is disabled.
+            If set to None, disable on non-TTY.
 
         Returns
         -------
@@ -488,9 +494,18 @@ class Annotator(BaseModel):
             With automatic annotations made.
         """
         via_img_metadata: Dict[str, ViaMetadata] = {}
-        tot_annotations = 0
 
-        pb = trange(len(self.dataset), desc="Annotating images", unit="img")
+        postfix = {"tot_annotations": 0}
+        pb = trange(
+            len(self.dataset),
+            disable=disable_progress_bar,
+            desc="Annotating images",
+            unit="img",
+            dynamic_ncols=True,
+            ascii=True,
+            color="green",
+            postfix=postfix,
+        )
         for img_idx in pb:
             img_key = self.dataset.keys[img_idx]
             regions = self.annotate_img(img_idx)
@@ -502,8 +517,8 @@ class Annotator(BaseModel):
                 size=in_metadata.size,
             )
             via_img_metadata[img_key] = out_metadata
-            tot_annotations += len(regions)
-            pb.set_postfix({"tot_annotations": tot_annotations}, refresh=False)
+            postfix["tot_annotations"] += len(regions)
+            pb.set_postfix(postfix, refresh=False)
 
         print(f"Annotation complete.", file=stderr)
         return ViaProject(
@@ -553,67 +568,93 @@ class AnnotationValidationResult(BaseModel):
 
 
 def validate_annotations(
-    annotations: ViaProject, ground_truth: ViaProject, iou_thresh: float = 0.5
-) -> AnnotationValidationResult:
+    auto_annotations: ViaProject,
+    ground_truth: ViaProject,
+    iou_thresh: float = 0.5,
+    subset_functions: Optional[Dict[str, Callable[[ViaMetadata], bool]]] = None,
+    disable_progress_bar: Optional[bool] = True,
+) -> List[AnnotationValidationResult]:
     """Compares automatic annotations against a ground-truth annotations for validation
     puposes. Validation data is stored in an AnnotationValidationResult object.
 
     Parameters
     ----------
-    annotations : ViaProject
+    auto_annotations : ViaProject
         Automatically obtained annotations to assess.
     ground_truth : ViaProject
         Manually created ground-truth annotations.
     iou_thresh : float
         Threshold of intersection-over-union of bounding boxes to be considered a
         match. Typically, this is 0.5.
+    subset_functions : Optional[Dict[str, Callable[[ViaMetadata], bool]]]
+        Mapping from subset name to subset function. If set, validation will be repeated
+        multiple times with different subsets, once for each element.
+    disable_progress_bar : Optional[bool]
+        If True (default), progress bar is disabled.
+        If set to None, disable on non-TTY.
 
     Returns
     -------
-    validation_result : AnnotationValidationResult
-        Result of running annotation validation.
+    validation_results : List[AnnotationValidationResult]
+        List containing instances of AnnotationValidationResult. If subset_functions is
+        set, then validation_results will have len(subset_functions) elements. By
+        default it will just contain one element.
     """
-    result = AnnotationValidationResult()
+    if subset_functions is None:
+        subset_functions = {"all": lambda x: True}
 
-    for img_key, metadata in tqdm(
-        annotations.via_img_metadata.items(),
-        desc="Validating annotations",
-        unit="img",
-    ):
-        gt_metadata = ground_truth.via_img_metadata[img_key]
-        ious = sparse.dok_matrix(
-            (len(metadata.regions), len(gt_metadata.regions)), dtype="f8"
-        )
+    results: List[AnnotationValidationResult] = []
 
-        for i, j in itertools.product(
-            range(len(metadata.regions)), range(len(gt_metadata.regions))
+    for name, subset_function in subset_functions.items():
+        annotations = auto_annotations.filtered_copy(subset_function)
+
+        result = AnnotationValidationResult()
+
+        for img_key, metadata in tqdm(
+            annotations.via_img_metadata.items(),
+            disable=disable_progress_bar,
+            desc=f"Validating {name} annotations",
+            unit="img",
+            dynamic_ncols=True,
+            ascii=True,
+            color="green",
         ):
-            iou = metadata.regions[i].shape_attributes.interesection_over_union(
-                gt_metadata.regions[i].shape_attributes
+            gt_metadata = ground_truth.via_img_metadata[img_key]
+            ious = sparse.dok_matrix(
+                (len(metadata.regions), len(gt_metadata.regions)), dtype="f8"
             )
-            if iou >= iou_thresh:
-                ious[i, j] = iou
 
-        ious = ious.tocsr()
-        matches = sparse.csgraph.maximum_bipartite_matching(ious, "column")
-        result.false_negatives += len(gt_metadata.regions) - np.count_nonzero(
-            matches >= 0
-        )
+            for i, j in itertools.product(
+                range(len(metadata.regions)), range(len(gt_metadata.regions))
+            ):
+                iou = metadata.regions[i].shape_attributes.interesection_over_union(
+                    gt_metadata.regions[i].shape_attributes
+                )
+                if iou >= iou_thresh:
+                    ious[i, j] = iou
 
-        for i, match in enumerate(matches):
-            score = metadata.regions[i].region_attributes.score
-            if match >= 0:
-                result.true_positives.append(score)
-                result.ious.append((ious[i, match], score))
-                shape = metadata.regions[i].shape_attributes
-                gt_shape = gt_metadata.regions[match].shape_attributes
-                if shape.name == gt_shape.name == "polyline":
-                    h_dist = shape.hausdorff_distance(gt_shape)
-                    result.polyline_hausdorff_distances.append((h_dist, score))
-                    l_diff = shape.length() - gt_shape.length()
-                    result.length_differences.append((l_diff, score))
+            ious = ious.tocsr()
+            matches = sparse.csgraph.maximum_bipartite_matching(ious, "column")
+            result.false_negatives += len(gt_metadata.regions) - np.count_nonzero(
+                matches >= 0
+            )
 
-            else:
-                result.false_positives.append(score)
+            for i, match in enumerate(matches):
+                score = metadata.regions[i].region_attributes.score
+                if match >= 0:
+                    result.true_positives.append(score)
+                    result.ious.append((ious[i, match], score))
+                    shape = metadata.regions[i].shape_attributes
+                    gt_shape = gt_metadata.regions[match].shape_attributes
+                    if shape.name == gt_shape.name == "polyline":
+                        h_dist = shape.hausdorff_distance(gt_shape)
+                        result.polyline_hausdorff_distances.append((h_dist, score))
+                        l_diff = shape.length() - gt_shape.length()
+                        result.length_differences.append((l_diff, score))
 
-    return result
+                else:
+                    result.false_positives.append(score)
+
+        results.append(result)
+
+    return results

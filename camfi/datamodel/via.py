@@ -1,16 +1,19 @@
 """Defines data structures relating to VGG Image Annotator. Depends on
 camfi.datamodel.geometry."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 import exif
 import pandas as pd
 from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, validator
 import torch
 import torchvision.io
+from tqdm import tqdm
 
 from .geometry import (
     BoundingBox,
@@ -427,6 +430,7 @@ class ViaProject(BaseModel):
         datetime_correctors: Optional[
             Mapping[Path, Optional[DatetimeCorrector]]
         ] = None,
+        disable_progress_bar: Optional[bool] = True,
     ) -> None:
         """Calls the .load_exif_metadata method on all ViaMetadata instances in
         self.via_img_metadata, extracting the EXIF metadata from each image file.
@@ -446,6 +450,9 @@ class ViaProject(BaseModel):
             DatetimeCorrector instances, which are passed to
             ViaMetadata.load_exif_metadata
             Typically, an instance of camfi.util.SubDirDict should be used.
+        disable_progress_bar : Optional[bool]
+            If True (default), progress bar is disabled.
+            If set to None, disable on non-TTY.
 
         Returns
         -------
@@ -501,7 +508,15 @@ class ViaProject(BaseModel):
         if datetime_correctors is None:
             datetime_correctors = defaultdict(lambda: None)
 
-        for metadata in self.via_img_metadata.values():
+        for metadata in tqdm(
+            self.via_img_metadata.values(),
+            disable=disable_progress_bar,
+            desc="Loading EXIF metadata",
+            unit="img",
+            dynamic_ncols=True,
+            ascii=True,
+            color="green",
+        ):
             metadata.load_exif_metadata(
                 root=root,
                 location=location_dict[metadata.filename],
@@ -575,3 +590,35 @@ class ViaProject(BaseModel):
             rows.append(row)
 
         return pd.DataFrame(rows)
+
+    def filtered_copy(
+        self, function: Callable[[ViaMetadata], bool], deep: bool = False
+    ) -> ViaProject:
+        """Filters images in self.via_img_metadata, returning a new ViaProject instance.
+
+        Parameters
+        ----------
+        function : Callable[[ViaMetadata], bool]
+            Called on each value in self.via_img_metadata to determine if it should be
+            included in output.
+        deep : bool
+            If True, make a deep copy.
+
+        Returns
+        -------
+        project : ViaProject
+            Copy of self with via_img_metadata filtered.
+        """
+        if deep:
+            filtered_img_metadata = {
+                key: value.copy(deep=True)
+                for key, value in self.via_img_metadata.items()
+                if function(value)
+            }
+        else:
+            filtered_img_metadata = {
+                key: value
+                for key, value in self.via_img_metadata.items()
+                if function(value)
+            }
+        return self.copy(update={"via_img_metadata": filtered_img_metadata}, deep=deep)

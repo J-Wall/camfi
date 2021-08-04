@@ -43,8 +43,8 @@ annotator:
   training:
     mask_maker:
       shape:
-        - 3312
-        - 4608
+      - 3312
+      - 4608
       mask_dilate: 5
     min_annotations: 1
     max_annotations: 50
@@ -61,4 +61,8 @@ annotator:
     score_thresh: 0.0
   validation:
     autoannotated_via_project_file: data/cabramurra_autoannotated.json
-    output_file: data/validation_all.json
+    image_sets:
+    - all
+    - test
+    - train
+    output_dir: data

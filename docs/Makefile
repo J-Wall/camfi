@@ -22,6 +22,9 @@ source/config_schema.json: FORCE
 
 FORCE: ;
 
+source/cabramurra_config.json: ../examples/data/cabramurra_config.yml
+	python -c "from camfi.projectconfig import CamfiConfig; import os; os.chdir('../examples'); print(CamfiConfig.parse_yaml_file('data/cabramurra_config.yml').json(exclude_unset=True, indent=2))" > $@
+
 notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
 
 notebook_files = usage/notebooks/activity_analysis_files usage/notebooks/annotation_evaluation_files usage/notebooks/camera_calibration_files usage/notebooks/wingbeat_analysis_files
@@ -35,9 +38,9 @@ usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rs
 
 # Catch-all target: route multiple targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst source/config_schema.json $(usages) $(notebooks)
+html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst source/config_schema.json source/cabramurra_config.json $(usages) $(notebooks)
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 clean:
-	rm -f source/modules.rst source/config_schema.json $(notebooks)
+	rm -f source/*.rst $(notebooks)
 	rm -rf _build $(notebook_files)
