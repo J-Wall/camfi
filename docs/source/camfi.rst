@@ -22,6 +22,7 @@ Submodules
    :maxdepth: 4
 
    camfi.annotator
+   camfi.cli
    camfi.models
    camfi.projectconfig
    camfi.transform

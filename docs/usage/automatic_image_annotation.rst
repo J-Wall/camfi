@@ -1,18 +1,36 @@
 Automatic image annotation
 ==========================
 
-Camfi can perform the annotation process for you automatically by using an
-annotation model based of Mask R-CNN. We have trained the model on images of
-Bogong moth motion blurs, and it gives good results. It is very simple to train
-and training can be done on Google Colab, meaning that training can be done
-even if you do not have access to GPU compute.
+Camfi can perform
+the annotation process
+for you
+automatically by using
+an annotation model based
+on Mask R-CNN.
+We have trained
+the model
+on images
+of Bogong moth motion blurs,
+and it gives good results.
 
+In addition to a Camfi :doc:`configuration file <configuration>`,
+a valid VIA project file is required
+to proceed
+with any of
+the following steps.
+See :ref:`via-project-setup`
+for instructions on making
+this file.
 
 Inference (performing automatic annotation)
 -------------------------------------------
 
-If you have trained you model (see next section for how to do this), or if you
-want to use the included model, you can use ``camfiannotate`` to automatically
+If you have trained
+your model
+(see :ref:`training` section for how to do this),
+or if you want to use
+the included model,
+you can use ``camfiannotate`` to automatically
 annotate your images. Sample usage::
 
    $ camfiannotate via_annotation_project_file.json \
@@ -43,6 +61,7 @@ If you want to use a different model, you can set ``--model <filepath>``, where
 ``<filepath>`` is the path to the model you want to use. Alternatively you can
 set ``--model latest``, which will check github for the latest released model.
 
+.. _training:
 
 Training
 --------

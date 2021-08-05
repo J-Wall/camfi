@@ -520,8 +520,7 @@ def extract_all_wingbeats(
     via_project: ViaProject, disable_progress_bar: Optional[bool] = True, **kwargs
 ) -> None:
     """Extracts wingbeat data from all images in via_project, inserting that data into
-    via_project (operates in place). Overwrites any existing annotation data (so you
-    can use the same VIA project file as input to training and inference).
+    via_project (operates in place).
 
     Parameters
     ----------

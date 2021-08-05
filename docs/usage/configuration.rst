@@ -29,7 +29,7 @@ to analyse your data.
 
 The `JSON-Schema <https://json-schema.org/>`_ for
 camfi configuration files is
-:download:`available here <../source/config_schema.json>`.
+:download:`available here <../source/schema/config.schema.json>`.
 It should be possible
 to use the schema
 to generate
@@ -65,7 +65,7 @@ for Camfi configuration files
 in a human-readable
 tabulated format.
 
-.. jsonschema:: ../source/config_schema.json
+.. jsonschema:: ../source/schema/config.schema.json
     :lift_description:
     :lift_definitions:
     :auto_target:

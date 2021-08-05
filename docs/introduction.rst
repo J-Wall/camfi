@@ -1,15 +1,31 @@
 Introduction
 ============
 
-Camfi is a method for the long-term non-invasive monitoring of the activity and
-abundance of low-flying insects using inexpensive wildlife cameras. It provides
-utilities for measuring the wingbeat frequency of insects in still images,
-based on the motion blurs drawn on the image sensor by the insect moving
-through the air. For large-scale monitoring projects, camfi enables automatic
-annotation of flying insects using the Mask R-CNN framework.
+Camfi is a method
+for the long-term non-invasive monitoring
+of the activity
+and abundance
+of low-flying insects
+using inexpensive wildlife cameras.
+It provides utilities
+for measuring
+the wingbeat frequency
+of insects
+in still images,
+based on the motion blurs
+drawn on the image sensor
+by the insect
+moving through the air.
+For large-scale monitoring projects,
+camfi enables
+automatic annotation
+of flying insects
+using the Mask R-CNN framework.
 
-Camfi is implemented as a Python library,
-and it also comes with a simple :doc:`usage/cli`.
+Camfi is implemented
+as a Python library,
+and it also
+comes with a simple :doc:`usage/cli`.
 
 Citing Camfi
 ------------

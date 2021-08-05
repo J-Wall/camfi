@@ -17,7 +17,8 @@ help:
 source/modules.rst: Makefile
 	SPHINX_APIDOC_OPTIONS='members,special-members,show-inheritance' sphinx-apidoc -f -M -H API -e -o source .. ../setup.py
 
-source/config_schema.json: FORCE
+source/schema/config.schema.json: FORCE
+	mkdir -p source/schema
 	python -c "from camfi.projectconfig import CamfiConfig; print(CamfiConfig.schema_json(indent=2))" > $@
 
 FORCE: ;
@@ -38,9 +39,11 @@ usages = usage/installation.rst usage/camera_setup.rst usage/image_annotation.rs
 
 # Catch-all target: route multiple targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst source/config_schema.json source/cabramurra_config.json $(usages) $(notebooks)
+html latexpdf: Makefile conf.py ../requirements.txt source/modules.rst usage/notebooks/notebooks.rst source/schema/config.schema.json source/cabramurra_config.json $(usages) $(notebooks)
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 clean:
 	rm -f source/*.rst $(notebooks)
+	rm -f source/*.json
+	rm -rf source/schema
 	rm -rf _build $(notebook_files)

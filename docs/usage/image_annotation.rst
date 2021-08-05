@@ -1,5 +1,7 @@
-Image annotation
-================
+Manual Image annotation
+=======================
+
+.. _via-project-setup:
 
 Setting up the VIA project file
 -------------------------------

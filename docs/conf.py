@@ -54,6 +54,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx-jsonschema",
+    "sphinxarg.ext",
     "sphinx_rtd_theme",
 ]
 

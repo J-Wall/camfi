@@ -370,6 +370,14 @@ class CamfiConfig(BaseModel):
         description="Sets a global timezone used for various analyses.",
         default_factory=lambda: Timezone("Z"),
     )
+    default_output: Optional[Path] = Field(
+        None,
+        description=(
+            "Path to write output. Outputs defined in "
+            "wingbeat_extractor and annotator "
+            "take precedence over this."
+        ),
+    )
     camera: Optional[CameraConfig] = None
     time: Optional[LocationTimeCollector] = None
     place: Optional[LocationWeatherStationCollector] = None
@@ -477,7 +485,10 @@ class CamfiConfig(BaseModel):
                 "exclude_none=False is not implemented for yaml. "
                 "Consider using json, or leave exclude_none=True."
             )
-        return as_document(json.loads(self.json(**kwargs))).as_yaml()
+        config_dict = json.loads(self.json(**kwargs))
+        if len(config_dict) == 0:
+            return ""
+        return as_document(config_dict).as_yaml()
 
     def get_image_dataframe(self) -> pd.DataFrame:
         """Calls self.via_project.to_image_dataframe(tz=self.output_tz), returning the
@@ -678,8 +689,14 @@ class CamfiConfig(BaseModel):
             disable_progress_bar=self.disable_progress_bar
         )
 
-        if self.annotator.inference.output_path is not None:
-            with open(self.annotator.inference.output_path, "w") as f:
+        # Optionally save ouptut to file
+        output_path = (
+            self.annotator.inference.output_path
+            if self.annotator.inference.output_path
+            else self.default_output
+        )
+        if output_path:
+            with open(output_path, "w") as f:
                 f.write(annotated_project.json(indent=2))
 
         return annotated_project
@@ -733,13 +750,15 @@ class CamfiConfig(BaseModel):
                 subset_functions["all"] = lambda x: True
             elif image_set == "train":
                 if self.annotator.training is None:
-                    raise TrainingConfigUnspecifiedError
-                exclude_set = set(self.annotator.training.test_set)
+                    exclude_set = set()
+                else:
+                    exclude_set = set(self.annotator.training.test_set)
                 subset_functions["train"] = lambda x: x.filename not in exclude_set
             elif image_set == "test":
                 if self.annotator.training is None:
-                    raise TrainingConfigUnspecifiedError
-                include_set = set(self.annotator.training.test_set)
+                    include_set = set()
+                else:
+                    include_set = set(self.annotator.training.test_set)
                 subset_functions["test"] = lambda x: x.filename in include_set
             else:
                 raise ValueError(f"Expected one of all|train|test. Got {image_set}.")
@@ -753,15 +772,29 @@ class CamfiConfig(BaseModel):
         )
 
         # Optionally save to file before returning
-        if self.annotator.validation.output_dir is not None:
+        output_dir = (
+            self.annotator.validation.output_dir
+            if self.annotator.validation.output_dir
+            else self.default_output
+        )
+        if output_dir:
             for image_set, validation_result in zip(
                 self.annotator.validation.image_sets, validation_results
             ):
                 output_file = (
-                    self.annotator.validation.output_dir
+                    output_dir
                     / f"{self.annotator.validation.output_stem}.{image_set}.json"
                 )
                 with open(output_file, "w") as f:
                     f.write(validation_result.json(indent=2))
 
         return validation_results
+
+    def write_project(self) -> None:
+        """Writes self.via_project as json to self.default_output (if set) or stdout."""
+        if self.default_output:
+            with open(self.default_output, "w") as f:
+                f.write(self.via_project.json(indent=2, exclude_unset=True))
+
+        else:
+            print(self.via_project.json(indent=2, exclude_unset=True))

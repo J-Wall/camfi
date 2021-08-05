@@ -38,6 +38,12 @@
       ],
       "type": "string"
     },
+    "default_output": {
+      "title": "Default Output",
+      "description": "Path to write output. Outputs defined in wingbeat_extractor and annotator take precedence over this.",
+      "type": "string",
+      "format": "path"
+    },
     "camera": {
       "$ref": "#/definitions/CameraConfig"
     },
