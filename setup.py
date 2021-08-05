@@ -112,11 +112,9 @@ setup(
     # `pip` to create the appropriate form of executable for the target
     # platform.
     #
-    # entry_points={  # Optional
-    #     "console_scripts": [
-    #         "camfi=camfi.camfi:main",
-    #         "traincamfiannotator=camfi.camfi:_cli_train",
-    #         "camfiannotate=camfi.camfi:_cli_annotate",
-    #     ],
-    # },
+    entry_points={  # Optional
+        "console_scripts": [
+            "camfi=camfi.cli:main",
+        ],
+    },
 )

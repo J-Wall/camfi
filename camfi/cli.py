@@ -5,9 +5,11 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter as Formatter
 from inspect import getdoc
 from pathlib import Path
 from shutil import get_terminal_size
-from sys import stderr
+from sys import exit, stderr
 from textwrap import fill
 from typing import Callable, Optional
+
+from camfi import __version__
 
 CONFIG_URL = "https://camfi.readthedocs.io/en/latest/usage/configuration.html"
 
@@ -210,6 +212,7 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
     commands = Commander.cmds()
     terminal_width = get_terminal_size().columns
     description = [
+            f"Camfi v{__version__}." if not show_rst else "",
         (
             "Camfi is a method "
             "for the long-term non-invasive monitoring "
@@ -262,7 +265,7 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
             )
             epilog.append(
                 fill(
-                    f"{_command} {'`'.join(docs.split('``'))}",
+                    f"{_command} {''.join(docs.split('``'))}",
                     width=terminal_width,
                     subsequent_indent=f"{'':24}",
                 )
@@ -275,6 +278,11 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
         formatter_class=Formatter,
     )
 
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Show version and exit.",
+    )
     parser.add_argument(
         "-c",
         "--config",
@@ -375,6 +383,10 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
 def main():
     parser = get_argument_parser(show_rst=False)
     args = parser.parse_args()
+
+    if args.version:
+        print(f"Camfi v{__version__}")
+        exit(0)
 
     # Set vprint and vvprint
     if args.verbose:
