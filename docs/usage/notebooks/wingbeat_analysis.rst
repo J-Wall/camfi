@@ -8,210 +8,485 @@ First, load the required libraries.
 
 .. code:: ipython3
 
-    import math
+    from pathlib import Path
     
-    from bces import bces
-    import matplotlib as mpl
     from matplotlib import pyplot as plt
     import numpy as np
-    from numpy.random import default_rng
-    from scipy.stats import norm
-    from sklearn.mixture import GaussianMixture
+    
+    from camfi.projectconfig import CamfiConfig
+    from camfi.plotting.matplotlib import MatplotlibWingbeatFrequencyPlotter
+    from camfi.wingbeat import BcesEM, GMM
 
-Next, load the wingbeat frequency data. It is in a tab-separated format
-with the following columns:
+To run ``via_project.load_all_exif_metadata`` and
+``wingbeat_extractor.extract_wingbeats()`` below, you will first need to
+download the dataset ``2019-11_cabramurra.zip`` from the Zenodo
+repository. The link to the repository is here:
+https://doi.org/10.5281/zenodo.4950570.
 
-1.  ``image_name`` : relative path to image
-2.  ``capture_time`` : datetime in yyyy-mm-dd HH:MM:SS format
-3.  ``annotation_idx`` : index of annotation in image (arbitrary)
-4.  ``best_peak`` : period of wingbeat in pixels
-5.  ``blur_length`` : length of motion blur in pixels
-6.  ``snr`` : signal to noise ratio of best peak
-7.  ``wb_freq_up`` : wingbeat frequency estimate, assuming upward motion
-    (and zero body-length)
-8.  ``wb_freq_down`` : wingbeat frequency estimate, assuming downward
-    motion (and zero body-length)
-9.  ``et_up`` : corrected moth exposure time, assuming upward motion
-10. ``et_dn`` : corrected moth exposure time, assuming downward motion
-11. ``period_up`` : wingbeat period, assuming upward motion (and zero
-    body-length)
-12. ``period_dn`` : wingbeat period, assuming downward motion (and zero
-    body-length)
-13. ``spec_dens`` : comma separated values, with the spectral density
-    array associated with the annotation
+If you uncomment the code in the next three code cells, it is assumed
+you have extracted the images to ``"data/"``. Of course you can extract
+it elsewhere and change ``root`` config variable accordingly.
 
-For the purposes of this notebook, we are particularly interested in
-wingbeat frequency, so we will only load the relevant columns. For other
-analyses you may want to load additional columns such as
-``capture_time`` etc.
+``"data/cabramurra_all_annotations.json"`` already contains all the
+wingbeat data we need, so in this instance, we don’t need to re-run the
+time-consuming metadata and wingbeat extraction code. Therefore, we
+don’t need the image files.
+
+The next cell loads the annotations, and the location and time data used
+to correct the camera timestamps, which can often be out (either if the
+camera was set incorrectly, or if it just has an inaccurate clock… which
+is often the case for cheap cameras).
 
 .. code:: ipython3
 
-    data_path = "data/cabramurra_wingbeats.csv.bz2"
+    config_path = "data/cabramurra_config.yml"
     
-    data = np.loadtxt(
-        data_path,
-        dtype=[
-            ('best_peak', 'u2'),
-            ('blur_length', 'u2'),
-            ('snr', 'f8'),
-            ('wb_freq_up', 'f8'),
-            ('wb_freq_dn', 'f8'),
-            ('et_up', 'f8'),
-            ('et_dn', 'f8')
-        ],
-        usecols=(3, 4, 5, 6, 7, 8, 9),
-        delimiter='\t',
-        skiprows=1,
-    )
+    config = CamfiConfig.parse_yaml_file(config_path)
+    
+    # We can print out our config using config.json() or config.yaml()
+    print(config.json(exclude_unset=True, indent=2))
 
-Next we want to filter the data by SNR.
+
+.. parsed-literal::
+
+    {
+      "root": "data",
+      "via_project_file": "data/cabramurra_all_annotations.json",
+      "day_zero": "2019-01-01",
+      "output_tz": "+10:00",
+      "camera": {
+        "camera_time_to_actual_time_ratio": 1.0,
+        "line_rate": 90500.0
+      },
+      "time": {
+        "camera_placements": {
+          "2019-11_cabramurra/0004": {
+            "camera_start_time": "2019-10-14T13:00:00+11:00",
+            "actual_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          },
+          "2019-11_cabramurra": {
+            "camera_start_time": "2019-11-14T13:00:00+11:00",
+            "location": "cabramurra"
+          }
+        }
+      },
+      "place": {
+        "locations": [
+          {
+            "name": "cabramurra",
+            "lat": -35.9507,
+            "lon": 148.3972,
+            "elevation_m": 1513.9,
+            "tz": "+10:00"
+          }
+        ],
+        "weather_stations": [
+          {
+            "location": {
+              "name": "cabramurra_smhea_aws_072161",
+              "lat": -35.94,
+              "lon": 148.38,
+              "elevation_m": 1482.4,
+              "tz": "+10:00"
+            },
+            "data_file": "data/cabramurra_bom_weather_201911.csv"
+          }
+        ],
+        "location_weather_station_mapping": {
+          "cabramurra": "cabramurra_smhea_aws_072161"
+        }
+      },
+      "wingbeat_extraction": {
+        "device": "cpu",
+        "scan_distance": 50
+      },
+      "annotator": {
+        "crop": {
+          "x0": 0,
+          "y0": 0,
+          "x1": 4608,
+          "y1": 3312
+        },
+        "training": {
+          "mask_maker": {
+            "shape": [
+              3312,
+              4608
+            ],
+            "mask_dilate": 5
+          },
+          "min_annotations": 1,
+          "max_annotations": 50,
+          "test_set_file": "data/cabramurra_test_set.txt",
+          "device": "cuda",
+          "batch_size": 5,
+          "num_workers": 2,
+          "num_epochs": 20,
+          "save_intermediate": true
+        },
+        "inference": {
+          "output_path": "data/cabramurra_autoannotated.json",
+          "device": "cuda",
+          "backup_device": "cpu",
+          "score_thresh": 0.0
+        },
+        "validation": {
+          "autoannotated_via_project_file": "data/cabramurra_autoannotated.json",
+          "image_sets": [
+            "all",
+            "test",
+            "train"
+          ],
+          "output_dir": "data"
+        }
+      }
+    }
+
+
+To get the timestamps for the images, we need to read the EXIF metadata
+from the image files. Here we also apply time correction. The code is
+commented out since the metadata has already been loaded into
+``"data/cabramurra_all_annotations.json"``, but if you are working with
+a different dataset, or would like to re-run IO intensive this step,
+uncomment the code.
+
+.. code:: ipython3
+
+    # Uncomment if exif metadata hasn't been loaded already.
+    # config.load_all_exif_metadata()
+
+After the EXIF metadata has been loaded, we can run the camfi algorithm
+to measure the wingbeat frequencies of moths seen in the images. Again,
+this has already been run and the data is included in
+``"data/cabramurra_all_annotations.json"``, so only uncomment if you
+have downloaded the image dataset and want to re-run (or you are running
+on your own dataset). This step may take a while to run.
+
+**Note:** This step can be accelerated using a GPU. If you have one on
+your system, consider setting
+``"wingbeat_extraction":{"device":"cuda","backup_device":"cpu"}`` in
+``data/cabramurra_config.json``.
+
+.. code:: ipython3
+
+    # Uncomment if wingbeat data hasn't been extracted already
+    # config.extract_all_wingbeats()
+
+After running the above two steps, you might like to save the results to
+a new VIA project file. Uncommenting the following will save a new VIA
+project file to ``"data/all_annotations_with_wingbeats.json"``.
+
+.. code:: ipython3
+
+    # with open("data/all_annotations_with_wingbeats.json", "w") as f:
+    #     f.write(config.via_project.json(indent=2, exclude_unset=True))
+
+The ``camfi.datamodel.via.ViaProject`` class is useful for loading and
+validating files which are compatible with VIA, however for some
+analyses it is more convenient to have a Pandas DataFrame. The
+``to_region_dataframe`` method of ``camfi.datamodel.via.ViaProject``
+makes this conversion simple.
+
+.. code:: ipython3
+
+    regions = config.via_project.to_region_dataframe()
+    regions
+
+
+
+
+.. raw:: html
+
+    <div>
+    <style scoped>
+        .dataframe tbody tr th:only-of-type {
+            vertical-align: middle;
+        }
+    
+        .dataframe tbody tr th {
+            vertical-align: top;
+        }
+    
+        .dataframe thead th {
+            text-align: right;
+        }
+    </style>
+    <table border="1" class="dataframe">
+      <thead>
+        <tr style="text-align: right;">
+          <th></th>
+          <th>img_key</th>
+          <th>filename</th>
+          <th>name</th>
+          <th>datetime_corrected</th>
+          <th>datetime_original</th>
+          <th>exposure_time</th>
+          <th>location</th>
+          <th>pixel_x_dimension</th>
+          <th>pixel_y_dimension</th>
+          <th>score</th>
+          <th>best_peak</th>
+          <th>blur_length</th>
+          <th>snr</th>
+          <th>wb_freq_up</th>
+          <th>wb_freq_down</th>
+          <th>et_up</th>
+          <th>et_dn</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>0</th>
+          <td>2019-11_cabramurra/0001/DSCF0009.JPG-1</td>
+          <td>2019-11_cabramurra/0001/DSCF0009.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-14 20:20:26+11:00</td>
+          <td>2019-11-14 20:20:26</td>
+          <td>0.111111</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>111.0</td>
+          <td>536.292725</td>
+          <td>12.966407</td>
+          <td>44.505436</td>
+          <td>41.726944</td>
+          <td>0.107531</td>
+          <td>0.114691</td>
+        </tr>
+        <tr>
+          <th>1</th>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG-1</td>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-14 20:30:29+11:00</td>
+          <td>2019-11-14 20:30:29</td>
+          <td>0.111111</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>237.0</td>
+          <td>1008.291016</td>
+          <td>5.783094</td>
+          <td>40.686996</td>
+          <td>35.853527</td>
+          <td>0.104095</td>
+          <td>0.118128</td>
+        </tr>
+        <tr>
+          <th>2</th>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG-1</td>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-14 20:30:29+11:00</td>
+          <td>2019-11-14 20:30:29</td>
+          <td>0.111111</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>165.0</td>
+          <td>675.603577</td>
+          <td>21.689453</td>
+          <td>36.698574</td>
+          <td>36.494766</td>
+          <td>0.110802</td>
+          <td>0.111421</td>
+        </tr>
+        <tr>
+          <th>3</th>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG-1</td>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-14 20:30:29+11:00</td>
+          <td>2019-11-14 20:30:29</td>
+          <td>0.111111</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>116.0</td>
+          <td>660.467407</td>
+          <td>6.046125</td>
+          <td>51.069618</td>
+          <td>50.624634</td>
+          <td>0.110625</td>
+          <td>0.111597</td>
+        </tr>
+        <tr>
+          <th>4</th>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG-1</td>
+          <td>2019-11_cabramurra/0001/DSCF0010.JPG</td>
+          <td>circle</td>
+          <td>2019-11-14 20:30:29+11:00</td>
+          <td>2019-11-14 20:30:29</td>
+          <td>0.111111</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+        </tr>
+        <tr>
+          <th>...</th>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+          <td>...</td>
+        </tr>
+        <tr>
+          <th>1414</th>
+          <td>2019-11_cabramurra/0010/DSCF0747.JPG-1</td>
+          <td>2019-11_cabramurra/0010/DSCF0747.JPG</td>
+          <td>point</td>
+          <td>2019-11-24 23:21:23+11:00</td>
+          <td>2019-11-24 23:21:23</td>
+          <td>0.100000</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+        </tr>
+        <tr>
+          <th>1415</th>
+          <td>2019-11_cabramurra/0010/DSCF0777.JPG-1</td>
+          <td>2019-11_cabramurra/0010/DSCF0777.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-25 04:22:54+11:00</td>
+          <td>2019-11-25 04:22:54</td>
+          <td>0.100000</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>107.0</td>
+          <td>520.138428</td>
+          <td>11.467738</td>
+          <td>48.212074</td>
+          <td>48.084389</td>
+          <td>0.099867</td>
+          <td>0.100133</td>
+        </tr>
+        <tr>
+          <th>1416</th>
+          <td>2019-11_cabramurra/0010/DSCF0779.JPG-1</td>
+          <td>2019-11_cabramurra/0010/DSCF0779.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-25 04:43:00+11:00</td>
+          <td>2019-11-25 04:43:00</td>
+          <td>0.100000</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>82.0</td>
+          <td>389.173492</td>
+          <td>3.202193</td>
+          <td>47.306557</td>
+          <td>46.436455</td>
+          <td>0.099072</td>
+          <td>0.100928</td>
+        </tr>
+        <tr>
+          <th>1417</th>
+          <td>2019-11_cabramurra/0010/DSCF0780.JPG-1</td>
+          <td>2019-11_cabramurra/0010/DSCF0780.JPG</td>
+          <td>polyline</td>
+          <td>2019-11-25 04:53:04+11:00</td>
+          <td>2019-11-25 04:53:04</td>
+          <td>0.100000</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>129.0</td>
+          <td>591.514160</td>
+          <td>5.017477</td>
+          <td>46.047268</td>
+          <td>45.040775</td>
+          <td>0.098895</td>
+          <td>0.101105</td>
+        </tr>
+        <tr>
+          <th>1418</th>
+          <td>2019-11_cabramurra/0010/DSCF0851.JPG-1</td>
+          <td>2019-11_cabramurra/0010/DSCF0851.JPG</td>
+          <td>point</td>
+          <td>2019-11-26 04:43:00+11:00</td>
+          <td>2019-11-26 04:43:00</td>
+          <td>0.100000</td>
+          <td>cabramurra</td>
+          <td>4608</td>
+          <td>3456</td>
+          <td>None</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+          <td>NaN</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>1419 rows × 17 columns</p>
+    </div>
+
+
+
+Next we want proceed with just polyline annotations (as these are the
+only type which enable wingbeat measurement), and we also want to filter
+the data by an SNR threshold.
 
 .. code:: ipython3
 
     snr_thresh = 4.0
+    polyline_regions = regions[regions["name"] == "polyline"]
+    above_thresh = polyline_regions[polyline_regions["snr"] >= snr_thresh]
 
-Visualising the data, with the SNR threshold indicated:
+We can already visualise the data, with the SNR threshold indicated by a
+red line.
 
 .. code:: ipython3
 
-    filtered_data = data[data['snr'] >= snr_thresh]
-    
-    # Setting up the figure with multiple subfigures
-    left, width = 0.1, 0.4
-    bottom, height = 0.1, 0.4
-    hist_height = 0.2
-    spacing = 0
-    spacing_regression = -0.12
-    
-    rect_scatter = [left, bottom, width, height]
-    rect_histx = [left, bottom + height + spacing, width, hist_height]
-    rect_histy = [left + width + spacing, bottom, hist_height, height]
-    rect_regression = [
-        left + width + spacing_regression,
-        bottom + height + spacing_regression,
-        1. - left - width - spacing_regression,
-        1. - bottom - height - spacing_regression,
-    ]
-    
-    fig = plt.figure(
-        figsize=(7.5, 5.2),
-        #dpi=1000.0,
+    plotter = MatplotlibWingbeatFrequencyPlotter(
+        polyline_regions=polyline_regions,
+        snr_thresh=snr_thresh,
     )
-    
-    # Plotting preliminary wingbeat frequency data with marginal distributions
-    ax = fig.add_axes(
-        rect_scatter,
-        xlabel="Preliminary wingbeat frequency (Hz)",
-        ylabel="SNR",
-        xscale="log",
-    )
-    # Plot above-threshold data
-    ax.plot(
-        np.stack((
-            data['wb_freq_dn'][data['snr'] >= snr_thresh],
-            data['wb_freq_up'][data['snr'] >= snr_thresh],
-        )),
-        np.broadcast_to(
-            data['snr'][data['snr'] >= snr_thresh],
-            (2,) + data[data['snr'] >= snr_thresh].shape,
-        ),
-        c="k",
-        alpha=0.5,
-        lw=1,
-    )
-    # Plot below-threshold data
-    ax.plot(
-        np.stack((
-            data['wb_freq_dn'][data['snr'] < snr_thresh],
-            data['wb_freq_up'][data['snr'] < snr_thresh],
-        )),
-        np.broadcast_to(
-            data['snr'][data['snr'] < snr_thresh],
-            (2,) + data[data['snr'] < snr_thresh].shape,
-        ),
-        c="grey",
-        alpha=0.5,
-        lw=1,
-    )
-        
-    ax.axhline(snr_thresh, c="r", zorder=0, label="SNR Threshold")
-    
-    # Plotting marginals
-    ax_histx = fig.add_axes(rect_histx, sharex=ax)
-    ax_histy = fig.add_axes(rect_histy, sharey=ax)
-    
-    # no labels
-    ax_histx.axis("off")
-    ax_histy.axis("off")
-    
-    
-    hx, bx, p = ax_histx.hist(
-        np.concatenate([
-            data['wb_freq_dn'],
-            data['wb_freq_up']
-        ]),
-        bins=np.logspace(
-            np.log10(min(data['wb_freq_dn'])),
-            np.log10(max(data['wb_freq_up']))
-        ),
-        facecolor="grey",
-        alpha=0.5,
-    )
-    
-    hx_filt, bx_filt, p = ax_histx.hist(
-        np.concatenate([
-            filtered_data['wb_freq_dn'],
-            filtered_data['wb_freq_up']
-        ]),
-        bins=bx,
-        facecolor="k",
-        alpha=0.5,
-    )
-    
-    hy, by, p = ax_histy.hist(
-        data['snr'],
-        bins=50,
-        orientation='horizontal',
-        facecolor="grey",
-        alpha=0.5,
-    )
-    
-    ax_histy.hist(
-        filtered_data['snr'],
-        bins=by,
-        orientation='horizontal',
-        facecolor="k",
-        alpha=0.5,
-    )
-    
-    # SNR threshold line should be continued into the marginal
-    ax_histy.axhline(snr_thresh, c="r", zorder=1, label="SNR Threshold")
-    
-    # Plotting blur length vs. pixel-period * ∆t for filtered data only
-    ax_regression = fig.add_axes(
-        rect_regression,
-        ylabel="$L$ (pixels)",
-        xlabel="$P∆t$ (pixels · s)",
-    )
-    
-    p = ax_regression.plot(
-        np.stack((
-            filtered_data["best_peak"] * filtered_data["et_up"],
-            filtered_data["best_peak"] * filtered_data["et_dn"],
-        )),
-        np.broadcast_to(
-            filtered_data["blur_length"],
-            (2,) + filtered_data.shape,
-        ),
-        c="k",
-        alpha=0.5,
-        lw=1,
-    )
+    fig = plotter.plot()
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_7_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_15_0.png
 
 
 Based on the above plots, we now wish to select a number of target
@@ -224,395 +499,121 @@ of wingbeat frequency.
 
     n_classes = 2
 
-Fitting the Gaussian mixture-model to the preliminary wingbeat data:
+Operating on the preliminary wingbeat data (figure a), we can fit a
+Gaussian mixture-model.
 
 .. code:: ipython3
 
-    gmm = GaussianMixture(n_components=n_classes, random_state=20200721)
-    labels = gmm.fit_predict(
-        np.log10(np.concatenate([
-            filtered_data['wb_freq_dn'],
-            filtered_data['wb_freq_up']
-        ])).reshape(-1, 1))
+    gmm = GMM.log10_from_region_dataframe(
+        above_thresh,
+        n_classes,
+        seed=1234567890  # Not reuired to set, but makes the results
+                         # reproducible
+    )
+    gmm_results = sorted(gmm.fit())  # Order of classes is random, so we sort
+                                     # to make it predictable.
     
-    print("converged:", gmm.converged_)
-    
-    labels = labels[:filtered_data.shape[0]] + labels[filtered_data.shape[0]:]
+    print("log10 Gaussian Mixture Model parameters:")
+    print("\n".join(str(r) for r in gmm_results))
 
 
 .. parsed-literal::
 
-    converged: True
+    log10 Gaussian Mixture Model parameters:
+    mean=1.3968704095248994 std=0.0755076055338635 weight=0.14025772662404282
+    mean=1.6913164856912772 std=0.07106824294152196 weight=0.8597422733759577
+
+
+In Hz, the mean preliminary wingbeat frequencies for the respective
+classes are
+
+.. code:: ipython3
+
+    print("\n".join(f"{10 ** r.mean} Hz" for r in gmm_results))
+
+
+.. parsed-literal::
+
+    24.93850468145082 Hz
+    49.126574840025675 Hz
+
+
+We can set the ``gmm_results`` parameter to plot the figure with the
+Gaussian mixture model shown.
+
+.. code:: ipython3
+
+    plotter = MatplotlibWingbeatFrequencyPlotter(
+        polyline_regions=polyline_regions,
+        snr_thresh=snr_thresh,
+        gmm_results=gmm_results,
+    )
+    fig = plotter.plot()
+
+
+
+.. image:: wingbeat_analysis_files/wingbeat_analysis_23_0.png
 
 
 Now we use an EM algorithm to classify the data using BCES regressions
-of :math:`L` vs. :math:`P \Delta t`. Here we will plot the result of the
-regression under the initial randomisation as well as after the final EM
-iteration
+of :math:`L` vs. :math:`P \Delta t`.
 
 .. code:: ipython3
 
-    rng = default_rng(20201008)
+    bces_em = BcesEM.from_region_dataframe(
+        above_thresh, n_classes, seed=1234567890
+    )
+    bces_results = bces_em.fit()
+
+The order of the classes is random, so we sort to make them predictable
+(and line up better with the sorted classes from the GMM). This will
+make colouring comparable across the two models. Unfortunately we can’t
+*just* sort ``bces_results``, because then the colours of the scatter
+plot wouldn’t be guaranteed to match the regression lines. We have to
+also re-map the ``bces_em.class_mask`` values.
+
+This can do this re-mapping with some indexing trickery using
+``np.argsort``, and then we can sort ``bces_results`` the normal way.
+
+.. code:: ipython3
+
+    inverse_index = np.argsort(np.argsort(bces_results))
+    class_mask = inverse_index[bces_em.class_mask]
+    bces_results = sorted(bces_results)
     
-    # E-step
-    class_mask = rng.integers(0, n_classes, len(filtered_data), "u1")
-    prob_class = np.array([np.mean(class_mask == i) for i in range(n_classes)])
-    n_class_members = np.array([np.count_nonzero(class_mask == i) for i in range(n_classes)])
-    tiled_class_mask = np.tile(class_mask, 2)
-    
-    def bces_em(data, class_mask, prob_class, n_classes):
-        xerr = data["best_peak"] * (data["et_dn"] - data["et_up"]) / 2
-        yerr = np.zeros_like(xerr)
-        x = data["best_peak"] * data["et_up"] + xerr
-        y = data["blur_length"]
-        cov = np.zeros_like(x)
-        
-        estimates = []
-        err = np.zeros((n_classes, len(data)))
-        for class_id in range(n_classes):
-            mask = class_mask == class_id
-            wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl = (
-                e[0] for e in bces.bces(x[mask], xerr[mask], y[mask], yerr[mask], cov[mask])
-            )
-            estimates.append((wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl))
-            
-            err[class_id, :] = (bl_estimate + wf_estimate * x - y) ** 2 / prob_class[class_id]
-            
-        return estimates, err
-    
-    
-    def plot_multiple_regression(data, class_mask, estimates):
-        cmap = np.array(["b", "g", "r", "k"])
-        fig = plt.figure()
-        ax = fig.add_subplot(
-            111,
-            title="Blur length vs. (pixel-wingbeat period * exposure time)",
-            ylabel="Blur length (px)",
-            xlabel="Pixel-wingbeat period * Exposure time (px * s)",
-        )
-    
-        for i in range(len(estimates)):
-            # Plot data
-            ax.plot(
-                np.stack((
-                    (data["best_peak"] * data["et_up"])[class_mask == i],
-                    (data["best_peak"] * data["et_dn"])[class_mask == i],
-                )),
-                np.broadcast_to(
-                    data["blur_length"][class_mask == i],
-                    (2,) + data[class_mask == i].shape,
-                ),
-                c=cmap[i],
-                alpha=0.5,
-                lw=1,
-            )
-               
-            # Plot regression line
-            wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl = estimates[i]
-            ax.plot(
-                [0, max(data["best_peak"] * data["et_dn"])],
-                [bl_estimate, wf_estimate * max(data["best_peak"] * data["et_dn"]) + bl_estimate],
-                c=cmap[i]
-            )
-    
-    
-    for i in range(50):
-        estimates, err = bces_em(filtered_data, class_mask, prob_class, n_classes)
-        if i == 0:
-            plot_multiple_regression(filtered_data, class_mask, estimates)
-        class_mask_temp = np.argmin(err, axis=0)
-        if (class_mask == class_mask_temp).all():
-            print(f"stopped after iteration {i}")
-            break
-        
-        if i == 0:
-            j = 0
-            for wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl in estimates:
-                print(f"\n--- Iteration {i}, Regression {j}")
-                print(f"prob_class:, {prob_class[j]}")
-                print(f"Wingbeat frequency: {wf_estimate} +/- {wf_err} Hz")
-                print(f"Body length: {bl_estimate} +/- {bl_err} px")
-                print(f"Covariance: {cov_wf_bl}")
-                j += 1
-        
-        class_mask[:] = class_mask_temp
-        prob_class = np.array([np.mean(class_mask == i) for i in range(n_classes)])
-        n_class_members = np.array([np.count_nonzero(class_mask == i) for i in range(n_classes)])
-            
-    plot_multiple_regression(filtered_data, class_mask, estimates)
-    j = 0
-    for wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl in estimates:
-        print(f"\n--- Iteration {i}, Regression {j}")
-        print(f"prob_class:, {prob_class[j]}")
-        print(f"n_class_members:, {n_class_members[j]}")
-        print(f"Wingbeat frequency: {wf_estimate} +/- {wf_err} Hz")
-        print(f"Body length: {bl_estimate} +/- {bl_err} px")
-        print(f"Covariance: {cov_wf_bl}")
-        j += 1
+    print("Multiple BCES linear regression parameters:")
+    print("\n".join(str(b) for b in bces_results))
 
 
 .. parsed-literal::
 
-    
-    --- Iteration 0, Regression 0
-    prob_class:, 0.467687074829932
-    Wingbeat frequency: 37.063683080358814 +/- 3.5250747416266788 Hz
-    Body length: 127.85101522566015 +/- 47.81817737917329 px
-    Covariance: -165.34240492286315
-    
-    --- Iteration 0, Regression 1
-    prob_class:, 0.532312925170068
-    Wingbeat frequency: 39.80546342745053 +/- 2.755691942102085 Hz
-    Body length: 91.65510681931562 +/- 37.57809201311573 px
-    Covariance: -100.27083282528011
-    stopped after iteration 11
-    
-    --- Iteration 11, Regression 0
-    prob_class:, 0.1326530612244898
-    n_class_members:, 78
-    Wingbeat frequency: 23.466053959690015 +/- 1.556810066609258 Hz
-    Body length: 18.48362816432251 +/- 26.19545270649577 px
-    Covariance: -39.134953347059586
-    
-    --- Iteration 11, Regression 1
-    prob_class:, 0.8673469387755102
-    n_class_members:, 510
-    Wingbeat frequency: 47.216324294653226 +/- 1.3084396195710057 Hz
-    Body length: 36.269535893196235 +/- 17.388466508134254 px
-    Covariance: -21.960631386433548
-
-
-
-.. image:: wingbeat_analysis_files/wingbeat_analysis_13_1.png
-
-
-
-.. image:: wingbeat_analysis_files/wingbeat_analysis_13_2.png
+    Multiple BCES linear regression parameters:
+    gradient=23.684945219639722 y_intercept=21.164640791557133 gradient_stderr=1.8436575083709323 y_intercept_stderr=30.356672106881156 cov_xy=-54.37303718722761
+    gradient=48.648490469072115 y_intercept=30.410128999818426 gradient_stderr=1.4469572965456388 y_intercept_stderr=18.927271182452444 cov_xy=-26.431054889875146
 
 
 Finally, we reproduce the figure from the publication, which includes
-the GMM and EM classification
+both the GMM and EM classification
 
 .. code:: ipython3
 
-    filtered_data = data[data['snr'] >= snr_thresh]
-    
-    a_alpha = 1.
-    b_alpha = 0.5
-    
-    # Setting up the figure with multiple subfigures
-    left, width = 0.1, 0.4
-    bottom, height = 0.1, 0.4
-    hist_height = 0.2
-    spacing = 0
-    spacing_regression = -0.12
-    
-    rect_scatter = [left, bottom, width, height]
-    rect_histx = [left, bottom + height + spacing, width, hist_height]
-    rect_histy = [left + width + spacing, bottom, hist_height, height]
-    rect_regression = [
-        left + width + spacing_regression,
-        bottom + height + spacing_regression,
-        1. - left - width - spacing_regression,
-        1. - bottom - height - spacing_regression,
-    ]
-    
-    fig_width = 180  # mm
-    fig_width /= 25.4  # inches
-    fig_height = fig_width * 3 / 4
-    
-    fig = plt.figure(
-        figsize=(fig_width, fig_height),
+    plotter = MatplotlibWingbeatFrequencyPlotter(
+        polyline_regions=polyline_regions,
+        snr_thresh=snr_thresh,          # Must be the same threshold used to
+                                        # make the class_mask.
+        class_mask=class_mask,          # Adds colour to the measurements
+        gmm_results=gmm_results,        # Include the GMM plots
+        bces_results=bces_results,      # Include the BCES regression lines
     )
-    
-    # Plotting preliminary wingbeat frequency data with marginal distributions
-    ax = fig.add_axes(
-        rect_scatter,
-        xlabel="Preliminary wingbeat frequency (Hz)",
-        ylabel="SNR",
-        xscale="log",
-        xlim=(10, 1000),
-    )
-    
-    # Plot above-threshold data
-    ax.plot(
-        np.stack((
-            data['wb_freq_dn'][data['snr'] >= snr_thresh],
-            data['wb_freq_up'][data['snr'] >= snr_thresh],
-        )),
-        np.broadcast_to(
-            data['snr'][data['snr'] >= snr_thresh],
-            (2,) + data[data['snr'] >= snr_thresh].shape,
-        ),
-        c="k",
-        alpha=a_alpha,
-        lw=1,
-    )
-    # Plot below-threshold data
-    ax.plot(
-        np.stack((
-            data['wb_freq_dn'][data['snr'] < snr_thresh],
-            data['wb_freq_up'][data['snr'] < snr_thresh],
-        )),
-        np.broadcast_to(
-            data['snr'][data['snr'] < snr_thresh],
-            (2,) + data[data['snr'] < snr_thresh].shape,
-        ),
-        c="grey",
-        alpha=a_alpha,
-        lw=1,
-    )
-        
-    ax.axhline(snr_thresh, c="r", zorder=10, label="SNR Threshold")
-    
-    # Plotting marginals
-    ax_histx = fig.add_axes(rect_histx, sharex=ax)
-    ax_histy = fig.add_axes(rect_histy, sharey=ax)
-    
-    # no labels
-    ax_histx.axis("off")
-    ax_histy.axis("off")
-    
-    
-    hx, bx, p = ax_histx.hist(
-        np.concatenate([
-            data['wb_freq_dn'],
-            data['wb_freq_up']
-        ]),
-        bins=np.logspace(
-            np.log10(min(data['wb_freq_dn'])),
-            np.log10(max(data['wb_freq_up']))
-        ),
-        facecolor="grey",
-        alpha=a_alpha,
-    )
-    
-    hx_filt, bx_filt, p = ax_histx.hist(
-        np.concatenate([
-            filtered_data['wb_freq_dn'],
-            filtered_data['wb_freq_up']
-        ]),
-        bins=bx,
-        facecolor="k",
-        alpha=a_alpha,
-    )
-    
-    # Plotting GMM
-    scaling = np.mean(hx_filt * (bx_filt[1:] - bx_filt[:-1])) / 2
-    
-    pdf_x0 = np.logspace(
-        gmm.means_[0][0] - math.sqrt(gmm.covariances_[0][0]) * 4,
-        gmm.means_[0][0] + math.sqrt(gmm.covariances_[0][0]) * 4,
-        num=100,
-    )
-    
-    ax_histx.plot(
-        pdf_x0,
-        scaling * gmm.weights_[0] * norm.pdf(np.log10(pdf_x0), loc=gmm.means_[0][0], scale=math.sqrt(gmm.covariances_[0][0])),
-        c='tab:green',
-        label="0",
-        linewidth=3,
-    )
-    
-    pdf_x1 = np.logspace(
-        gmm.means_[1][0] - math.sqrt(gmm.covariances_[1][0]) * 4,
-        gmm.means_[1][0] + math.sqrt(gmm.covariances_[1][0]) * 4,
-        num=100,
-    )
-    
-    ax_histx.plot(
-        pdf_x1,
-        scaling * gmm.weights_[1] * norm.pdf(np.log10(pdf_x1), loc=gmm.means_[1][0], scale=math.sqrt(gmm.covariances_[1][0])),
-        c='tab:blue',
-        label="2",
-        linewidth=3,
-    )
-    
-    # Plotting vertical marginal
-    # First need to pin bin edges to snr_thresh to avoid overlap
-    min_snr = data['snr'].min()
-    max_snr = data['snr'].max()
-    nbins = 50
-    by = np.linspace(
-        min_snr - (max_snr - min_snr) / nbins,
-        max_snr,
-        num=nbins + 1,
-    )
-    by += snr_thresh - by[by <= snr_thresh][-1]
-    
-    hy, by, p = ax_histy.hist(
-        data['snr'],
-        bins=by,
-        orientation='horizontal',
-        facecolor="grey",
-        alpha=a_alpha,
-    )
-    
-    ax_histy.hist(
-        filtered_data['snr'],
-        bins=by,
-        orientation='horizontal',
-        facecolor="k",
-        alpha=a_alpha,
-    )
-    
-    # SNR threshold line should be continued into the marginal
-    ax_histy.axhline(snr_thresh, c="r", zorder=1, label="SNR Threshold")
-    
-    # Plotting blur length vs. pixel-period * ∆t for filtered data only
-    ax_regression = fig.add_axes(
-        rect_regression,
-        ylabel="$L$ (pixels)",
-        xlabel="$P∆t$ (pixels · s)",
-    )
-    
-    # Define colours for each class
-    cmap = np.array(["tab:blue", "tab:green", "r", "k"])
-    assert len(cmap) >= n_classes, "Need to define more colours"
-    
-    for i in range(len(estimates)):
-        # Plot the data
-        ax_regression.plot(
-            np.stack((
-                (filtered_data["best_peak"] * filtered_data["et_up"])[class_mask == i],
-                (filtered_data["best_peak"] * filtered_data["et_dn"])[class_mask == i],
-            )),
-            np.broadcast_to(
-                filtered_data["blur_length"][class_mask == i],
-                (2,) + filtered_data[class_mask == i].shape,
-            ),
-            c=cmap[i],
-            alpha=b_alpha,
-            lw=1,
-        )
-        
-        # Plot the regression lines
-        wf_estimate, bl_estimate, wf_err, bl_err, cov_wf_bl = estimates[i]
-        ax_regression.plot(
-            [0, max(data["best_peak"] * data["et_dn"])],
-            [bl_estimate, wf_estimate * max(data["best_peak"] * data["et_dn"]) + bl_estimate],
-            c=cmap[i]
-        )
-        
-    # Add titles
-    title_y = 0.88
-    a_title = ax.set_title(
-        " (a)",
-        fontdict={"fontweight": "bold"},
-        loc="left",
-        y=title_y
-    )
-    b_title = ax_regression.set_title(
-        " (b)",
-        fontdict={"fontweight": "bold"},
-        loc="left",
-        y=title_y
-    )
+    fig = plotter.plot()
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_15_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_29_0.png
 
+
+``fig`` is just a matplotlib ``Figure`` instance, so we can save it
+quite easily.
 
 .. code:: ipython3
 

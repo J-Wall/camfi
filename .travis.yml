@@ -1,6 +1,6 @@
 language: python
 python:
-  - "3.7"
+  - "3.9"
 # command to install dependencies
 cache: pip
 install:
@@ -8,6 +8,9 @@ install:
   - pip install -r docs/requirements.txt
   - pip install .
   - pip install pytest-cov pytest-mypy
+# Setting environment variables
+env:
+  - SKYFIELD_DATA_DIR="camfi/test/data" CAMFI_EPHEMERIS="test_ephem.bsp"
 # command to run tests
 script:
   - pytest

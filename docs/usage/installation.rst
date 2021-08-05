@@ -36,11 +36,34 @@ Concrete dependencies for camfi are provided in requirements.txt_. They are:
 
 .. _requirements.txt: https://github.com/J-Wall/camfi/blob/main/requirements.txt
 
-Note: Installing using ``$ pip install camfi`` will only install the
-dependencies for the command line tools. The example notebooks have some
-additional dependencies, which can be installed by cloning the repository, and
-installing from the requirements file::
+Note: Installing using ``$ pip install camfi`` will will not necessarily
+install the exact versions of the dependencies specified above.
+If you are running into unusual errors,
+try installing the concrete dependencies
+of the version of Camfi
+you are using.
+For example,
+you can simply
+cloning the repository, and
+install from the requirements file::
+
+$ git clone https://github.com/J-Wall/camfi.git
+$ cd camfi
+$ git checkout <version>  # set to whatever version you are using
+$ pip install -r requirements.txt
+
+
+Development
+-----------
+
+If you want to develop Camfi,
+you may want to install
+the testing and documentation
+building requirements::
 
 $ git clone https://github.com/J-Wall/camfi.git
 $ cd camfi
 $ pip install -r requirements.txt
+$ pip install -r docs/requirements.txt  # For documentation building
+$ pip install pip install pytest-cov pytest-mypy  # For testing
+$ pip install -e .  # Installs camfi in develop mode
