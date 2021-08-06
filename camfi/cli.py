@@ -24,7 +24,9 @@ def _vprint(*args, **kwargs) -> None:
 
 
 def _fill_paras(paras: list[str], sep: str = "\n \n", **kwargs) -> str:
-    return sep.join(fill(para, **kwargs) for para in paras)
+    return sep.join(
+        para if para.startswith("  ") else fill(para, **kwargs) for para in paras
+    )
 
 
 class ConfigParseError(Exception):
@@ -42,6 +44,7 @@ class Commander:
     def __init__(
         self,
         config_path: Optional[Path],
+        input_file: Optional[Path] = None,
         output: Optional[Path] = None,
         disable_progress_bar: Optional[bool] = None,
         vprint: Callable = _vprint,
@@ -83,6 +86,9 @@ class Commander:
         self._vprint("Done.")
 
         self._vvprint("Updating command-line configurable config params")
+        if input_file:
+            self._vvprint(f"Setting config.via_project_file = {input_file}")
+            self.config.via_project_file = input_file
         if output:
             self._vvprint(f"Setting config.default_output = {output}")
             self.config.default_output = output
@@ -148,8 +154,24 @@ class Commander:
         """Trains a camfi instance segmentation annotation model on manually annotated
         dataset, saving to trained model to the ``outdir`` configured under
         ``annotator.training``. Requires ``annotator.training`` to be configured.
+        If ``annotator.inference`` is configured, but under it ``model`` has not been
+        explicitely set, then after the model is trained ``model`` of
+        ``annotator.inference`` will be set to the newly trained model.
+        This means that with proper configuration, ``train`` and ``annotate``
+        can be strung together in one command (i.e. ``camfi train annotate``).
         """
-        self.config.train_model()
+        model_path = self.config.train_model()
+
+        # Update model used for annotation
+        if self.config.inference:
+            if "model" not in self.config.inference.__fields_set__:
+                self._vprint(f"Setting config.inference.model = {model_path}")
+                self.config.inference.model = model_path
+            else:
+                self._vprint(
+                    f"Inference model already set to {self.config.inference.model} "
+                    "Not changing."
+                )
 
     def validate(self) -> None:
         """Validates automatically aquired annotations against ground-truth annotations,
@@ -262,7 +284,25 @@ class Commander:
 
 def _get_description(show_rst: bool, terminal_width: int) -> str:
     description = [
-        f"Camfi v{__version__}." if not show_rst else "",
+        (
+            f"Camfi v{__version__}. "
+            "Copyright 2021 Jesse Rudolf Amenuvegbe Wallace "
+            "and contributors. "
+            "Licenced under the MIT Licence. "
+            "Full documentation available at "
+            "https://camfi.readthedocs.io/en/latest/. "
+            "Source code available from "
+            "https://github.com/J-Wall/camfi. "
+            "Cite as "
+        )
+        if not show_rst
+        else "",
+        (
+            "    Wallace (2021). J-Wall/camfi. Zenodo.\n"
+            "    https://doi.org/10.5281/zenodo.4971144."
+        )
+        if not show_rst
+        else "",
         (
             "Camfi is a method "
             "for the long-term non-invasive monitoring "
@@ -292,20 +332,64 @@ def _get_description(show_rst: bool, terminal_width: int) -> str:
             "for camfi is done with a "
             "configuration file "
             "rather than with "
-            "command-line arguments and options."
+            "command-line arguments and options. "
             "Documentation for the configuration can be found here: "
             f"{':doc:`configuration`' if show_rst else CONFIG_URL}. "
         ),
+        (
+            "Camfi makes a bunch of sub-commands available to the command line "
+            "(listed below). "
+            "If multiple commands are given to a single camfi command, "
+            "they will be executed in sequence. "
+            "For example, "
+            f"the command::"
+        ),
+        (
+            "    camfi \\\n"
+            "        --input project.json --root datadir \\\n"
+            "        --output project_with_wingbeats.json \\\n"
+            "        load-exif extract-wingbeats apply-filters write"
+        ),
+        (
+            "will first load a VIA project from a file, "
+            "then load EXIF metadata from the image files (in datadir) "
+            "into the project (``load-exif``), "
+            "then the camfi wingbeat extraction algoritm will be run to obtain "
+            "wingbeat frequencies (``extract-wingbeats``), "
+            "then any filters defined in the configuration will be applied "
+            "(``apply-filters``), "
+            "and finally the project will be "
+            "written to ``project_with_wingbeats.json`` (``write``). "
+        ),
+        ("Another command::"),
+        ("    camfi train annotate validate"),
+        (
+            "would load a VIA project from a file, "
+            "train an instance segmentation model "
+            "using the images and (manually obtained) annotations "
+            "in the project, "
+            "and save the new model to disk (``train``). "
+            "Then camfi would re-annotate (``annotate``) the images in the project "
+            "using the newly trained model, "
+            "saving the newly obtained annotations to a new file "
+            "(assuming ``annotator`` is properly configured). "
+            "Finally, camfi would validate the automatically-obtained annotations "
+            "against the manually-obtained ones (``validate``). "
+            "All this, while properly handling keeping "
+            "training and test image sets separate "
+            "where required (and as per the configuration)."
+        ),
     ]
 
-    return _fill_paras(description, width=terminal_width)
+    description_str = _fill_paras(description, width=terminal_width)
+    return "".join(description_str.split("``"))
 
 
 def _get_epilog(
     commands: dict[str, Optional[str]], show_rst: bool, terminal_width: int
 ) -> str:
     epilog = [
-        "Below are the list of commands available to Camfi.\n"
+        ("Below are the list of commands available to Camfi.\n")
         if show_rst
         else "available commands: "
     ]
@@ -316,15 +400,15 @@ def _get_epilog(
             epilog.append(f"\n{command}\n    {fill(docs, subsequent_indent='    ')}")
         else:
             _command = (
-                f"  {command:21}"
-                if len(command) < 21
+                f"  {command:7}"
+                if len(command) < 7
                 else f"  {command:{terminal_width - 2}}"
             )
             epilog.append(
                 fill(
                     f"{_command} {''.join(docs.split('``'))}",
                     width=terminal_width,
-                    subsequent_indent=f"{'':24}",
+                    subsequent_indent=f"{'':10}",
                 )
             )
 
@@ -370,6 +454,17 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
             "If no configuration file is supplied, "
             "a default (empty) configuration is used. "
             "Most commands require at least some configuration. "
+        ),
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        metavar="path",
+        type=Path,
+        help=(
+            "Path to input VIA project file. "
+            "Replaces ``via_project_file`` in configuration file, "
+            "providing an alternative to setting it in the configuration file. "
         ),
     )
     parser.add_argument(
@@ -482,7 +577,10 @@ def main():
         else "Creating configuration."
     )
     commander = Commander(
-        args.config, output=args.output, disable_progress_bar=disable_progress_bar
+        args.config,
+        input_file=args.input,
+        output=args.output,
+        disable_progress_bar=disable_progress_bar,
     )
     vprint("Done.")
 

@@ -100,7 +100,7 @@ def train_model(
     outdir: DirectoryPath = Path(),
     model_name: Optional[str] = None,
     save_intermediate: bool = False,
-) -> None:
+) -> Path:
     """Trains a camfi instance segmentation annotation model on specified dataset,
     saving to trained model to outdir.
 
@@ -130,6 +130,11 @@ def train_model(
         If True, model is saved after each epoch, not just after all epoch are complete.
         This is recommended, especially if training on a service which could terminate
         unpredicatbly (e.g. Google Colab).
+
+    Returns
+    -------
+    model_path : Path
+        Path to saved model.
     """
     # Parameter setting
     device = torch.device(device)
@@ -169,6 +174,7 @@ def train_model(
             torch.save(model.state_dict(), save_path)
 
     print(f"Training complete. Model saved at {save_path}")
+    return save_path
 
 
 class Annotator(BaseModel):

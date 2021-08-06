@@ -44,6 +44,9 @@
       "type": "string",
       "format": "path"
     },
+    "filters": {
+      "$ref": "#/definitions/FilterConfig"
+    },
     "camera": {
       "$ref": "#/definitions/CameraConfig"
     },
@@ -61,6 +64,139 @@
     }
   },
   "definitions": {
+    "FloatFilter": {
+      "title": "FloatFilter",
+      "type": "object",
+      "properties": {
+        "ge": {
+          "title": "Greater or Equal",
+          "description": "Only include region if attribute >= this value.",
+          "type": "number"
+        },
+        "le": {
+          "title": "Less or Equal",
+          "description": "Only include region if attribute <= this value.",
+          "type": "number"
+        },
+        "exclude_none": {
+          "title": "Exclude None",
+          "description": "Whether to exclude region if attribute is not set.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ge",
+        "le"
+      ]
+    },
+    "RegionFilterConfig": {
+      "title": "RegionFilterConfig",
+      "type": "object",
+      "properties": {
+        "score": {
+          "title": "Score",
+          "description": "Sets threhsolds for the score region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "best_peak": {
+          "title": "Best Peak",
+          "description": "Sets threhsolds for the best_peak region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "blur_length": {
+          "title": "Blur Length",
+          "description": "Sets threhsolds for the blur_length region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "snr": {
+          "title": "Snr",
+          "description": "Sets threhsolds for the snr region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "wb_freq_up": {
+          "title": "Wb Freq Up",
+          "description": "Sets threhsolds for the wb_freq_up region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "wb_freq_down": {
+          "title": "Wb Freq Down",
+          "description": "Sets threhsolds for the wb_freq_down region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "et_up": {
+          "title": "Et Up",
+          "description": "Sets threhsolds for the et_up region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        },
+        "et_dn": {
+          "title": "Et Dn",
+          "description": "Sets threhsolds for the et_dn region attribute.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FloatFilter"
+            }
+          ]
+        }
+      },
+      "description": "Contains options for filtering regions (annotations)."
+    },
+    "FilterConfig": {
+      "title": "FilterConfig",
+      "description": "Contains settings for filtering VIA project",
+      "type": "object",
+      "properties": {
+        "exclude_images": {
+          "title": "Exclude Images",
+          "description": "Images to exclude from VIA project. Can either be a list of paths to image files, or a single path to a text file (i.e. not a list). If the latter, image file paths will be read from text file, one per line.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "path"
+          }
+        },
+        "include_images": {
+          "title": "Include Images",
+          "description": "Images to include from VIA project. Images not in this list will be excluded. Can either be a list of paths to image files, or a single path to a text file (i.e. not a list). If the latter, image file paths will be read from text file, one per line.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "path"
+          }
+        },
+        "region_filters": {
+          "$ref": "#/definitions/RegionFilterConfig"
+        }
+      }
+    },
     "CameraConfig": {
       "title": "CameraConfig",
       "description": "Camera hardware-related configuration.",

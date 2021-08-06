@@ -727,7 +727,7 @@ class CamfiConfig(BaseModel):
             exclude=set(self.annotator.training.test_set),
         )
 
-    def train_model(self) -> None:
+    def train_model(self) -> Path:
         """Calls camfi.annotator.train_model with appropriate arguments from self."""
         if self.annotator is None:
             raise AnnotatorConfigUnspecifiedError
