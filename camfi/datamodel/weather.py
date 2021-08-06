@@ -522,9 +522,13 @@ class LocationWeatherStationCollector(BaseModel):
         sun_df = self.get_sun_time_dataframe(days)
 
         # Add "weather_station" column to sun_df to prepare for merge
+        # Also add "lat", "lon", and "elevation_m" colmuns
         for location in self.locations:
             weather_station = self.location_weather_station_mapping[location.name]
             sun_df.loc[location.name, "weather_station"] = weather_station
+            sun_df.loc[location.name, "lat"] = location.lat
+            sun_df.loc[location.name, "lon"] = location.lon
+            sun_df.loc[location.name, "elevation_m"] = location.elevation_m
 
         # Demote index to regular columns before merge to prevent "location" from
         # disappearing mysteriously.

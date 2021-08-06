@@ -10,7 +10,13 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 import exif
 import pandas as pd
-from pydantic import BaseModel, Field, PositiveFloat, PositiveInt, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PositiveFloat,
+    PositiveInt,
+    validator,
+)
 import torch
 import torchvision.io
 from tqdm import tqdm
@@ -21,6 +27,8 @@ from .geometry import (
     CircleShapeAttributes,
     PolylineShapeAttributes,
 )
+from ._via_region_attributes import ViaRegionAttributes
+from ._region_filter_config_static import RegionFilterConfig
 from camfi.util import DatetimeCorrector
 
 
@@ -57,60 +65,6 @@ class ViaFileAttributes(BaseModel):
             return datetime.fromisoformat(v)
         except ValueError:
             return datetime.strptime(v, "%Y:%m:%d %H:%M:%S")
-
-
-class ViaRegionAttributes(BaseModel):
-    """Contains object annotation (region)-level metadata.
-
-    Parameters
-    ----------
-    score : Optional[float]
-        Score of annotation. This is only relevant for annotations which have been
-        obtained automatically. Score should not be set for manual annotations.
-    best_peak : Optional[int]
-        Period of wingbeat in pixels.
-    blur_length : Optional[float]
-        Length of motion blur in pixels.
-    snr : Optional[float]
-        Signal-to-noise ratio of best peak.
-    wb_freq_up : Optional[float]
-        Wingbeat frequency estimate, assuming upward motion (and zero body-length).
-    wb_freq_down : Optional[float]
-        Wingbeat frequency estimate, assuming downward motion (and zero body-length).
-    et_up : Optional[float]
-        Corrected moth exposure time, assuming upward motion.
-    et_dn : Optional[float]
-        Corrected moth exposure time, assuming downward motion.
-    """
-
-    score: Optional[float] = Field(None, ge=0, le=1)
-    best_peak: Optional[int] = Field(
-        None, gt=0, description="period of wingbeat in pixels"
-    )
-    blur_length: Optional[float] = Field(
-        None, gt=0.0, description="length of motion blur in pixels"
-    )
-    snr: Optional[float] = Field(None, description="signal to noise ratio of best peak")
-    wb_freq_up: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="wingbeat frequency estimate, assuming upward motion (and zero body-length)",
-    )
-    wb_freq_down: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="wingbeat frequency estimate, assuming downward motion (and zero body-length)",
-    )
-    et_up: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="corrected moth exposure time, assuming upward motion",
-    )
-    et_dn: Optional[float] = Field(
-        None,
-        ge=0.0,
-        description="corrected moth exposure time, assuming downward motion",
-    )
 
 
 class ViaRegion(BaseModel):
@@ -188,6 +142,29 @@ class ViaRegion(BaseModel):
         False
         """
         return self.shape_attributes.in_box(box)
+
+    def passes_filter(self, filters: RegionFilterConfig) -> bool:
+        """Determine whether self passes filters.
+
+        Parameters
+        ----------
+        filters : RegionFilterConfig
+            Filters to check.
+
+        Returns
+        -------
+        passes : bool
+           True if all filters are passed.
+        """
+        for field in filters.__fields__.keys():
+            attribute = getattr(self.region_attributes, field)
+            filt = getattr(filters, field)
+            if filt.exclude_none and attribute is None:
+                return False
+            if attribute > filt.le or attribute < filt.ge:
+                return False
+
+        return True
 
 
 class ViaMetadata(BaseModel):
@@ -392,6 +369,18 @@ class ViaMetadata(BaseModel):
             str(Path(root) / self.filename), mode=torchvision.io.image.ImageReadMode.RGB
         )
         return image / 255  # Converts from uint8 to float32
+
+    def filter_regions(self, region_filters: RegionFilterConfig) -> None:
+        """Filters regions in-place.
+
+        Parameters
+        ----------
+        region_filters : RegionFilterConfig
+            Filters to apply.
+        """
+        self.regions = list(
+            filter(lambda x: x.passes_filter(region_filters), self.regions)
+        )
 
 
 class ViaProject(BaseModel):
@@ -622,3 +611,18 @@ class ViaProject(BaseModel):
                 if function(value)
             }
         return self.copy(update={"via_img_metadata": filtered_img_metadata}, deep=deep)
+
+    def filter_inplace(self, function: Callable[[ViaMetadata], bool]) -> None:
+        """Filters images in self.via_img_metadata in-place.
+
+        Parameters
+        ----------
+        function : Callable[[ViaMetadata], bool]
+            Called on each value in self.via_img_metadata to determine if it should be
+            included in output.
+        """
+        self.via_img_metadata = {
+            key: value
+            for key, value in self.via_img_metadata.items()
+            if function(value)
+        }

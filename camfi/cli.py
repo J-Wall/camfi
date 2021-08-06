@@ -2,6 +2,7 @@
 """
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter as Formatter
+from functools import wraps
 from inspect import getdoc
 from pathlib import Path
 from shutil import get_terminal_size
@@ -55,13 +56,15 @@ class Commander:
         output : Optional[Path]
             If set, ``self.default_output`` will be overwritten with this value.
         """
+        self._vprint, self._vvprint = vprint, vvprint
+
         # Import only done after command line parsing to make it faster and more robust.
-        vvprint("Importing camfi.")
+        self._vvprint("Importing camfi.")
         from camfi.projectconfig import CamfiConfig
 
-        vvprint("Done.")
+        self._vvprint("Done.")
 
-        vprint(
+        self._vprint(
             f"Parsing configuration file: {config_path}"
             if config_path
             else "Creating configuration."
@@ -77,16 +80,18 @@ class Commander:
                 "Could not determine config format from file suffix. "
                 f"Expected one of (.json|.yaml|.yml). Got {config_path.suffix}."
             )
-        vprint("Done.")
+        self._vprint("Done.")
 
-        vvprint("Updating command-line configurable config params")
+        self._vvprint("Updating command-line configurable config params")
         if output:
-            vvprint(f"Setting config.default_output = {output}")
+            self._vvprint(f"Setting config.default_output = {output}")
             self.config.default_output = output
         if disable_progress_bar is not None:  # Could be True or False
-            vvprint(f"Setting config.disable_progress_bar = {disable_progress_bar}")
+            self._vvprint(
+                f"Setting config.disable_progress_bar = {disable_progress_bar}"
+            )
             self.config.disable_progress_bar = disable_progress_bar
-        vvprint("Done updating params.")
+        self._vvprint("Done updating params.")
 
     @classmethod
     def _get_command(cls, command: str) -> Callable[[], None]:
@@ -102,6 +107,13 @@ class Commander:
             class. Any "-" characters are converted to "_" charaters.
         """
         return self._get_command(command)(self)  # type: ignore[call-arg]
+
+    def _write(self, s: str):
+        if self.config.default_output:
+            with open(self.config.default_output, "w") as f:
+                f.write(s)
+        else:
+            print(s)
 
     @classmethod
     def cmds(cls) -> dict[str, Optional[str]]:
@@ -178,11 +190,23 @@ class Commander:
         """
         self.config.extract_all_wingbeats()
 
+    def apply_filters(self) -> None:
+        """Applies filters to exclude images or regions (annotations) from VIA project.
+        Operates in-place on the VIA project.
+        Does nothing if ``filters`` isn't configured.
+        """
+        if self.config.filters is None:
+            self._vprint("No filters configured. Skipping.")
+            return None
+
+        self.config.apply_image_filters()
+        self.config.apply_region_filters()
+
     def write(self) -> None:
-        """Writes VIA project to file
+        """Writes VIA project to stdout or file
         (set using ``default_output`` configuration parameter or ``-o``/``--output``).
         Can be used after other commands which act in-place on the VIA project
-        (e.g. ``load-exif`` and ``extract-wingbeats``).
+        (e.g. ``load-exif``, ``extract-wingbeats`` and ``apply-filters``).
         Prints to stdout if no output is given.
         """
         self.config.write_project()
@@ -195,24 +219,50 @@ class Commander:
         """
         pass
 
+    def filelist(self) -> None:
+        """Lists the images in the VIA project to stdout or file
+        (set using ``default_output`` configuration parameter or ``-o``/``--output``).
+        """
+        image_files = self.config.filelist()
+        self._write("\n".join(str(image_file) for image_file in image_files))
 
-def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
-    """Defines arguments to the ``camfi`` command.
+    def region_table(self) -> None:
+        """Produces a table with one row per region (annotation).
+        Table is written to stout or file
+        (set using ``default_output`` configuration parameter or ``-o``/``--output``).
+        """
+        region_df = self.config.via_project.to_region_dataframe()
+        self._write(region_df.to_csv(sep="\t", index=False))
 
-    Parameters
-    ----------
-    show_rst : bool
-       If False, reStructuredText will be ommitted from description and epilog.
+    def image_table(self) -> None:
+        """Produces a table with one row per image, with various image metadata columns,
+        including n_annotations (the number of annotations in the image).
+        Table is written to stout or file
+        (set using ``default_output`` configuration parameter or ``-o``/``--output``).
+        """
+        image_df = self.config.get_image_dataframe()
+        self._write(image_df.to_csv(sep="\t", index=False))
 
-    Returns
-    -------
-    parser : ArgumentParser
-        Command-line argument parser for ``camfi``.
-    """
-    commands = Commander.cmds()
-    terminal_width = get_terminal_size().columns
+    def table(self) -> None:
+        """Similar to ``image-table``, but includes weather and sun time columns.
+        Produces a table with one row per image, with various image metadata columns,
+        including n_annotations (the number of annotations in the image).
+        Table is written to stout or file
+        (set using ``default_output`` configuration parameter or ``-o``/``--output``).
+        """
+        image_df = self.config.get_merged_dataframe()
+        self._write(image_df.to_csv(sep="\t"))
+
+    def zip_images(self) -> None:
+        """Makes a zip archive of all the images in the VIA project file
+        (``default_output`` configuration parameter or ``-o``/``--output`` must be set).
+        """
+        self.config.zip_images()
+
+
+def _get_description(show_rst: bool, terminal_width: int) -> str:
     description = [
-            f"Camfi v{__version__}." if not show_rst else "",
+        f"Camfi v{__version__}." if not show_rst else "",
         (
             "Camfi is a method "
             "for the long-term non-invasive monitoring "
@@ -247,6 +297,13 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
             f"{':doc:`configuration`' if show_rst else CONFIG_URL}. "
         ),
     ]
+
+    return _fill_paras(description, width=terminal_width)
+
+
+def _get_epilog(
+    commands: dict[str, Optional[str]], show_rst: bool, terminal_width: int
+) -> str:
     epilog = [
         "Below are the list of commands available to Camfi.\n"
         if show_rst
@@ -271,10 +328,29 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
                 )
             )
 
+    return "\n".join(epilog)
+
+
+def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
+    """Defines arguments to the ``camfi`` command.
+
+    Parameters
+    ----------
+    show_rst : bool
+       If False, reStructuredText will be ommitted from description and epilog.
+
+    Returns
+    -------
+    parser : ArgumentParser
+        Command-line argument parser for ``camfi``.
+    """
+    commands = Commander.cmds()
+    terminal_width = get_terminal_size().columns
+
     parser = ArgumentParser(
         prog="camfi",
-        description=_fill_paras(description, width=terminal_width),
-        epilog="\n".join(epilog),
+        description=_get_description(show_rst, terminal_width),
+        epilog=_get_epilog(commands, show_rst, terminal_width),
         formatter_class=Formatter,
     )
 

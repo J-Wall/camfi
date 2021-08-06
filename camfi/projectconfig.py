@@ -8,6 +8,7 @@ from functools import cached_property
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Sequence
+from zipfile import ZipFile
 
 import pandas as pd
 from pydantic import (
@@ -23,6 +24,7 @@ from pydantic import (
     validator,
 )
 from strictyaml import as_document, load
+from tqdm import tqdm
 
 from camfi.annotator import (
     Annotator,
@@ -33,7 +35,7 @@ from camfi.annotator import (
 from camfi.datamodel.autoannotation import CamfiDataset, MaskMaker
 from camfi.datamodel.geometry import BoundingBox
 from camfi.datamodel.locationtime import LocationTimeCollector
-from camfi.datamodel.via import ViaProject
+from camfi.datamodel.via import ViaProject, RegionFilterConfig, ViaMetadata
 from camfi.datamodel.weather import LocationWeatherStationCollector
 from camfi.models import model_urls
 from camfi.util import Timezone, endpoint_methods
@@ -79,6 +81,14 @@ class InferenceConfigUnspecifiedError(ParameterUnspecifiedError):
 
 class ValidationConfigUnspecifiedError(ParameterUnspecifiedError):
     """Raised if ValidationConfig is required but is not specified."""
+
+
+class OutputUnspecifiedError(ParameterUnspecifiedError):
+    """Raised if output is required but is not specified."""
+
+
+class FiltersUnspecifiedError(ParameterUnspecifiedError):
+    """Raised if filters is required but is not specified."""
 
 
 class CameraConfig(BaseModel):
@@ -349,6 +359,41 @@ class AnnotatorConfig(BaseModel):
         }
 
 
+class FilterConfig(BaseModel):
+    """Contains settings for filtering VIA project"""
+
+    exclude_images: Optional[List[Path]] = Field(
+        None,
+        description=(
+            "Images to exclude from VIA project. "
+            "Can either be a list of paths to image files, "
+            "or a single path to a text file (i.e. not a list). "
+            "If the latter, image file paths will be read from text file, "
+            "one per line."
+        ),
+    )
+    include_images: Optional[List[Path]] = Field(
+        None,
+        description=(
+            "Images to include from VIA project. "
+            "Images not in this list will be excluded. "
+            "Can either be a list of paths to image files, "
+            "or a single path to a text file (i.e. not a list). "
+            "If the latter, image file paths will be read from text file, "
+            "one per line."
+        ),
+    )
+    region_filters: Optional[RegionFilterConfig] = None
+
+    @validator("exclude_images", "include_images", pre=True)
+    def read_from_file(cls, v):
+        if isinstance(v, Path):
+            with open(v, "r") as f:
+                image_paths = [Path(line.strip()) for line in f]
+            return image_paths
+        return v
+
+
 class CamfiConfig(BaseModel):
     """Defines structure of Camfi's config.json files, and provides methods for loading
     data from various sources.
@@ -378,6 +423,7 @@ class CamfiConfig(BaseModel):
             "take precedence over this."
         ),
     )
+    filters: Optional[FilterConfig] = None
     camera: Optional[CameraConfig] = None
     time: Optional[LocationTimeCollector] = None
     place: Optional[LocationWeatherStationCollector] = None
@@ -490,6 +536,62 @@ class CamfiConfig(BaseModel):
             return ""
         return as_document(config_dict).as_yaml()
 
+    def apply_image_filters(self) -> None:
+        """Applies image filter defined in self.filters to self.via_project.
+        Operates in-place.
+        """
+        if self.filters is None:
+            raise FiltersUnspecifiedError
+
+        if self.filters.include_images is None and self.filters.exclude_images is None:
+            # Nothing to do.
+            return None
+
+        # Define inclusion filter
+        if self.filters.include_images is None:
+
+            def _passes_include(metadata: ViaMetadata) -> bool:
+                return True
+
+        else:
+            _include_images = set(self.filters.include_images)
+
+            def _passes_include(metadata: ViaMetadata) -> bool:
+                return metadata.filename in _include_images
+
+        # Define inclusion filter
+        if self.filters.exclude_images is None:
+
+            def _passes_exclude(metadata: ViaMetadata) -> bool:
+                return True
+
+        else:
+            _exclude_images = set(self.filters.exclude_images)
+
+            def _passes_exclude(metadata: ViaMetadata) -> bool:
+                return metadata.filename not in _exclude_images
+
+        # Define combined filter
+        def _image_filter(metadata: ViaMetadata) -> bool:
+            return _passes_include(metadata) and _passes_exclude(metadata)
+
+        # Apply filter
+        self.via_project.filter_inplace(_image_filter)
+
+    def apply_region_filters(self) -> None:
+        """Applies region filters defined in self.filters to self.via_project.
+        Operates in-place.
+        """
+        if self.filters is None:
+            raise FiltersUnspecifiedError
+
+        if self.filters.region_filters is None:
+            # Nothing to do.
+            return None
+
+        for metadata in self.via_project.via_img_metadata.values():
+            metadata.filter_regions(self.filters.region_filters)
+
     def get_image_dataframe(self) -> pd.DataFrame:
         """Calls self.via_project.to_image_dataframe(tz=self.output_tz), returning the
         result."""
@@ -535,6 +637,7 @@ class CamfiConfig(BaseModel):
         )
 
     def get_merged_dataframe(self) -> pd.DataFrame:
+        """"""
         if self.place is None:
             raise PlaceUnspecifiedError
         image_df = self.get_image_dataframe()
@@ -798,3 +901,34 @@ class CamfiConfig(BaseModel):
 
         else:
             print(self.via_project.json(indent=2, exclude_unset=True))
+
+    def filelist(self) -> List[Path]:
+        """Lists the images in self.via_project.
+
+        Returns
+        -------
+        image_files : List[Path]
+            List of filepaths.
+        """
+        return [m.filename for m in self.via_project.via_img_metadata.values()]
+
+    def zip_images(self) -> None:
+        """Makes a zip archive of all the images in the VIA project file.
+        Requires self.default_output to be set.
+        """
+        if self.default_output is None:
+            raise OutputUnspecifiedError
+
+        image_files = self.filelist()
+
+        with ZipFile(self.default_output, mode="w") as f:
+            for filename in tqdm(
+                image_files,
+                disable=self.disable_progress_bar,
+                desc="Zipping images",
+                unit="img",
+                dynamic_ncols=True,
+                ascii=True,
+                color="green",
+            ):
+                f.write(filename)
