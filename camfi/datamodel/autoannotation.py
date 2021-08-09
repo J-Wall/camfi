@@ -298,7 +298,7 @@ class Target(TargetPredictionABC):
             boxes=torch.tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
             labels=torch.tensor(self.labels),
             image_id=torch.tensor([self.image_id]),
-            masks=torch.stack(self.masks),
+            masks=torch.stack(self.masks) if len(self.masks) > 0 else torch.tensor([]),
         )
 
     @classmethod
@@ -387,7 +387,7 @@ class Prediction(TargetPredictionABC):
             boxes=torch.tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
             labels=torch.tensor(self.labels),
             scores=torch.tensor(self.scores),
-            masks=torch.stack(self.masks),
+            masks=torch.stack(self.masks) if len(self.masks) > 0 else torch.tensor([]),
         )
 
     @classmethod
