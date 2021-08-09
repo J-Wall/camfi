@@ -3,7 +3,7 @@ training. Depends on camfi.datamodel.autoannotation."""
 
 from math import inf, sqrt
 import random
-from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import Iterable, Optional, Sequence, Union
 
 from pydantic import BaseModel
 import torch
@@ -24,22 +24,22 @@ class Compose(ImageTransform):
     transforms: Sequence[ImageTransform]
 
     def apply_to_tensor_dict(
-        self, image: torch.Tensor, target: Dict[str, torch.Tensor]
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        self, image: torch.Tensor, target: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Applies each transormation in self.transforms to an image and target dict.
 
         Parameters
         ----------
         image : torch.Tensor
             Input image to first transformation.
-        target : Dict[str, torch.Tensor]
+        target : dict[str, torch.Tensor]
             Target tensor dict of annotations on image.
 
         Returns
         -------
         transformed_image : torch.Tensor
             Output image of last transformation.
-        transformed_target : Dict[str, torch.Tensor]
+        transformed_target : dict[str, torch.Tensor]
             Output target dict of last transformation.
         """
         for transform in self.transforms:
@@ -60,8 +60,8 @@ class RandomHorizontalFlip(ImageTransform):
     prob: float = Field(..., ge=0.0, le=1.0)
 
     def apply_to_tensor_dict(
-        self, image: torch.Tensor, target: Dict[str, torch.Tensor]
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        self, image: torch.Tensor, target: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Applies each random horizontal flip transormation to an image and target
         dict.
 
@@ -69,14 +69,14 @@ class RandomHorizontalFlip(ImageTransform):
         ----------
         image : torch.Tensor
             Input image tensor.
-        target : Dict[str, torch.Tensor]
+        target : dict[str, torch.Tensor]
             Input target tensor dict.
 
         Returns
         -------
         transformed_image : torch.Tensor
             Output image of transformation.
-        transformed_target : Dict[str, torch.Tensor]
+        transformed_target : dict[str, torch.Tensor]
             Output target dict of transformation.
         """
         if random.random() < self.prob:

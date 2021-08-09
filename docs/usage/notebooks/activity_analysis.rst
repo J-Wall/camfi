@@ -48,6 +48,11 @@ Wingbeat Analysis notebook).
       "via_project_file": "data/cabramurra_all_annotations.json",
       "day_zero": "2019-01-01",
       "output_tz": "+10:00",
+      "filters": {
+        "image_filters": {
+          "min_annotations": 1
+        }
+      },
       "camera": {
         "camera_time_to_actual_time_ratio": 1.0,
         "line_rate": 90500.0
@@ -117,6 +122,7 @@ Wingbeat Analysis notebook).
           "batch_size": 5,
           "num_workers": 2,
           "num_epochs": 20,
+          "outdir": "data",
           "save_intermediate": true
         },
         "inference": {
@@ -143,7 +149,8 @@ from the image files. Here we also apply time correction. The code is
 commented out since the metadata has already been loaded into
 ``"data/cabramurra_all_annotations.json"``, but if you are working with
 a different dataset, or would like to re-run IO intensive this step,
-uncomment the code.
+uncomment the code. This could also be achieved from the command-line
+interface to Camfi.
 
 **Note:** It is assumed you have downloaded and extracted the images to
 ``"data/"``. Of course you can extract it elsewhere and change ``root``
@@ -1904,10 +1911,10 @@ individually, and plotting the effect:
 .. parsed-literal::
 
     Significant single-effect variables:
-      - wind_speed_9am_kph
-      - temperature_range
-      - temperature_minimum_evening_degC
       - daylight_hours
+      - temperature_minimum_evening_degC
+      - temperature_range
+      - wind_speed_9am_kph
 
 
 
@@ -1963,8 +1970,8 @@ and plotting the effect:
     Model Family:                 Poisson   Df Model:                            6
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.274
-    Date:                Sat, 07 Aug 2021   Deviance:                       24.473
-    Time:                        09:47:51   Pearson chi2:                     24.2
+    Date:                Mon, 09 Aug 2021   Deviance:                       24.473
+    Time:                        14:47:53   Pearson chi2:                     24.2
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
@@ -1981,11 +1988,11 @@ and plotting the effect:
     res.aic=108.54753196329011
     
     Significant mixed-effect variables:
+      - temperature_minimum_degC
+      - daylight_hours
       - temperature_minimum_evening_degC
       - Intercept
-      - temperature_minimum_degC
       - temperature_range
-      - daylight_hours
 
 
 
@@ -2040,20 +2047,20 @@ we get a better model.
     Model Family:                 Poisson   Df Model:                            4
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.915
-    Date:                Sat, 07 Aug 2021   Deviance:                       25.756
-    Time:                        09:47:51   Pearson chi2:                     25.3
+    Date:                Mon, 09 Aug 2021   Deviance:                       25.756
+    Time:                        14:47:53   Pearson chi2:                     25.3
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
                                            coef    std err          z      P>|z|      [0.025      0.975]
     ----------------------------------------------------------------------------------------------------
     Intercept                           39.6614     10.961      3.618      0.000      18.178      61.144
-    temperature_range                    0.1882      0.041      4.562      0.000       0.107       0.269
-    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
     temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
+    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
     daylight_hours                      -3.0297      0.775     -3.909      0.000      -4.549      -1.511
+    temperature_range                    0.1882      0.041      4.562      0.000       0.107       0.269
     ====================================================================================================
-    res.aic=105.8303707463943
+    res.aic=105.83037074639384
 
 
 

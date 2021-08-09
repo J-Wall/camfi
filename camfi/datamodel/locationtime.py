@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from math import fsum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, root_validator, validator
 
@@ -58,7 +58,7 @@ class LocationTime(BaseModel):
         }
 
         @staticmethod
-        def schema_extra(schema: Dict[str, Any], model: LocationTime) -> None:
+        def schema_extra(schema: dict[str, Any], model: LocationTime) -> None:
             # Remove title from schema
             schema.pop("title", None)
             schema["description"] = "Camera placement data"
@@ -214,8 +214,8 @@ class LocationTimeCollector(BaseModel):
 
     Parameters
     -----------
-    camera_placements: Dict[str, LocationTime]
-        Dictionary mapping directories to LocationTime instances. For example, you
+    camera_placements: dict[str, LocationTime]
+        dictionary mapping directories to LocationTime instances. For example, you
         might have one LocationTime for each camera placement, and each camera placement
         also has it's own directory for images.
 
@@ -242,7 +242,7 @@ class LocationTimeCollector(BaseModel):
     2.0
     """
 
-    camera_placements: Dict[str, LocationTime] = Field(
+    camera_placements: dict[str, LocationTime] = Field(
         ...,
         description="Mapping from sub-directories containing images to LocationTime instances.",
     )
@@ -272,7 +272,7 @@ class LocationTimeCollector(BaseModel):
         >>> print(lt_collector.get_time_ratio())
         None
         """
-        time_ratios: List[float] = []
+        time_ratios: list[float] = []
         for lt in self.camera_placements.values():
             time_ratio = lt.get_time_ratio()
             if time_ratio is not None:

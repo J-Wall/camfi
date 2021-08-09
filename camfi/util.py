@@ -6,12 +6,10 @@ from pathlib import Path
 from textwrap import wrap as _wrap
 from typing import (
     Callable,
-    Dict,
     Iterable,
     Mapping,
     Optional,
     Sequence,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -39,7 +37,7 @@ def Field(*args, **kwargs):
 T = TypeVar("T")
 
 
-def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, float]:
+def _sec_trivial(points: Sequence[tuple[float, float]]) -> tuple[float, float, float]:
     if len(points) == 3:
         (x1, y1), (x2, y2), (x3, y3) = points
         A = np.array([[x3 - x1, y3 - y1], [x3 - x2, y3 - y2]])
@@ -82,14 +80,14 @@ def _sec_trivial(points: Sequence[Tuple[float, float]]) -> Tuple[float, float, f
 
 
 def smallest_enclosing_circle(
-    points: Union[Iterable[Tuple[float, float]], np.ndarray]
-) -> Tuple[float, float, float]:
+    points: Union[Iterable[tuple[float, float]], np.ndarray]
+) -> tuple[float, float, float]:
     """Performs Welzl's algorithm to find the smallest enclosing circle of a set of
     points in a cartesian plane.
 
     Parameters
     ----------
-    points : Union[Iterable[Tuple[float, float]], np.ndarray]
+    points : Union[Iterable[tuple[float, float]], np.ndarray]
         Iterable of 2-tuples or (N, 2)-array, with each tuple defining the coordinates
         of a point.
 
@@ -167,8 +165,8 @@ def dilate_idx(
     rr: np.ndarray,
     cc: np.ndarray,
     d: int,
-    img_shape: Optional[Tuple[int, int]] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    img_shape: Optional[tuple[int, int]] = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Takes index arrays rr and cc and performs a morphological dilation of size d on
     them.
 
@@ -180,7 +178,7 @@ def dilate_idx(
         Column indices (must have same shape as rr).
     d : int
         Dilation factor, must be at least 1 (or a ValueError is raised).
-    img_shape : Optional[Tuple[int, int]]
+    img_shape : Optional[tuple[int, int]]
         Shape of image (rows, columns). Indices which lie outside this will be ommitted.
 
     Returns
@@ -344,11 +342,11 @@ class SubDirDict(Mapping[Path, V]):
         Parameters
         ----------
         mapping: Optional[Mapping[Path, V]]
-            E.g. an instance of type Dictt[Path, V]
+            E.g. an instance of type dictt[Path, V]
         """
         self._lastkey = None
         self._prevkey = None
-        self._dict: Dict[Path, V] = {}
+        self._dict: dict[Path, V] = {}
         if mapping is not None:
             self._dict.update(mapping)
 
@@ -408,7 +406,7 @@ class SubDirDict(Mapping[Path, V]):
 
 def endpoint_truncate(
     fit_mask_vals: np.ndarray, n: NonNegativeInt
-) -> Tuple[NonNegativeInt, NonNegativeInt]:
+) -> tuple[NonNegativeInt, NonNegativeInt]:
     """An implementation of an endpoint_method.
 
     Parameters

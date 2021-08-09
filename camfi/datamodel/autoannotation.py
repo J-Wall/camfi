@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from math import inf
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Optional, Union
 
 from numpy import array
 from pydantic import (
@@ -37,15 +37,15 @@ class MaskMaker(BaseModel):
 
     Parameters
     ----------
-    shape : Tuple[PositiveInt, PositiveInt]
+    shape : tuple[PositiveInt, PositiveInt]
         Shape of image (height, width). This will also be the shape of the instance
         segmentation masks.
     mask_dilate : Optional[PositiveInt] = None
-        Sets the amount of morphological dilation to apply to segmentation skeletons
+        sets the amount of morphological dilation to apply to segmentation skeletons
         to produce instance segmentation masks.
     """
 
-    shape: Tuple[PositiveInt, PositiveInt] = Field(
+    shape: tuple[PositiveInt, PositiveInt] = Field(
         ..., description="Shape of images (height, width) in pixels."
     )
     mask_dilate: Optional[PositiveInt] = Field(
@@ -167,7 +167,7 @@ class MaskMaker(BaseModel):
         else:
             return self.get_polyline_mask(shape_attributes)
 
-    def get_masks(self, metadata: ViaMetadata) -> List[torch.Tensor]:
+    def get_masks(self, metadata: ViaMetadata) -> list[torch.Tensor]:
         """Calls self.get_mask on all regions in metadata.
 
         Parameters
@@ -177,8 +177,8 @@ class MaskMaker(BaseModel):
 
         Returns
         -------
-        masks : List[torch.Tensor]
-            List of instance segmentation masks. One for each item in
+        masks : list[torch.Tensor]
+            list of instance segmentation masks. One for each item in
             metadata.regions.
         """
         return [self.get_mask(region.shape_attributes) for region in metadata.regions]
@@ -190,18 +190,18 @@ class TargetPredictionABC(BaseModel, ABC):
 
     Parameters
     ----------
-    boxes : List[BoundingBox]
-        List of bounding boxes of annotated objects in an image.
-    labels : List[PositiveInt]
-        List of integer class labels of annotated objects in an image. Zero is reserved
+    boxes : list[BoundingBox]
+        list of bounding boxes of annotated objects in an image.
+    labels : list[PositiveInt]
+        list of integer class labels of annotated objects in an image. Zero is reserved
         for the background.
-    masks : List[torch.Tensor]
-        List of instance segmentation masks of annotated objects in an image.
+    masks : list[torch.Tensor]
+        list of instance segmentation masks of annotated objects in an image.
     """
 
-    boxes: List[BoundingBox]
-    labels: List[PositiveInt]
-    masks: List[torch.Tensor]
+    boxes: list[BoundingBox]
+    labels: list[PositiveInt]
+    masks: list[torch.Tensor]
 
     class Config:
         """Pydantic configuration for TargetPredictionABC."""
@@ -239,25 +239,25 @@ class TargetPredictionABC(BaseModel, ABC):
         return len(self.labels)
 
     @abstractmethod
-    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
+    def to_tensor_dict(self) -> dict[str, torch.Tensor]:
         """Send data to a dict of Tensors.
 
         Returns
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
         """
 
     @classmethod
     @abstractmethod
     def from_tensor_dict(
-        cls, tensor_dict: Dict[str, torch.Tensor]
+        cls, tensor_dict: dict[str, torch.Tensor]
     ) -> TargetPredictionABC:
         """Load Target or Prediction from tensor_dict.
 
         Parameters
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
 
         Returns
@@ -273,25 +273,25 @@ class Target(TargetPredictionABC):
 
     Parameters
     ----------
-    boxes : List[BoundingBox]
-        List of bounding boxes of annotated objects in an image.
-    labels : List[PositiveInt]
-        List of integer class labels of annotated objects in an image. Zero is reserved
+    boxes : list[BoundingBox]
+        list of bounding boxes of annotated objects in an image.
+    labels : list[PositiveInt]
+        list of integer class labels of annotated objects in an image. Zero is reserved
         for the background.
-    masks : List[torch.Tensor]
-        List of instance segmentation masks of annotated objects in an image.
+    masks : list[torch.Tensor]
+        list of instance segmentation masks of annotated objects in an image.
     image_id : NonNegativeInt
         Unique index of image to which Target instance relates.
     """
 
     image_id: NonNegativeInt
 
-    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
+    def to_tensor_dict(self) -> dict[str, torch.Tensor]:
         """Send data to a dict of Tensors.
 
         Returns
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
         """
         return dict(
@@ -302,12 +302,12 @@ class Target(TargetPredictionABC):
         )
 
     @classmethod
-    def from_tensor_dict(cls, tensor_dict: Dict[str, torch.Tensor]) -> Target:
+    def from_tensor_dict(cls, tensor_dict: dict[str, torch.Tensor]) -> Target:
         """Load Target from tensor_dict.
 
         Parameters
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
 
         Returns
@@ -352,18 +352,18 @@ class Prediction(TargetPredictionABC):
 
     Parameters
     ----------
-    boxes : List[BoundingBox]
-        List of bounding boxes of annotated objects in an image.
-    labels : List[PositiveInt]
-        List of integer class labels of annotated objects in an image. Zero is reserved
+    boxes : list[BoundingBox]
+        list of bounding boxes of annotated objects in an image.
+    labels : list[PositiveInt]
+        list of integer class labels of annotated objects in an image. Zero is reserved
         for the background.
-    masks : List[torch.Tensor]
-        List of instance segmentation masks of annotated objects in an image.
-    scores : List[NonNegativeFloat]
-        List of annotation scores (from 0.0 to 1.0)
+    masks : list[torch.Tensor]
+        list of instance segmentation masks of annotated objects in an image.
+    scores : list[NonNegativeFloat]
+        list of annotation scores (from 0.0 to 1.0)
     """
 
-    scores: List[NonNegativeFloat]
+    scores: list[NonNegativeFloat]
 
     @root_validator
     def all_fields_have_same_length(cls, values):
@@ -375,12 +375,12 @@ class Prediction(TargetPredictionABC):
 
         return values
 
-    def to_tensor_dict(self) -> Dict[str, torch.Tensor]:
+    def to_tensor_dict(self) -> dict[str, torch.Tensor]:
         """Send data to a dict of Tensors.
 
         Returns
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
         """
         return dict(
@@ -391,12 +391,12 @@ class Prediction(TargetPredictionABC):
         )
 
     @classmethod
-    def from_tensor_dict(cls, tensor_dict: Dict[str, torch.Tensor]) -> Prediction:
+    def from_tensor_dict(cls, tensor_dict: dict[str, torch.Tensor]) -> Prediction:
         """Load Prediction from tensor_dict.
 
         Parameters
         -------
-        tensor_dict : Dict[str, torch.Tensor]
+        tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
 
         Returns
@@ -455,14 +455,14 @@ class Prediction(TargetPredictionABC):
 
         return filtered_prediction
 
-    def get_subset_from_index(self, subset: List[NonNegativeInt]) -> Prediction:
+    def get_subset_from_index(self, subset: list[NonNegativeInt]) -> Prediction:
         """Returns a Prediction instance from self with items indexed by the elements
         of subset.
 
         Parameters
         ----------
-        subset : List[NonNegativeInt]
-            List of indices to include in subset.
+        subset : list[NonNegativeInt]
+            list of indices to include in subset.
 
         Returns
         -------
@@ -508,14 +508,14 @@ class ImageTransform(BaseModel, ABC):
 
     def __call__(
         self, image: torch.Tensor, target: Target
-    ) -> Tuple[torch.Tensor, Target]:
+    ) -> tuple[torch.Tensor, Target]:
         image, target_dict = self.apply_to_tensor_dict(image, target.to_tensor_dict())
         return image, Target.from_tensor_dict(target_dict)
 
     @abstractmethod
     def apply_to_tensor_dict(
-        self, image: torch.Tensor, target: Dict[str, torch.Tensor]
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        self, image: torch.Tensor, target: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Subclasses of ImageTransform should implement this to return a transformed
         image and target dict.
 
@@ -523,14 +523,14 @@ class ImageTransform(BaseModel, ABC):
         ----------
         image : torch.Tensor
             Image tensor on which annotations are made.
-        target : Dict[str, torch.Tensor]
+        target : dict[str, torch.Tensor]
             Specifies annotations on image. Output of Target.to_tensor_dict().
 
         Returns
         -------
         transformed_image : torch.Tensor
             Transformed image.
-        transformed_target : Dict[str, torch.Tensor]
+        transformed_target : dict[str, torch.Tensor]
             Specifies transformed annotations on image. Can be used as input to
             Target.from_tensor_dict().
         """
@@ -577,12 +577,12 @@ class CamfiDataset(BaseModel, Dataset):
     box_margin: PositiveInt = 10
         Margin to add to bounding boxes of object annotations, for model training.
         Only set if inference_mode = False.
-    exclude: Set[Path]
+    exclude: set[Path]
         Optionally specify a set of image files to exclude for training or inference.
         Elements in exclude must match the filenames (ie. relative file paths) of
         images to exclude.
-    keys: List[str]
-        List of image keys. This field is automatically generated upon instantiation,
+    keys: list[str]
+        list of image keys. This field is automatically generated upon instantiation,
         and should not be set.
     """
 
@@ -600,15 +600,15 @@ class CamfiDataset(BaseModel, Dataset):
     box_margin: PositiveInt = 10
 
     # Optionally exclude some files
-    exclude: Set[Path] = None  # type: ignore[assignment]
+    exclude: set[Path] = None  # type: ignore[assignment]
 
     # Automatically generated. No need to set.
-    keys: List[str] = None  # type: ignore[assignment]
+    keys: list[str] = None  # type: ignore[assignment]
 
     @validator("exclude", pre=True, always=True)
     def default_exclude(cls, v):
         """Pydantic validation method, called when instantiating CamfiDataset.
-        Sets default for exclude."""
+        sets default for exclude."""
         if v is None:
             return set()
         return v
@@ -677,7 +677,7 @@ class CamfiDataset(BaseModel, Dataset):
             )
         )
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, Target]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, Target]:
         metadata = self.via_project.via_img_metadata[self.keys[idx]]
         image = metadata.read_image(root=self.root)
 

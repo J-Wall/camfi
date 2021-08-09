@@ -365,7 +365,7 @@
       "properties": {
         "locations": {
           "title": "Locations",
-          "description": "List of locations where cameras have been placed.",
+          "description": "list of locations where cameras have been placed.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Location"
@@ -373,7 +373,7 @@
         },
         "weather_stations": {
           "title": "Weather Stations",
-          "description": "List of weather stations.",
+          "description": "list of weather stations.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/WeatherStation"
@@ -532,7 +532,7 @@
         },
         "test_set": {
           "title": "Test Set",
-          "description": "List of images to exclude from training. Also used\n\nby validator to determine which subsets of images\n\nto validate against.",
+          "description": "list of images to exclude from training. Also used\n\nby validator to determine which subsets of images\n\nto validate against.",
           "default": [],
           "type": "array",
           "items": {

@@ -34,7 +34,7 @@ set the following environment variables
 from datetime import date, datetime, time, timedelta, timezone
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -234,7 +234,7 @@ class Location(BaseModel):
         times = timescale.from_datetimes(datetimes)
         return self._dark_twilight_day(times)
 
-    def search_sun_times(self, day: date) -> Dict[str, datetime]:
+    def search_sun_times(self, day: date) -> dict[str, datetime]:
         """Gets sunrise, sunset, and twilight times for a given date.
 
         Parameters
@@ -244,8 +244,8 @@ class Location(BaseModel):
 
         Returns
         -------
-        twilight_times : Dict[str, datetime]
-            Dictionary with keys "astronomical_twilight_start",
+        twilight_times : dict[str, datetime]
+            dictionary with keys "astronomical_twilight_start",
             "nautical_twilight_start", "civil_twilight_start", "sunrise", "sunset",
             "nautical_twilight_end", "civil_twilight_end", "astronomical_twilight_end".
 
@@ -293,7 +293,7 @@ class Location(BaseModel):
             np.roll(twilight_types, 1) > twilight_types
         ) * 5 + twilight_types
 
-        twilight_times: Dict[str, datetime] = {}
+        twilight_times: dict[str, datetime] = {}
         for t, tt in zip(times, twilight_transitions):
             twilight_times[TWILIGHT_TRANSITIONS[tt]] = t.utc_datetime().astimezone(
                 self.tz._timezone
@@ -340,7 +340,7 @@ class Location(BaseModel):
         <BLANKLINE>
         [3 rows x 8 columns]
         """
-        sun_times: Dict[str, List[pd.Timestamp]] = {
+        sun_times: dict[str, list[pd.Timestamp]] = {
             "astronomical_twilight_start": [],
             "nautical_twilight_start": [],
             "civil_twilight_start": [],
@@ -409,21 +409,21 @@ class LocationWeatherStationCollector(BaseModel):
 
     Parameters
     ----------
-    locations : List[Location]
-        List of locations where cameras have been placed.
-    weather_stations : List[WeatherStation]
-        List of weather stations.
-    location_weather_station_mapping : Dict[str, str]
+    locations : list[Location]
+        list of locations where cameras have been placed.
+    weather_stations : list[WeatherStation]
+        list of weather stations.
+    location_weather_station_mapping : dict[str, str]
         A mapping between location names and weather_station names.
     """
 
-    locations: List[Location] = Field(
-        ..., description="List of locations where cameras have been placed."
+    locations: list[Location] = Field(
+        ..., description="list of locations where cameras have been placed."
     )
-    weather_stations: List[WeatherStation] = Field(
-        ..., description="List of weather stations."
+    weather_stations: list[WeatherStation] = Field(
+        ..., description="list of weather stations."
     )
-    location_weather_station_mapping: Dict[str, str] = Field(
+    location_weather_station_mapping: dict[str, str] = Field(
         ..., description="A mapping between location names and weather_station names."
     )
 
@@ -453,13 +453,13 @@ class LocationWeatherStationCollector(BaseModel):
             ), f"Undefined weather station {val}. Either remove from mapping or define."
         return v
 
-    def get_sun_time_dataframe(self, days: Dict[str, Sequence[date]]) -> pd.DataFrame:
+    def get_sun_time_dataframe(self, days: dict[str, Sequence[date]]) -> pd.DataFrame:
         """Calls .get_sun_time_dataframe on each location in self.locations, and builds
         a DataFrame of sun times.
 
         Parameters
         ----------
-        days : Dict[str, Sequence[date]]
+        days : dict[str, Sequence[date]]
             Mapping from location name to sequences of dates which will become index for
             the dataframe.
 
@@ -494,14 +494,14 @@ class LocationWeatherStationCollector(BaseModel):
         return pd.concat(weather_dfs)
 
     def get_weather_sun_dataframe(
-        self, days: Optional[Dict[str, Sequence[date]]] = None
+        self, days: Optional[dict[str, Sequence[date]]] = None
     ) -> pd.DataFrame:
         """Calls self.get_weather_dataframe and self.get_sun_time_dataframe, and merges
         the results into a single DataFrame.
 
         Parameters
         ----------
-        days : Optional[Dict[str, Sequence[date]]]
+        days : Optional[dict[str, Sequence[date]]]
             Mapping from location name to sequences of dates which will become index for
             the dataframe. If None (default), this will be inferred from the weather
             dataframe.

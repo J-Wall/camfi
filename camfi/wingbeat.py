@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from functools import cached_property, total_ordering
 from math import sqrt
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 from bces import bces
 import numpy as np
@@ -72,7 +72,7 @@ def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.T
 
 def find_best_peak(
     values: torch.Tensor,
-) -> Tuple[Optional[PositiveInt], Optional[float]]:
+) -> tuple[Optional[PositiveInt], Optional[float]]:
     """Takes a Tensor of values (with 1 dimension), and finds the index of the best peak
     If peak finding fails, (None, None) is returned.
 
@@ -118,7 +118,7 @@ def find_best_peak(
 
     best_peak: Optional[PositiveInt] = None
     snr: Optional[float] = None
-    snrs: List[float] = []
+    snrs: list[float] = []
 
     for peak in sorted_peaks:
         peak_idx = int(peak)
@@ -553,8 +553,8 @@ def extract_all_wingbeats(
 class BcesResult(BaseModel):
     """Stores parameters of one BCES linear regression.
 
-    estimates : List[Tuple[float, float, float, float, float]]
-        List of (gradient, y_intercept, gradient_stderr, y_intercept_stderr, cov_xy)
+    estimates : list[tuple[float, float, float, float, float]]
+        list of (gradient, y_intercept, gradient_stderr, y_intercept_stderr, cov_xy)
         tuples of estimates and standard errors. Has length n_classes.
     err : np.ndarray
         Array of weighted errors for each measurement from each regression line. Has
@@ -751,14 +751,14 @@ class BcesEM(BaseModel):
 
         Returns
         -------
-        estimates : List[BcesResult]
-            List of self.n_classes BcesResult instances.
+        estimates : list[BcesResult]
+            list of self.n_classes BcesResult instances.
         err : np.ndarray
             Array of weighted errors for each measurement from each regression line. Has
             shape (n_classes, len(x)).
         """
         assert isinstance(self.class_mask, np.ndarray)
-        estimates: List[BcesResult] = []
+        estimates: list[BcesResult] = []
         err = np.zeros((self.n_classes, len(self.x)))
         for class_id in range(self.n_classes):
             mask = self.class_mask == class_id
@@ -799,8 +799,8 @@ class BcesEM(BaseModel):
 
         Returns
         -------
-        estimates : List[BcesResult]
-            List of self.n_classes BcesResult instances.
+        estimates : list[BcesResult]
+            list of self.n_classes BcesResult instances.
         """
         assert isinstance(self.class_mask, np.ndarray)
         for i in range(max_iterations):
@@ -881,12 +881,12 @@ class GMM(BaseModel):
             seed=seed,
         )
 
-    def fit(self) -> List[WeightedGaussian]:
+    def fit(self) -> list[WeightedGaussian]:
         gmm = sklearn.mixture.GaussianMixture(
             n_components=self.n_classes, random_state=self.seed
         )
         gmm.fit(self.x.reshape(-1, 1))
-        components: List[WeightedGaussian] = []
+        components: list[WeightedGaussian] = []
         for i in range(self.n_classes):
             components.append(
                 WeightedGaussian(

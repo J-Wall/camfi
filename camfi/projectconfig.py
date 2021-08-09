@@ -7,7 +7,7 @@ from datetime import date, timezone
 from functools import cached_property
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Sequence
+from typing import Any, Optional, Union, Sequence
 from zipfile import ZipFile
 
 import pandas as pd
@@ -133,8 +133,8 @@ class TrainingConfig(BaseModel):
         Margin to add to bounding boxes of object annotations, for model training.
     test_set_file : Optional[FilePath]
         Alternative to setting test_set directly, load it from a file.
-    test_set : List[Path]
-        List of images to exclude from training.
+    test_set : list[Path]
+        list of images to exclude from training.
     load_pretrained_model : Optional[Union[Path, str]]
         Path or url to model parameters file. If set, will load the pretrained
         parameters. By default, will start with a model pre-trained on the Microsoft
@@ -196,10 +196,10 @@ class TrainingConfig(BaseModel):
             "containing filepaths (one per line). Do not set if test_set is set."
         ),
     )
-    test_set: List[Path] = Field(
+    test_set: list[Path] = Field(
         [],
         description=(
-            "List of images to exclude from training. "
+            "list of images to exclude from training. "
             "Also used by validator to determine "
             "which subsets of images to validate against. "
         ),
@@ -309,7 +309,7 @@ class InferenceConfig(BaseModel):
         Order of polynomial used for fitting motion blur paths.
     endpoint_method : str
         Method to find endpoints of motion blurs. One of camfi.utils.endpoint_methods.
-    endpoint_extra_args : List[Any]
+    endpoint_extra_args : list[Any]
         Extra arguments to pass to endpoint method function.
     score_thresh : float
         Score threshold between 0.0 and 1.0 for automatic annotations to be kept.
@@ -370,7 +370,7 @@ class InferenceConfig(BaseModel):
         description="Method to find endpoints of motion blurs.",
         examples=list(endpoint_methods),
     )
-    endpoint_extra_args: List[Any] = Field(
+    endpoint_extra_args: list[Any] = Field(
         [10], description="Extra arguments to pass to endpoint method function."
     )
     score_thresh: float = Field(
@@ -441,7 +441,7 @@ class ValidationConfig(BaseModel):
             "automatically obtained annotations to ground truth annotations. "
         ),
     )
-    image_sets: List[str] = Field(
+    image_sets: list[str] = Field(
         ["all"],
         description=(
             "Image sets to perform validation on. "
@@ -507,7 +507,7 @@ class ImageFilterConfig(BaseModel):
         None,
         description=("Exclude images if they have " "fewer annotations than this. "),
     )
-    exclude_images: Optional[List[Path]] = Field(
+    exclude_images: Optional[list[Path]] = Field(
         None,
         description=(
             "Images to exclude from VIA project. "
@@ -517,7 +517,7 @@ class ImageFilterConfig(BaseModel):
             "one per line."
         ),
     )
-    include_images: Optional[List[Path]] = Field(
+    include_images: Optional[list[Path]] = Field(
         None,
         description=(
             "Images to include from VIA project. "
@@ -789,7 +789,7 @@ class CamfiConfig(BaseModel):
         return self.place.get_weather_dataframe()
 
     def get_sun_time_dataframe(
-        self, days: Union[str, Dict[str, Sequence[date]]]
+        self, days: Union[str, dict[str, Sequence[date]]]
     ) -> pd.DataFrame:
         """Calls self.place.get_sun_time_dataframe"""
         if self.place is None:
@@ -815,7 +815,7 @@ class CamfiConfig(BaseModel):
             return self.place.get_sun_time_dataframe(days)
 
         raise TypeError(
-            "days must be one of ['images' | 'weather' | Dict[str, Sequence[date]]]. "
+            "days must be one of ['images' | 'weather' | dict[str, Sequence[date]]]. "
             f"Got {days} of type {type(days)}."
         )
 
@@ -1016,12 +1016,12 @@ class CamfiConfig(BaseModel):
 
         return ViaProject.parse_file(self.annotator.inference.output_path)
 
-    def validate_annotations(self) -> List[AnnotationValidationResult]:
+    def validate_annotations(self) -> list[AnnotationValidationResult]:
         """Validates automatically aquired annotations against ground-truth annotations.
 
         Returns
         -------
-        validation_results : List[AnnotationValidationResult]
+        validation_results : list[AnnotationValidationResult]
             Results from validation.
         """
         if self.annotator is None:
@@ -1121,13 +1121,13 @@ class CamfiConfig(BaseModel):
         else:
             print(self.via_project.json(indent=2, exclude_unset=True))
 
-    def filelist(self) -> List[Path]:
-        """Lists the images in self.via_project.
+    def filelist(self) -> list[Path]:
+        """lists the images in self.via_project.
 
         Returns
         -------
-        image_files : List[Path]
-            List of filepaths.
+        image_files : list[Path]
+            list of filepaths.
         """
         return [m.filename for m in self.via_project.via_img_metadata.values()]
 

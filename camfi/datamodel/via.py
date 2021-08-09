@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional, Union
 
 import exif
 import pandas as pd
@@ -176,33 +176,33 @@ class ViaMetadata(BaseModel):
         File-level image metadata.
     filename : Path
         Relative path to image file.
-    regions : List[ViaRegion]
-        List of flying insect annotations.
+    regions : list[ViaRegion]
+        list of flying insect annotations.
     size : int = -1
         Not used. (Included for compatability with VIA).
     """
 
     file_attributes: ViaFileAttributes
     filename: Path
-    regions: List[ViaRegion]
+    regions: list[ViaRegion]
     size: int = -1
 
-    def get_bounding_boxes(self) -> List[BoundingBox]:
+    def get_bounding_boxes(self) -> list[BoundingBox]:
         """Calls .get_bounding_box on each region in self.regions.
 
         Returns
         -------
-        boxes : List[BoundingBox]
-            List of bounding boxes, with one BoundingBox per item in self.regions.
+        boxes : list[BoundingBox]
+            list of bounding boxes, with one BoundingBox per item in self.regions.
         """
         return [region.get_bounding_box() for region in self.regions]
 
-    def get_labels(self) -> List[PositiveInt]:
+    def get_labels(self) -> list[PositiveInt]:
         """Gets a list full of 1's with same length as self.regions.
 
         Returns
         -------
-        labels : List[int]
+        labels : list[int]
             [1, 1, 1, ...]
         """
         return [1 for _ in range(len(self.regions))]
@@ -388,19 +388,19 @@ class ViaProject(BaseModel):
 
     Parameters
     ----------
-    via_attributes : Dict
+    via_attributes : dict
         Unused by camfi. (Included for compatability with VIA).
-    via_img_metadata : Dict[str, ViaMetadata]
-        Dict of {str: ViaMetadata} pairs. Keys can be arbitrary strings, however they
+    via_img_metadata : dict[str, ViaMetadata]
+        dict of {str: ViaMetadata} pairs. Keys can be arbitrary strings, however they
         usually bare some resemblance to the .filename attribute of the ViaMetadata
         instance.
-    via_settings : Dict
+    via_settings : dict
         Unused by camfi. (Included for compatability with VIA).
     """
 
-    via_attributes: Dict
-    via_img_metadata: Dict[str, ViaMetadata]
-    via_settings: Dict
+    via_attributes: dict
+    via_img_metadata: dict[str, ViaMetadata]
+    via_settings: dict
 
     class Config:
         """Sets pydantic.BaseModel configuration of ViaProject."""
@@ -432,12 +432,12 @@ class ViaProject(BaseModel):
         location_dict : Optional[Mapping[Path, Optional[str]]]
             A mapping from filenames (i.e. relative paths to images under root) to
             location strings, which are passed to ViaMetadata.load_exif_metadata.
-            Typically, an instance of camfi.util.SubDirDict should be used.
+            Typically, an instance of camfi.util.SubDirdict should be used.
         datetime_correctors : Optional[Mapping[Path, Optional[DatetimeCorrector]]]
             A mapping from filenames (i.e. relative paths to images under root) to
             DatetimeCorrector instances, which are passed to
             ViaMetadata.load_exif_metadata
-            Typically, an instance of camfi.util.SubDirDict should be used.
+            Typically, an instance of camfi.util.SubDirdict should be used.
         disable_progress_bar : Optional[bool]
             If True (default), progress bar is disabled.
             If set to None, disable on non-TTY.
@@ -469,7 +469,7 @@ class ViaProject(BaseModel):
 
         If location_dict and/or datetime_correctors are set, the metadata will
         include location and/or datetime_corrected, respectively. Normally, these
-        would be set as instances of camfi.util.SubDirDict, but for brevity we use
+        would be set as instances of camfi.util.SubDirdict, but for brevity we use
         a regular dict for each of them here.
 
         >>> project.load_all_exif_metadata(
@@ -521,7 +521,7 @@ class ViaProject(BaseModel):
             a column for every field in ViaFileAttributes and ViaRegionAttributes, as
             well as img_key, filename, and name columns.
         """
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         for img_key, metadata in self.via_img_metadata.items():
             for region in metadata.regions:
                 row = {
@@ -553,7 +553,7 @@ class ViaProject(BaseModel):
             converted to pandas.Timestamp, with timezone conversion/localization applied
             if applicable.
         """
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         for img_key, metadata in self.via_img_metadata.items():
             row = {
                 "img_key": img_key,

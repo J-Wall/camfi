@@ -7,7 +7,7 @@ from datetime import datetime
 import itertools
 from math import pi
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 from sys import stderr
 
 import numpy as np
@@ -204,10 +204,10 @@ class Annotator(BaseModel):
         will immediately be converted to radians upon instantiation of Annotator.
     poly_order : PositiveInt
         Order of polynomial used for fitting motion blur paths.
-    endpoint_method : Callable[[np.ndarray, ...], Tuple[NonNegativeInt, NonNegativeInt]]
+    endpoint_method : Callable[[np.ndarray, ...], tuple[NonNegativeInt, NonNegativeInt]]
         Method to find endpoints of motion blurs. The first argument to this method
         should be a cropped mask np.ndarray.
-    endpoint_extra_args : List[Any]
+    endpoint_extra_args : list[Any]
         Extra arguments to pass to endpoint_method.
     score_thresh : float
         Score threshold between 0.0 and 1.0 for automatic annotations to be kept.
@@ -227,9 +227,9 @@ class Annotator(BaseModel):
     split_angle: PositiveFloat = 15.0
     poly_order: PositiveInt = 2
     endpoint_method: Callable[
-        ..., Tuple[NonNegativeInt, NonNegativeInt]
+        ..., tuple[NonNegativeInt, NonNegativeInt]
     ] = endpoint_truncate
-    endpoint_extra_args: List[Any] = [10]
+    endpoint_extra_args: list[Any] = [10]
     score_thresh: float = 0.4
     overlap_thresh: float = 0.4
     edge_thresh: NonNegativeInt = 20
@@ -411,7 +411,7 @@ class Annotator(BaseModel):
     def convert_to_circle(
         self,
         polyline: PolylineShapeAttributes,
-        img_shape: Tuple[PositiveInt, PositiveInt],
+        img_shape: tuple[PositiveInt, PositiveInt],
     ) -> Union[PolylineShapeAttributes, CircleShapeAttributes]:
         """Checks if a polyline annotation is close to the edge of an image, and if so,
         converts it to a circle annotation by computing the smallest enclosing circle of
@@ -421,7 +421,7 @@ class Annotator(BaseModel):
         ----------
         polyline : PolylineShapeAttributes
             Shape to convert if too close to edge.
-        img_shape: Tuple[int, int]
+        img_shape: tuple[int, int]
             Height and width of image.
 
         Returns
@@ -439,7 +439,7 @@ class Annotator(BaseModel):
 
         return polyline.as_circle()
 
-    def annotate_img(self, img_idx: int) -> List[ViaRegion]:
+    def annotate_img(self, img_idx: int) -> list[ViaRegion]:
         """Calls self.get_prediction, self.filter_annotations, and self.fit_poly to
         produce annotations for an image specified with img_idx.
 
@@ -450,8 +450,8 @@ class Annotator(BaseModel):
 
         Returns
         -------
-        regions : List[ViaRegion]
-            List of annotations for image.
+        regions : list[ViaRegion]
+            list of annotations for image.
         """
         prediction = self.get_prediction(img_idx)
         prediction = self.filter_annotations(prediction)
@@ -498,7 +498,7 @@ class Annotator(BaseModel):
         project : ViaProject
             With automatic annotations made.
         """
-        via_img_metadata: Dict[str, ViaMetadata] = {}
+        via_img_metadata: dict[str, ViaMetadata] = {}
 
         postfix = {"tot_annotations": 0}
         pb = trange(
@@ -539,36 +539,36 @@ class AnnotationValidationResult(BaseModel):
 
     Parameters
     ----------
-    ious : List[Tuple[NonNegativeFloat, NonNegativeFloat]]
-        List of (iou, score) pairs.
+    ious : list[tuple[NonNegativeFloat, NonNegativeFloat]]
+        list of (iou, score) pairs.
         iou is the Intersection over Union of the bounding boxes of true positives
         to their matched ground truth annotation. All matched annotations are
         included.
-    polyline_hausdorff_distances : List[Tuple[NonNegativeFloat, NonNegativeFloat]]
-        List of (h_dist, score) pairs.
+    polyline_hausdorff_distances : list[tuple[NonNegativeFloat, NonNegativeFloat]]
+        list of (h_dist, score) pairs.
         h_dist is the hausdorff distance of a true positive polyline annotation,
         where the annotation is matched to a polyline ground truth annotation. Only
         polyline annotations which matched to a polyline ground truth annotation are
         included.
-    length_differences : List[Tuple[float, NonNegativeFloat]]
-        List of (l_diff, score) pairs.
+    length_differences : list[tuple[float, NonNegativeFloat]]
+        list of (l_diff, score) pairs.
         l_diff is calculated as the length of a true positive polyline annotation
         minus the length of it's matched ground truth annotation. Only polyline
         annotations which matched to a polyline ground truth annotation are
         included.
-    true_positives : List[NonNegativeFloat]
-        List of scores.
-    false_positives : List[NonNegativeFloat]
-        List of scores. Score is the prediction score of the automatic annotation.
+    true_positives : list[NonNegativeFloat]
+        list of scores.
+    false_positives : list[NonNegativeFloat]
+        list of scores. Score is the prediction score of the automatic annotation.
     false_negatives : int
         Number of false negative annotations.
     """
 
-    ious: List[Tuple[NonNegativeFloat, NonNegativeFloat]] = []
-    polyline_hausdorff_distances: List[Tuple[NonNegativeFloat, NonNegativeFloat]] = []
-    length_differences: List[Tuple[float, NonNegativeFloat]] = []
-    true_positives: List[NonNegativeFloat] = []
-    false_positives: List[NonNegativeFloat] = []
+    ious: list[tuple[NonNegativeFloat, NonNegativeFloat]] = []
+    polyline_hausdorff_distances: list[tuple[NonNegativeFloat, NonNegativeFloat]] = []
+    length_differences: list[tuple[float, NonNegativeFloat]] = []
+    true_positives: list[NonNegativeFloat] = []
+    false_positives: list[NonNegativeFloat] = []
     false_negatives: NonNegativeInt = 0
 
 
@@ -576,9 +576,9 @@ def validate_annotations(
     auto_annotations: ViaProject,
     ground_truth: ViaProject,
     iou_thresh: float = 0.5,
-    subset_functions: Optional[Dict[str, Callable[[ViaMetadata], bool]]] = None,
+    subset_functions: Optional[dict[str, Callable[[ViaMetadata], bool]]] = None,
     disable_progress_bar: Optional[bool] = True,
-) -> List[AnnotationValidationResult]:
+) -> list[AnnotationValidationResult]:
     """Compares automatic annotations against a ground-truth annotations for validation
     puposes. Validation data is stored in an AnnotationValidationResult object.
 
@@ -591,7 +591,7 @@ def validate_annotations(
     iou_thresh : float
         Threshold of intersection-over-union of bounding boxes to be considered a
         match. Typically, this is 0.5.
-    subset_functions : Optional[Dict[str, Callable[[ViaMetadata], bool]]]
+    subset_functions : Optional[dict[str, Callable[[ViaMetadata], bool]]]
         Mapping from subset name to subset function. If set, validation will be repeated
         multiple times with different subsets, once for each element.
     disable_progress_bar : Optional[bool]
@@ -600,15 +600,15 @@ def validate_annotations(
 
     Returns
     -------
-    validation_results : List[AnnotationValidationResult]
-        List containing instances of AnnotationValidationResult. If subset_functions is
+    validation_results : list[AnnotationValidationResult]
+        list containing instances of AnnotationValidationResult. If subset_functions is
         set, then validation_results will have len(subset_functions) elements. By
         default it will just contain one element.
     """
     if subset_functions is None:
         subset_functions = {"all": lambda x: True}
 
-    results: List[AnnotationValidationResult] = []
+    results: list[AnnotationValidationResult] = []
 
     for name, subset_function in subset_functions.items():
         annotations = auto_annotations.filtered_copy(subset_function)

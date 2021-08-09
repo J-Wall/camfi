@@ -1,6 +1,5 @@
 from pathlib import Path
 import random
-from typing import Dict, Tuple
 
 from pydantic import ValidationError
 from pytest import approx, fixture, raises
@@ -654,8 +653,8 @@ class TestPrediction:
 
 class MockImageTransform(ImageTransform):
     def apply_to_tensor_dict(
-        self, image: Tensor, target: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Dict[str, Tensor]]:
+        self, image: Tensor, target: dict[str, Tensor]
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         image = image + 1.0
         return image, target
 

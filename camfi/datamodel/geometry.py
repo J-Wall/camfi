@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import atan2, degrees, sqrt
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from pydantic import (
     BaseModel,
@@ -74,14 +74,14 @@ class BoundingBox(BaseModel):
 
     @classmethod
     def from_shape(
-        self, shape: Tuple[PositiveInt, PositiveInt], border: NonNegativeInt = 0
+        self, shape: tuple[PositiveInt, PositiveInt], border: NonNegativeInt = 0
     ) -> BoundingBox:
         """Creates an instance of BoundingBox from an image shape, useful for defining
         a region of interest within an image, not too close to the edge.
 
         Parameters
         ----------
-        shape: Tuple[PositiveInt, PositiveInt]
+        shape: tuple[PositiveInt, PositiveInt]
             Shape of image (height, width).
         border: NonNegativeInt
             Width of border. If 0 (default), then the bounding box will contain the
@@ -105,12 +105,12 @@ class BoundingBox(BaseModel):
         )
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> tuple[int, int]:
         """Gets the (height, width) of the bounding box.
 
         Returns
         -------
-        shape : Tuple[int, int]
+        shape : tuple[int, int]
             Height and width of the bounding box
 
         Examples
@@ -123,7 +123,7 @@ class BoundingBox(BaseModel):
     def add_margin(
         self,
         margin: NonNegativeInt,
-        shape: Optional[Tuple[PositiveInt, PositiveInt]] = None,
+        shape: Optional[tuple[PositiveInt, PositiveInt]] = None,
     ) -> None:
         """Expands self by a fixed margin. Operates in-place.
 
@@ -131,7 +131,7 @@ class BoundingBox(BaseModel):
         ----------
         margin: PositiveInt
             Margin to add to self.
-        shape: Optional[Tuple[PositiveInt, PositiveInt]] = (height, width)
+        shape: Optional[tuple[PositiveInt, PositiveInt]] = (height, width)
             Shape of image. If set, will constrain self to image shape.
         """
         self.x0 = max(0, self.x0 - margin)
@@ -649,16 +649,16 @@ class PolylineShapeAttributes(ViaShapeAttributes):
 
     Parameters
     ----------
-    all_points_x : List[NonNegativeFloat]
-        List of the x-coordinates of the points defining the polyline.
-    all_points_y : List[NonNegativeFloat]
-        List of the y-coordinates of the points defining the polyline.
+    all_points_x : list[NonNegativeFloat]
+        list of the x-coordinates of the points defining the polyline.
+    all_points_y : list[NonNegativeFloat]
+        list of the y-coordinates of the points defining the polyline.
     name : str
         Name of shape (must be "polyline" for PolylineShapeAttributes instances).
     """
 
-    all_points_x: List[NonNegativeFloat]
-    all_points_y: List[NonNegativeFloat]
+    all_points_x: list[NonNegativeFloat]
+    all_points_y: list[NonNegativeFloat]
     name: str = Field("polyline", regex=r"^polyline$")
 
     @validator("all_points_y")

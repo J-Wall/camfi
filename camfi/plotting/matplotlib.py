@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -94,7 +94,7 @@ class MatplotlibWingbeatSuppFigPlotter(WingbeatSuppFigPlotter):
 
 def plot_herror_bars(
     axes: plt.Axes, lower: np.ndarray, upper: np.ndarray, y: np.ndarray, **kwargs
-) -> List[plt.Line2D]:
+) -> list[plt.Line2D]:
     """Plots horizontal error bars on a set of axes.
 
     Parameters
@@ -138,14 +138,14 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     class_mask : Optional[np.ndarray]
         Array of class indices. Should have same length as the thresholded dataset,
         obtained by calling polyline_regions[polyline_regions["snr"] >= snr_thresh.
-    gmm_results : Optional[List[WeightedGaussian]]
+    gmm_results : Optional[list[WeightedGaussian]]
         If provided, a log10 Gaussian mixture model will be plotted on the horizontal
         marginal distribution histogram of the snr_vs_pwf plot. See camfi.wingbeat.GMM
         for creating this list.
-    bces_results : Optional[List[BcesResult]]
+    bces_results : Optional[list[BcesResult]]
         If provided, BCES regression lines will be plotted on the l_vs_pdt plot. See
         camfi.wingbeat.BcesEM for creating this list.
-    figsize : Tuple[float, float]
+    figsize : tuple[float, float]
         Size (width, height) of figure in inches (*shudders* ...This is the units
         matplotlib uses).
     left_border : float
@@ -178,8 +178,8 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         Line width for GMM pdfs. By default this is bold for easier viewing.
     l_vs_pdt_alpha : float
         Alpha level (opacity) to apply to error bars for l_vs_pdt plot.
-    class_colours : List[str]
-        List of colours to use for plotting multiple classes (both for GMM and BCES,
+    class_colours : list[str]
+        list of colours to use for plotting multiple classes (both for GMM and BCES,
         and class_mask). This will apply the colours to the classes in the order they
         are given. If class_mask is not supplied, the last colour in the list is used
         for all datapoints.
@@ -191,16 +191,16 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
         Title for l_vs_pdt plot.
     l_vs_pdt_title_y : float = 0.91
         Vertical position of title for l_vs_pdt plot.
-    title_font_dict : Dict[str, Any] = {"fontweight" : "bold"}
+    title_font_dict : dict[str, Any] = {"fontweight" : "bold"}
         Defines font parameters for subfig titles.
     """
 
     polyline_regions: pd.DataFrame
     snr_thresh: float = 4.0
     class_mask: np.ndarray = None  # type: ignore[assignment]
-    gmm_results: Optional[List[WeightedGaussian]] = None
-    bces_results: Optional[List[BcesResult]] = None
-    figsize: Tuple[float, float] = (7.5, 5.2)
+    gmm_results: Optional[list[WeightedGaussian]] = None
+    bces_results: Optional[list[BcesResult]] = None
+    figsize: tuple[float, float] = (7.5, 5.2)
     left_border: float = 0.1
     bottom_border: float = 0.1
     snr_vs_pwf_ax_width: float = 0.4
@@ -215,7 +215,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     gmm_plot_range_stdevs: float = 4.0
     gmm_lw: float = 3
     l_vs_pdt_alpha: float = 0.5
-    class_colours: List[str] = [
+    class_colours: list[str] = [
         "tab:blue",
         "tab:green",
         "tab:orange",
@@ -227,7 +227,7 @@ class MatplotlibWingbeatFrequencyPlotter(BaseModel):
     snr_vs_pwf_title_y: float = 0.87
     l_vs_pdt_title: str = " (b)"
     l_vs_pdt_title_y: float = 0.91
-    title_font_dict: Dict[str, Any] = {"fontweight": "bold"}
+    title_font_dict: dict[str, Any] = {"fontweight": "bold"}
     fig: plt.Figure = None  # type: ignore[assignment]
     snr_vs_pwf_ax: plt.Axes = None  # type: ignore[assignment]
     histx_ax: plt.Axes = None  # type: ignore[assignment]
@@ -506,7 +506,7 @@ def plot_activity_levels_summary(
     x_column: str = "daynumber",
     bin_width: float = 10 / 1440,
     **kwargs,
-) -> List[plt.Line2D]:
+) -> list[plt.Line2D]:
     """Produces a histogram plot of df["n_annotations"] vs. df[x_column].
 
     Parameters
@@ -524,8 +524,8 @@ def plot_activity_levels_summary(
 
     Returns
     -------
-    lines : List[plt.Line2D]
-        List of plot lines.
+    lines : list[plt.Line2D]
+        list of plot lines.
     """
     h, bx, by = np.histogram2d(
         df[x_column],
@@ -550,9 +550,9 @@ def plot_activity_levels_summary(
 
 def plot_activity_levels_summaries(
     df: pd.DataFrame,
-    locations: List[str],
-    sub_figsize: Tuple[float, float] = (9, 5),
-    ax_kwargs: Dict = {},
+    locations: list[str],
+    sub_figsize: tuple[float, float] = (9, 5),
+    ax_kwargs: dict = {},
     separate_plots: bool = True,
     **kwargs,
 ) -> plt.Figure:
@@ -564,13 +564,13 @@ def plot_activity_levels_summaries(
     df : pd.DataFrame
         DataFrame which must contain columns "n_annotations", and be indexed by location
         in locations.
-    locations : List[str]
-        List of locations to plot data for. [df.loc[location] for location in locations]
+    locations : list[str]
+        list of locations to plot data for. [df.loc[location] for location in locations]
         should be valid.
-    sub_figsize : Tuple[float, float]
+    sub_figsize : tuple[float, float]
         Figure size (in inches). If separate_plots is True, then each subfigure will be
         this size.
-    ax_kwargs : Dict
+    ax_kwargs : dict
         Keyword arguments passed to plt.Figure.add_subplot.
     separate_plots : bool
         If True (default), each plot will be put on a separate subfigure. If False, they
@@ -606,7 +606,7 @@ def plot_daily_temperatures(
     ax: plt.Axes,
     minimum_col: str = "temperature_minimum_evening_degC",
     **kwargs,
-) -> List[plt.Line2D]:
+) -> list[plt.Line2D]:
     """Plots daily temperature values on ax.
 
     Parameters
@@ -624,8 +624,8 @@ def plot_daily_temperatures(
 
     Returns
     -------
-    lines : List[plt.Line2D]
-        List of plot lines.
+    lines : list[plt.Line2D]
+        list of plot lines.
     """
     lines = []
     lines.extend(
@@ -669,7 +669,7 @@ def plot_daily_temperatures(
     return lines
 
 
-def plot_maelstroms(df: pd.DataFrame, ax: plt.Axes, **kwargs) -> List[plt.Line2D]:
+def plot_maelstroms(df: pd.DataFrame, ax: plt.Axes, **kwargs) -> list[plt.Line2D]:
     """Plots "n_annotations" vs "daynumber", with data taken from df.
 
     Parameters
@@ -687,9 +687,9 @@ def plot_maelstroms(df: pd.DataFrame, ax: plt.Axes, **kwargs) -> List[plt.Line2D
 def plot_maelstroms_with_temperature(
     df: pd.DataFrame,
     ax: plt.Axes,
-    maelstrom_kwargs: Dict = {},
-    temperatures_kwargs: Dict = {},
-) -> Tuple[List[plt.Line2D], List[plt.Line2D]]:
+    maelstrom_kwargs: dict = {},
+    temperatures_kwargs: dict = {},
+) -> tuple[list[plt.Line2D], list[plt.Line2D]]:
     """Calls plot_maelstrom, then makes a twinx axes from ax, and calls
     plot_daily_temperatures.
 
@@ -700,16 +700,16 @@ def plot_maelstroms_with_temperature(
     ax : plt.Axes
         Axes to plot maelstrom data onto. Temperature data is put on a new Axes created
         by calling ax.twinx().
-    maelstrom_kwargs : Dict
+    maelstrom_kwargs : dict
         Keyword arguments passed to plot_maelstrom.
-    temperatures_kwargs : Dict
+    temperatures_kwargs : dict
         Keyword arguments passed to plot_daily_temperatures.
 
     Returns
     -------
-    maelstrom_lines : List[plt.Line2D]
+    maelstrom_lines : list[plt.Line2D]
         Maelstrom plot lines.
-    temperature_lines : List[plt.Line2D]
+    temperature_lines : list[plt.Line2D]
         Temperature plot lines.
     """
     maelstrom_lines = plot_maelstroms(df, ax, **maelstrom_kwargs)
