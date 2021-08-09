@@ -46,6 +46,7 @@ class Commander:
         self,
         config_path: Optional[Path],
         input_file: Optional[Path] = None,
+        root: Optional[Path] = None,
         output: Optional[Path] = None,
         disable_progress_bar: Optional[bool] = None,
         vprint: Callable = _vprint,
@@ -90,6 +91,9 @@ class Commander:
         if input_file:
             self._vvprint(f"Setting config.via_project_file = {input_file}")
             self.config.via_project_file = input_file
+        if root:
+            self._vvprint(f"Setting config.root = {root}")
+            self.config.root = root
         if output:
             self._vvprint(f"Setting config.default_output = {output}")
             self.config.default_output = output
@@ -584,12 +588,14 @@ def main():
     commander = Commander(
         args.config,
         input_file=args.input,
+        root=args.root,
         output=args.output,
         disable_progress_bar=disable_progress_bar,
         vprint=vprint,
         vvprint=vvprint,
     )
 
+    # Output config JSON
     if str(args.json_conf_out) == "-":
         vprint("Writing config JSON to stdout...")
         print(commander.config.json(indent=2, exclude_unset=True))
