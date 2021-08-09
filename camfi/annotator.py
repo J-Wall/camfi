@@ -372,7 +372,7 @@ class Annotator(BaseModel):
             Geometry of automatic annotation.
         """
         portrait = box.is_portrait()
-        crop_mask = box.crop_image(mask).numpy()
+        crop_mask = box.crop_image(mask).cpu().numpy()
 
         y, x = np.where(crop_mask > 0.0)
         weights = np.array(crop_mask[y, x]).flatten()
