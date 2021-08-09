@@ -99,6 +99,7 @@ setup(
         "pandas",
         "pydantic",
         "scikit-image",
+        "scikit-learn",
         "scipy",
         "Shapely",
         "skyfield",
