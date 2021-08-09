@@ -1026,58 +1026,86 @@ class CamfiConfig(BaseModel):
         """
         if self.annotator is None:
             raise AnnotatorConfigUnspecifiedError
+        annotator: AnnotatorConfig = self.annotator
 
-        if self.annotator.validation is None:
+        if annotator.validation is None:
             raise ValidationConfigUnspecifiedError
 
+        training: TrainingConfig
+
         subset_functions = {}
-        for image_set in self.annotator.validation.image_sets:
+        for image_set in annotator.validation.image_sets:
             if image_set == "all":
                 subset_functions["all"] = lambda x: True
             elif image_set == "train":
-                if self.annotator.training is None:
+                if annotator.training is None:
                     raise TrainingConfigUnspecifiedError
                 else:
-                    exclude_set = set(self.annotator.training.test_set)
-                    subset_functions["train"] = (
-                        lambda x: x.filename not in exclude_set
-                        and not len(x.regions) < self.annotator.training.min_annotations
-                        and not len(x.regions) > self.annotator.training.max_annotations
-                    )
+                    training = annotator.training
+                    exclude_set = set(training.test_set)
+
+                    def _subset_fn(metadata: ViaMetadata) -> bool:
+                        if metadata.filename in exclude_set:
+                            return False
+                        if (
+                            training.min_annotations is not None
+                            and len(metadata.regions) < training.min_annotations
+                        ):
+                            return False
+                        if (
+                            training.max_annotations is not None
+                            and len(metadata.regions) > training.max_annotations
+                        ):
+                            return False
+                        return True
+
+                    subset_functions["train"] = _subset_fn
             elif image_set == "test":
-                if self.annotator.training is None:
+                if annotator.training is None:
                     raise TrainingConfigUnspecifiedError
                 else:
-                    include_set = set(self.annotator.training.test_set)
-                    subset_functions["test"] = (
-                        lambda x: x.filename in include_set
-                        and not len(x.regions) < self.annotator.training.min_annotations
-                        and not len(x.regions) > self.annotator.training.max_annotations
-                    )
+                    include_set = set(training.test_set)
+                    training = annotator.training
+
+                    def _subset_fn(metadata: ViaMetadata) -> bool:
+                        if metadata.filename not in include_set:
+                            return False
+                        if (
+                            training.min_annotations is not None
+                            and len(metadata.regions) < training.min_annotations
+                        ):
+                            return False
+                        if (
+                            training.max_annotations is not None
+                            and len(metadata.regions) > training.max_annotations
+                        ):
+                            return False
+                        return True
+
+                    subset_functions["test"] = _subset_fn
             else:
                 raise ValueError(f"Expected one of all|train|test. Got {image_set}.")
 
         validation_results = validate_annotations(
             auto_annotations=self.get_autoannotated_via_project(),
             ground_truth=self.via_project,
-            iou_thresh=self.annotator.validation.iou_thresh,
+            iou_thresh=annotator.validation.iou_thresh,
             subset_functions=subset_functions,
             disable_progress_bar=self.disable_progress_bar,
         )
 
         # Optionally save to file before returning
         output_dir = (
-            self.annotator.validation.output_dir
-            if self.annotator.validation.output_dir
+            annotator.validation.output_dir
+            if annotator.validation.output_dir
             else self.default_output
         )
         if output_dir:
             for image_set, validation_result in zip(
-                self.annotator.validation.image_sets, validation_results
+                annotator.validation.image_sets, validation_results
             ):
                 output_file = (
-                    output_dir
-                    / f"{self.annotator.validation.output_stem}.{image_set}.json"
+                    output_dir / f"{annotator.validation.output_stem}.{image_set}.json"
                 )
                 with open(output_file, "w") as f:
                     f.write(validation_result.json(indent=2))
