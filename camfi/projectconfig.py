@@ -14,7 +14,6 @@ import pandas as pd
 from pydantic import (
     BaseModel,
     DirectoryPath,
-    Field,
     FilePath,
     NonNegativeInt,
     PositiveFloat,
@@ -38,7 +37,7 @@ from camfi.datamodel.locationtime import LocationTimeCollector
 from camfi.datamodel.via import ViaProject, RegionFilterConfig, ViaMetadata
 from camfi.datamodel.weather import LocationWeatherStationCollector
 from camfi.models import model_urls
-from camfi.util import Timezone, endpoint_methods
+from camfi.util import Timezone, endpoint_methods, Field
 from camfi.transform import RandomHorizontalFlip
 from camfi.wingbeat import WingbeatExtractorConfig, extract_all_wingbeats
 
@@ -95,10 +94,24 @@ class CameraConfig(BaseModel):
     """Camera hardware-related configuration."""
 
     camera_time_to_actual_time_ratio: Optional[float] = Field(
-        None, description="Used for correcting timestamps from an inaccurate clock."
+        None,
+        description=(
+            "Used for correcting timestamps from an inaccurate clock. "
+            "A value of 1.0 means the camera's clock runs at the correct speed. "
+            "A value less than 1.0 means that the camera's clock is slow, "
+            "and a value greater than 1.0 means the camera's clock is fast. "
+        ),
     )
     line_rate: Optional[PositiveFloat] = Field(
-        None, description="Rolling-shutter line rate of camera (lines per second)."
+        None,
+        description=(
+            "Rolling-shutter line rate of camera (lines per second). "
+            "Used during wingbeat extraction to determine "
+            "the effective exposure time for moving objects "
+            "(flying insects) "
+            "in images. "
+            "This is required in order to calculate wingbeat frequency accurately. "
+        ),
     )
 
 
@@ -149,42 +162,111 @@ class TrainingConfig(BaseModel):
     mask_maker: Optional[MaskMaker] = None
     min_annotations: Optional[int] = Field(
         None,
-        description="Only train on images which have at least this many annotations.",
+        description=(
+            "Only train on images which have at least this many annotations. "
+            "It often makes sense to set this to a low number (e.g. 1). "
+            "This will mean that any image with *no* annotations in it "
+            "will be skipped. "
+        ),
     )
     max_annotations: Optional[int] = Field(
         None,
-        description="Only train on images which have at most this many annotations.",
+        description=(
+            "Only train on images which have at most this many annotations. "
+            "This option exists because GPU memory consumption during "
+            "each step of training "
+            "depends on the number of annotations in the loaded images, "
+            "so images with a lot of annotations can cause training to crash. "
+            "It probably makes sense to leave this unset, and only set it if you "
+            "are runnning into GPU memory errors. "
+        ),
     )
     box_margin: PositiveInt = Field(
-        10, description="Margin to add to bounding boxes of object annotations."
+        10,
+        description=(
+            "Margin (in pixels) to add to bounding boxes of object annotations. "
+            "This may affect "
+            "endpoint estimation of polyline annotataions during inference. "
+        ),
     )
     test_set_file: Optional[FilePath] = Field(
         None,
-        description="Contains filepaths (one per line). Do not set if test_set is set.",
+        description=(
+            "Path to file "
+            "containing filepaths (one per line). Do not set if test_set is set."
+        ),
     )
     test_set: List[Path] = Field(
         [],
-        description="List of images to exclude from training.",
+        description=(
+            "List of images to exclude from training. "
+            "Also used by validator to determine "
+            "which subsets of images to validate against. "
+        ),
     )
     load_pretrained_model: Optional[Union[Path, str]] = Field(
-        None, description="Path or url to model parameters file to initialise training."
+        None,
+        description=(
+            "Path or url to model .pth file or one of camfi.models.model_urls "
+            "to initialise training. "
+            "By default, Resnet50 FPN backbone trained on the COCO dataset is used. "
+        ),
+        examples=list(model_urls),
     )
     device: str = Field(
-        "cpu", description="Device to run training on (e.g. cuda or cpu)."
+        "cpu",
+        description="Device to run training on. Use cuda for a Nvidia GPU.",
+        examples=["cuda", "cpu"],
     )
-    batch_size: int = Field(5, description="Number of images to load at once.")
+    batch_size: int = Field(
+        5,
+        description=(
+            "Number of images to load at once. "
+            "This has memory consumption implications, "
+            "So if you're running in to problems with memory availability on the GPU, "
+            "consider lowering this. "
+        ),
+    )
     num_workers: int = Field(
-        2, description="Number of worker processes for data loader to spawn."
+        2,
+        description=(
+            "Number of worker processes for data loader to spawn. "
+            "Depending on your machine, "
+            "setting this really high can have diminishing returns "
+            "as system IO will become the rate-limiting step. "
+        ),
     )
-    num_epochs: int = Field(10, description="Number of epochs to train.")
+    num_epochs: int = Field(
+        10,
+        description=(
+            "Number of epochs "
+            "(traversals of the entire training set) "
+            "to train. "
+            "Note that data augmentation (e.g. random horizontal flipping) "
+            "is applied only once to each image during each epoch. "
+        ),
+    )
     outdir: DirectoryPath = Field(
-        Path(), description="Path to directory where to save model(s)."
+        Path(),
+        description=(
+            "Path to directory where to save model "
+            "(or models if save_intermediate is set). "
+        ),
     )
     model_name: Optional[str] = Field(
-        None, description="Identifier to include in model save file. Default YYYYmmdd."
+        None,
+        description=(
+            "Identifier to include in the file name of the trained model(s). "
+            "By default, this will be inferred from the date the configuration is "
+            "parsed, in the format YYYYmmdd."
+        ),
     )
     save_intermediate: bool = Field(
-        False, description="If True, model is saved after each epoch."
+        False,
+        description=(
+            "If True, model is saved after each epoch. "
+            "By default, the model is only saved at the very end. "
+        ),
     )
 
     class Config:
@@ -241,11 +323,27 @@ class InferenceConfig(BaseModel):
 
     output_path: Optional[Path] = Field(
         None,
-        description="If set, automatically generated annotations will be saved to file.",
+        description=(
+            "If set, automatically generated annotations will be written to "
+            "the file at the specified path. "
+            "If unset, then the annotations will be written to "
+            "the file at the path specified by CamfiConfig.default_output. "
+            "If neither is set, "
+            "the annotations will not be written to file, "
+            "which is probably only useful if you are using "
+            "camfi as a python module, "
+            "rather than from the command line. "
+        ),
     )
     model: Union[Path, str] = Field(
         "release",
-        description="Path or url to model .pth file or one of camfi.models.model_urls.",
+        description=(
+            "Pre-trained instance segmentation model "
+            "to use during automated annotaton. "
+            "Can be a "
+            "path or url to a model .pth file "
+            "or one of camfi.models.model_urls. "
+        ),
         examples=list(model_urls),
     )
     device: str = Field(
@@ -255,7 +353,10 @@ class InferenceConfig(BaseModel):
     )
     backup_device: Optional[str] = Field(
         None,
-        description="Used for images which fail on device due to memory constraints.",
+        description=(
+            "Used for images which fail on device due to memory constraints. "
+            "It is recommended to set this to 'cpu' if device is set to 'cuda'. "
+        ),
     )
     split_angle: PositiveFloat = Field(
         15.0,
@@ -273,16 +374,34 @@ class InferenceConfig(BaseModel):
         [10], description="Extra arguments to pass to endpoint method function."
     )
     score_thresh: float = Field(
-        0.4,
-        description="Score threshold between 0.0 and 1.0 for automatic annotations to be kept.",
+        0.0,
+        description=(
+            "Score threshold between 0.0 and 1.0 for automatic annotations to be kept."
+            "Setting this to higher values will result fewer annotations being made. "
+        ),
     )
     overlap_thresh: float = Field(
         0.4,
-        description="Minimum weighted IoM for non-maximum suppression of detections.",
+        description=(
+            "Minimum weighted IoM between 0.0 and 1.0 "
+            "for non-maximum suppression of detections. "
+            "Setting this to higher values "
+            "will result in a higher number of annotations being made, "
+            "since fewer pairs of annotations will be assumed to relate "
+            "to the same object as eachother. "
+        ),
     )
     edge_thresh: NonNegativeInt = Field(
         20,
-        description="Polyline annotations this close to edge of image are converted to circles.",
+        description=(
+            "Polyline annotations which go this close "
+            "(measured in pixels) "
+            "to edge of the image "
+            "will be converted to circle annotations. "
+            "This is because wingbeat measurements "
+            "cannot be made unless the entire motion blur "
+            "is contained within the image. "
+        ),
     )
 
     class Config:
@@ -310,21 +429,43 @@ class ValidationConfig(BaseModel):
 
     autoannotated_via_project_file: Optional[Path] = Field(
         None,
-        description="Path to file containing VIA Project with annotations to validate.",
+        description=(
+            "Path to file containing VIA Project with "
+            "automatically obtained annotations to validate. "
+        ),
     )
     iou_thresh: float = Field(
-        0.5, description="Threshold of intersection-over-union to match annotations."
+        0.5,
+        description=(
+            "Threshold of bounding-box intersection-over-union to match "
+            "automatically obtained annotations to ground truth annotations. "
+        ),
     )
     image_sets: List[str] = Field(
         ["all"],
-        description="Image sets to perform training on.",
+        description=(
+            "Image sets to perform validation on. "
+            "Possible sets are 'all', 'test', and 'train'. "
+            "Multiple sets can be specified. "
+            "If including 'test' or 'train', "
+            "annotator.training must also be configured. "
+        ),
         regex="^(all|test|train)$",
     )
     output_dir: Optional[DirectoryPath] = Field(
         None,
-        description="If set, results of validation will be saved.",
+        description=(
+            "If set, results of validation will be saved to this directory "
+            "(one file per image set). "
+        ),
     )
-    output_stem: str = Field("validation", description="Stem of output files.")
+    output_stem: str = Field(
+        "validation",
+        description=(
+            "Stem of output files. "
+            "Output files will be saved as ``output_dir/output_stem.image_set.json``. "
+        ),
+    )
 
     class Config:
         schema_extra = {
@@ -359,9 +500,13 @@ class AnnotatorConfig(BaseModel):
         }
 
 
-class FilterConfig(BaseModel):
-    """Contains settings for filtering VIA project"""
+class ImageFilterConfig(BaseModel):
+    """Contains options for filtering images from a VIA project."""
 
+    min_annotations: Optional[int] = Field(
+        None,
+        description=("Exclude images if they have " "fewer annotations than this. "),
+    )
     exclude_images: Optional[List[Path]] = Field(
         None,
         description=(
@@ -383,7 +528,6 @@ class FilterConfig(BaseModel):
             "one per line."
         ),
     )
-    region_filters: Optional[RegionFilterConfig] = None
 
     @validator("exclude_images", "include_images", pre=True)
     def read_from_file(cls, v):
@@ -392,6 +536,14 @@ class FilterConfig(BaseModel):
                 image_paths = [Path(line.strip()) for line in f]
             return image_paths
         return v
+
+
+class FilterConfig(BaseModel):
+    """Contains settings for filtering images and/or regions (annotations) from a VIA
+    project."""
+
+    image_filters: Optional[ImageFilterConfig] = None
+    region_filters: Optional[RegionFilterConfig] = None
 
 
 class CamfiConfig(BaseModel):
@@ -403,16 +555,31 @@ class CamfiConfig(BaseModel):
         Path(), description="Directory containing all images for the project."
     )
     disable_progress_bar: Optional[bool] = Field(
-        None, description="Disables progress bars. By default, disable on non-TTY."
+        None,
+        description=(
+            "Disables progress bars. "
+            "By default, disable on non-TTY. "
+            "To force the progress bar to appear, "
+            "set this to false. "
+        ),
     )
     via_project_file: Optional[FilePath] = Field(
         None, description="Path to file containing VIA project."
     )
     day_zero: Optional[date] = Field(
-        None, description="Used as reference date for plotting etc."
+        None,
+        description=(
+            "Used as reference date for plotting etc. "
+            "Currently the Camfi CLI does not access this value, "
+            "However it is used in some of the example notebooks. "
+        ),
     )
     output_tz: Timezone = Field(
-        description="Sets a global timezone used for various analyses.",
+        description=(
+            "Sets a global timezone "
+            "to convert all timezones to, "
+            "for simpler comparison between locations in different timezones. "
+        ),
         default_factory=lambda: Timezone("Z"),
     )
     default_output: Optional[Path] = Field(
@@ -543,37 +710,53 @@ class CamfiConfig(BaseModel):
         if self.filters is None:
             raise FiltersUnspecifiedError
 
-        if self.filters.include_images is None and self.filters.exclude_images is None:
+        if self.filters.image_filters is None:
             # Nothing to do.
             return None
 
         # Define inclusion filter
-        if self.filters.include_images is None:
+        if self.filters.image_filters.include_images is None:
 
             def _passes_include(metadata: ViaMetadata) -> bool:
                 return True
 
         else:
-            _include_images = set(self.filters.include_images)
+            _include_images = set(self.filters.image_filters.include_images)
 
             def _passes_include(metadata: ViaMetadata) -> bool:
                 return metadata.filename in _include_images
 
         # Define inclusion filter
-        if self.filters.exclude_images is None:
+        if self.filters.image_filters.exclude_images is None:
 
             def _passes_exclude(metadata: ViaMetadata) -> bool:
                 return True
 
         else:
-            _exclude_images = set(self.filters.exclude_images)
+            _exclude_images = set(self.filters.image_filters.exclude_images)
 
             def _passes_exclude(metadata: ViaMetadata) -> bool:
                 return metadata.filename not in _exclude_images
 
+        # Define min_annotations filter
+        if self.filters.image_filters.min_annotations is None:
+
+            def _passes_min_annotations(metadata: ViaMetadata) -> bool:
+                return True
+
+        else:
+            _min_annotations = self.filters.image_filters.min_annotations
+
+            def _passes_min_annotations(metadata: ViaMetadata) -> bool:
+                return len(metadata.regions) >= _min_annotations
+
         # Define combined filter
         def _image_filter(metadata: ViaMetadata) -> bool:
-            return _passes_include(metadata) and _passes_exclude(metadata)
+            return (
+                _passes_include(metadata)
+                and _passes_exclude(metadata)
+                and _passes_min_annotations(metadata)
+            )
 
         # Apply filter
         self.via_project.filter_inplace(_image_filter)
@@ -853,16 +1036,24 @@ class CamfiConfig(BaseModel):
                 subset_functions["all"] = lambda x: True
             elif image_set == "train":
                 if self.annotator.training is None:
-                    exclude_set = set()
+                    raise TrainingConfigUnspecifiedError
                 else:
                     exclude_set = set(self.annotator.training.test_set)
-                subset_functions["train"] = lambda x: x.filename not in exclude_set
+                    subset_functions["train"] = (
+                        lambda x: x.filename not in exclude_set
+                        and not len(x.regions) < self.annotator.training.min_annotations
+                        and not len(x.regions) > self.annotator.training.max_annotations
+                    )
             elif image_set == "test":
                 if self.annotator.training is None:
-                    include_set = set()
+                    raise TrainingConfigUnspecifiedError
                 else:
                     include_set = set(self.annotator.training.test_set)
-                subset_functions["test"] = lambda x: x.filename in include_set
+                    subset_functions["test"] = (
+                        lambda x: x.filename in include_set
+                        and not len(x.regions) < self.annotator.training.min_annotations
+                        and not len(x.regions) > self.annotator.training.max_annotations
+                    )
             else:
                 raise ValueError(f"Expected one of all|train|test. Got {image_set}.")
 

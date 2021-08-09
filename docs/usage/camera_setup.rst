@@ -57,10 +57,40 @@ This is because insects will not be detected by the PIR sensor.
 Other settings are up to the user. We use the highest available quality setting
 and have set the cameras to only take photos during the night.
 
+It is recommended
+to take note of the timestamp
+from when each camera is set up,
+as well as when it is collected
+(both in real time and the time according to the camera).
+This will enable camfi to correct the timestamps
+if the camera's cloack was incorrectly set,
+or if the camera's clock speed is inaccurate.
+We have found that the easiest way to do this
+in the field
+is to take a photo of the screen of the camera
+(showing the camera's clock time)
+with a smartphone
+before placeing the camera,
+and upon collecting it.
+The timestamp of this photo
+(made by the smartphone)
+will represent real local time,
+assuming the smartphone is setup to
+synchronise it's clock with the
+mobile network.
+
 
 Camera placement
 ----------------
 
-The cameras should ideally be placed such that the background of the images is
-more or less uniform (for example, at the sky), but again, this depends on the
-research question.
+When placing the cameras in the field,
+they should ideally be placed such that the background of the images is
+more or less uniform
+(for example, at the sky),
+but again, this may be constrained by
+research questions.
+Note that noisy backgrounds
+(for example trees)
+may make it harder
+to see flying insects in the foreground,
+for both humans and the automatic annotator.

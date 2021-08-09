@@ -173,6 +173,12 @@ your system, consider setting
     # Uncomment if wingbeat data hasn't been extracted already
     # config.extract_all_wingbeats()
 
+
+.. parsed-literal::
+
+    The history saving thread hit an unexpected error (OperationalError('disk I/O error')).History will not be written to the database.
+
+
 After running the above two steps, you might like to save the results to
 a new VIA project file. Uncommenting the following will save a new VIA
 project file to ``"data/all_annotations_with_wingbeats.json"``.

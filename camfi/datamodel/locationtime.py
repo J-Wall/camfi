@@ -8,9 +8,9 @@ from math import fsum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, root_validator, validator
 
-from camfi.util import DatetimeCorrector, SubDirDict
+from camfi.util import DatetimeCorrector, SubDirDict, Field
 
 
 class LocationTime(BaseModel):

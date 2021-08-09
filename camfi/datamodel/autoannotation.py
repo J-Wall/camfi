@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 from numpy import array
 from pydantic import (
     BaseModel,
-    Field,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
@@ -22,7 +21,7 @@ from skimage import draw
 import torch
 from torch.utils.data import Dataset
 
-from camfi.util import dilate_idx
+from camfi.util import dilate_idx, Field
 from .geometry import (
     BoundingBox,
     PointShapeAttributes,

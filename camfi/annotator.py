@@ -14,7 +14,6 @@ import numpy as np
 from pydantic import (
     BaseModel,
     DirectoryPath,
-    Field,
     NonNegativeInt,
     NonNegativeFloat,
     PositiveFloat,
@@ -41,7 +40,7 @@ from camfi.datamodel.via import (
     ViaRegionAttributes,
 )
 from camfi.models import model_urls
-from camfi.util import endpoint_truncate, weighted_intersection_over_minimum
+from camfi.util import endpoint_truncate, weighted_intersection_over_minimum, Field
 from ._torchutils import collate_fn, get_model_instance_segmentation, train_one_epoch
 
 

@@ -5,10 +5,11 @@ from math import inf, sqrt
 import random
 from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import torch
 
 from camfi.datamodel.autoannotation import ImageTransform, Target
+from camfi.util import Field
 
 
 class Compose(ImageTransform):

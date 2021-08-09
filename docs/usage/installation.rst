@@ -18,17 +18,25 @@ Installation using pip
 
 Installation is as easy as::
 
-$ pip install camfi
+    $ pip install camfi
 
 Once you have installed camfi, you can run it from the command line::
 
-$ camfi <command> <flags>
+    $ camfi <command> <flags>
 
 
 Requirements
 ------------
 
-Camfi requires python 3.7 or greater.
+Camfi requires python 3.9 or greater.
+
+A copy of VGG Image Annotator (`VIA`_) Version 2
+is also required in order to do manual annotation
+of images,
+and to set up VIA projects
+for automatic annotation by Camfi.
+
+.. _VIA: https://www.robots.ox.ac.uk/~vgg/software/via/
 
 Concrete dependencies for camfi are provided in requirements.txt_. They are:
 
@@ -47,10 +55,10 @@ you can simply
 cloning the repository, and
 install from the requirements file::
 
-$ git clone https://github.com/J-Wall/camfi.git
-$ cd camfi
-$ git checkout <version>  # set to whatever version you are using
-$ pip install -r requirements.txt
+    $ git clone https://github.com/J-Wall/camfi.git
+    $ cd camfi
+    $ git checkout <version>  # set to whatever version you are using
+    $ pip install -r requirements.txt
 
 
 Development
@@ -61,9 +69,24 @@ you may want to install
 the testing and documentation
 building requirements::
 
-$ git clone https://github.com/J-Wall/camfi.git
-$ cd camfi
-$ pip install -r requirements.txt
-$ pip install -r docs/requirements.txt  # For documentation building
-$ pip install pip install pytest-cov pytest-mypy  # For testing
-$ pip install -e .  # Installs camfi in develop mode
+    $ git clone https://github.com/J-Wall/camfi.git
+    $ cd camfi
+    $ pip install -r requirements.txt
+    $ pip install -r docs/requirements.txt  # For documentation building
+    $ pip install pip install pytest-cov pytest-mypy  # For testing
+    $ pip install -e .  # Installs camfi in develop mode
+
+If you are making any changes to
+``camfi.datamodel.via_region_attributes.ViaRegionAttributes``,
+then you should run the script
+``camfi/datamodel/_region_filter_config_dynamic.py``
+to rebuild ``camfi/datamodel/region_filter_config.py``
+before each commit::
+
+    $ python camfi/datamodel/_region_filter_config_dynamic.py
+    $ git add camfi/datamodel/region_filter_config.py
+
+This script has an additional dependency,
+which can be installed with pip::
+
+    $ pip install datamodel-code-generator

@@ -12,7 +12,6 @@ import exif
 import pandas as pd
 from pydantic import (
     BaseModel,
-    Field,
     PositiveFloat,
     PositiveInt,
     validator,
@@ -27,9 +26,9 @@ from .geometry import (
     CircleShapeAttributes,
     PolylineShapeAttributes,
 )
-from ._via_region_attributes import ViaRegionAttributes
-from ._region_filter_config_static import RegionFilterConfig
-from camfi.util import DatetimeCorrector
+from .via_region_attributes import ViaRegionAttributes
+from .region_filter_config import RegionFilterConfig
+from camfi.util import DatetimeCorrector, Field
 
 
 class ViaFileAttributes(BaseModel):
@@ -621,8 +620,9 @@ class ViaProject(BaseModel):
             Called on each value in self.via_img_metadata to determine if it should be
             included in output.
         """
-        self.via_img_metadata = {
+        _new_img_metadata = {
             key: value
             for key, value in self.via_img_metadata.items()
             if function(value)
         }
+        self.via_img_metadata = _new_img_metadata

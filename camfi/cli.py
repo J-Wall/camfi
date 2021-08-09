@@ -2,6 +2,7 @@
 """
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter as Formatter
+from datetime import datetime
 from functools import wraps
 from inspect import getdoc
 from pathlib import Path
@@ -20,7 +21,7 @@ def _qprint(*args, **kwargs) -> None:
 
 
 def _vprint(*args, **kwargs) -> None:
-    print(*args, file=stderr, **kwargs)
+    print(f"[{datetime.now().astimezone().isoformat()}]", *args, file=stderr, **kwargs)
 
 
 def _fill_paras(paras: list[str], sep: str = "\n \n", **kwargs) -> str:
@@ -62,13 +63,13 @@ class Commander:
         self._vprint, self._vvprint = vprint, vvprint
 
         # Import only done after command line parsing to make it faster and more robust.
-        self._vvprint("Importing camfi.")
+        self._vvprint("Importing camfi...")
         from camfi.projectconfig import CamfiConfig
 
         self._vvprint("Done.")
 
         self._vprint(
-            f"Parsing configuration file: {config_path}"
+            f"Parsing configuration file: {config_path}..."
             if config_path
             else "Creating configuration."
         )
@@ -85,7 +86,7 @@ class Commander:
             )
         self._vprint("Done.")
 
-        self._vvprint("Updating command-line configurable config params")
+        self._vvprint("Updating command-line configurable config params...")
         if input_file:
             self._vvprint(f"Setting config.via_project_file = {input_file}")
             self.config.via_project_file = input_file
@@ -163,13 +164,14 @@ class Commander:
         model_path = self.config.train_model()
 
         # Update model used for annotation
-        if self.config.inference:
-            if "model" not in self.config.inference.__fields_set__:
-                self._vprint(f"Setting config.inference.model = {model_path}")
-                self.config.inference.model = model_path
+        if self.config.annotator and self.config.annotator.inference:
+            if "model" not in self.config.annotator.inference.__fields_set__:
+                self._vprint(f"Setting config.annotator.inference.model = {model_path}")
+                self.config.annotator.inference.model = model_path
             else:
                 self._vprint(
-                    f"Inference model already set to {self.config.inference.model} "
+                    "Inference model already set to "
+                    f"{self.config.annotator.inference.model} "
                     "Not changing."
                 )
 
@@ -212,16 +214,24 @@ class Commander:
         """
         self.config.extract_all_wingbeats()
 
-    def apply_filters(self) -> None:
-        """Applies filters to exclude images or regions (annotations) from VIA project.
+    def filter_images(self) -> None:
+        """Applies filters to exclude images from VIA project.
         Operates in-place on the VIA project.
-        Does nothing if ``filters`` isn't configured.
+        Does nothing if ``filters.image_filters`` isn't configured.
         """
-        if self.config.filters is None:
-            self._vprint("No filters configured. Skipping.")
+        if self.config.filters is None or self.config.filters.image_filters is None:
+            self._vprint("No image filters configured. Skipping.")
             return None
-
         self.config.apply_image_filters()
+
+    def filter_regions(self) -> None:
+        """Applies filters to exclude regions (annotations) from VIA project.
+        Operates in-place on the VIA project.
+        Does nothing if ``filters.region_filters`` isn't configured.
+        """
+        if self.config.filters is None or self.config.filters.region_filters is None:
+            self._vprint("No region filters configured. Skipping.")
+            return None
         self.config.apply_region_filters()
 
     def write(self) -> None:
@@ -345,10 +355,10 @@ def _get_description(show_rst: bool, terminal_width: int) -> str:
             f"the command::"
         ),
         (
-            "    camfi \\\n"
-            "        --input project.json --root datadir \\\n"
-            "        --output project_with_wingbeats.json \\\n"
-            "        load-exif extract-wingbeats apply-filters write"
+            "    $ camfi \\\n"
+            "          --input project.json --root datadir \\\n"
+            "          --output project_with_wingbeats.json \\\n"
+            "          load-exif extract-wingbeats write"
         ),
         (
             "will first load a VIA project from a file, "
@@ -356,13 +366,11 @@ def _get_description(show_rst: bool, terminal_width: int) -> str:
             "into the project (``load-exif``), "
             "then the camfi wingbeat extraction algoritm will be run to obtain "
             "wingbeat frequencies (``extract-wingbeats``), "
-            "then any filters defined in the configuration will be applied "
-            "(``apply-filters``), "
             "and finally the project will be "
             "written to ``project_with_wingbeats.json`` (``write``). "
         ),
         ("Another command::"),
-        ("    camfi train annotate validate"),
+        ("    $ camfi train annotate validate"),
         (
             "would load a VIA project from a file, "
             "train an instance segmentation model "
@@ -486,7 +494,7 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
         type=Path,
         help=(
             "Directory containing all images for the project. "
-            "Replaces ``root`` in configuration file."
+            "Replaces ``root`` in configuration file. "
         ),
     )
     parser.add_argument(
@@ -494,14 +502,14 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
         "--disable-progress-bar",
         action="store_const",
         const=True,
-        help="Disables progress bars. By default, disable on non-TTY.",
+        help="Disables progress bars. By default, disable on non-TTY. ",
     )
     parser.add_argument(
         "-p",
         "--progress-bar",
         action="store_const",
         const=True,
-        help="Forces progress bars. By default, disable on non-TTY.",
+        help="Forces progress bars. By default, disable on non-TTY. ",
     )
     parser.add_argument(
         "-j",
@@ -510,7 +518,8 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
         type=Path,
         help=(
             "If set, configuration will be written "
-            "to file in JSON format after it is parsed."
+            "to file in JSON format after it is parsed. "
+            "Set to - to have config written to stdout. "
         ),
     )
     parser.add_argument(
@@ -520,17 +529,18 @@ def get_argument_parser(show_rst: bool = True) -> ArgumentParser:
         type=Path,
         help=(
             "If set, configuration will be written "
-            "to file in StrictYAML format after it is parsed."
+            "to file in StrictYAML format after it is parsed. "
+            "Set to - to have config written to stdout. "
         ),
     )
     parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
-        help="Suppress cli info. You may also like to use ``-d``.",
+        help="Suppress cli info. You may also like to use ``-d``. ",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Extra verbose cli info."
+        "-v", "--verbose", action="store_true", help="Extra verbose cli info. "
     )
     parser.add_argument(
         "commands",
@@ -571,35 +581,35 @@ def main():
     if args.progress_bar:
         disable_progress_bar = False
 
-    vprint(
-        f"Parsing configuration file: {args.config}"
-        if args.config
-        else "Creating configuration."
-    )
     commander = Commander(
         args.config,
         input_file=args.input,
         output=args.output,
         disable_progress_bar=disable_progress_bar,
+        vprint=vprint,
+        vvprint=vvprint,
     )
-    vprint("Done.")
 
-    if str(args.json_conf_out) == ".":
-        vprint("Writing config JSON to stdout.")
+    if str(args.json_conf_out) == "-":
+        vprint("Writing config JSON to stdout...")
         print(commander.config.json(indent=2, exclude_unset=True))
         vprint("Done.")
     elif args.json_conf_out:
-        vprint(f"Writing config JSON to {args.json_conf_out}")
+        vprint(f"Writing config JSON to {args.json_conf_out}...")
         with open(args.json_conf_out, "w") as f:
             f.write(commander.config.json(indent=2, exclude_unset=True))
         vprint("Done.")
 
     # Output config YAML
-    if str(args.yaml_conf_out) == ".":
+    if str(args.yaml_conf_out) == "-":
+        vprint("Writing config YAML to stdout...")
         print(commander.config.yaml())
+        vprint("Done.")
     elif args.yaml_conf_out:
+        vprint(f"Writing config YAML to {args.yaml_conf_out}...")
         with open(args.yaml_conf_out, "w") as f:
             f.write(commander.config.yaml())
+        vprint("Done.")
 
     # Run commands
     commands = args.commands if isinstance(args.commands, list) else [args.commands]

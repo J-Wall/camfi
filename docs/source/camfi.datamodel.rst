@@ -15,5 +15,7 @@ Submodules
    camfi.datamodel.autoannotation
    camfi.datamodel.geometry
    camfi.datamodel.locationtime
+   camfi.datamodel.region_filter_config
    camfi.datamodel.via
+   camfi.datamodel.via_region_attributes
    camfi.datamodel.weather

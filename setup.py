@@ -31,7 +31,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="camfi",
-    version=get_version("camfi/__init__.py"),
+    version=get_version("camfi/_version.py"),
     description="Camera-based Analysis and Monitoring of Flying Insects",
     long_description=long_description,
     long_description_content_type="text/markdown",

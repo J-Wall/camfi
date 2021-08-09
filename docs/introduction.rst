@@ -25,7 +25,9 @@ using the Mask R-CNN framework.
 Camfi is implemented
 as a Python library,
 and it also
-comes with a simple :doc:`usage/cli`.
+comes with a simple,
+yet comprehensive
+:doc:`usage/cli`.
 
 Citing Camfi
 ------------

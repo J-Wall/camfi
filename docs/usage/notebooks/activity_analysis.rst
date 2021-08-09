@@ -516,7 +516,7 @@ our data they are in AEDT (+11:00).
         </tr>
       </tbody>
     </table>
-    <p>8640 rows × 33 columns</p>
+    <p>8640 rows × 36 columns</p>
     </div>
 
 
@@ -945,7 +945,7 @@ sunset, scaled to the duration of twilight. We’ll also calculate a
         </tr>
       </tbody>
     </table>
-    <p>8640 rows × 37 columns</p>
+    <p>8640 rows × 40 columns</p>
     </div>
 
 
@@ -1046,6 +1046,9 @@ activity levels were across the days of the study period.
           <th></th>
           <th></th>
           <th>n_annotations</th>
+          <th>lat</th>
+          <th>lon</th>
+          <th>elevation_m</th>
           <th>temperature_minimum_degC</th>
           <th>temperature_minimum_evening_degC</th>
           <th>temperature_maximum_degC</th>
@@ -1081,6 +1084,9 @@ activity levels were across the days of the study period.
           <th></th>
           <th></th>
           <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -1088,6 +1094,9 @@ activity levels were across the days of the study period.
           <th rowspan="12" valign="top">cabramurra</th>
           <th>2019-11-14</th>
           <td>80</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>-0.6</td>
           <td>4.7</td>
           <td>12.3</td>
@@ -1107,6 +1116,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-15</th>
           <td>42</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>4.7</td>
           <td>3.7</td>
           <td>13.8</td>
@@ -1126,6 +1138,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-16</th>
           <td>35</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>3.7</td>
           <td>3.3</td>
           <td>14.3</td>
@@ -1145,6 +1160,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-17</th>
           <td>50</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>3.3</td>
           <td>4.5</td>
           <td>14.3</td>
@@ -1164,6 +1182,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-18</th>
           <td>79</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>4.5</td>
           <td>7.5</td>
           <td>16.0</td>
@@ -1183,6 +1204,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-19</th>
           <td>105</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>7.5</td>
           <td>11.0</td>
           <td>21.7</td>
@@ -1202,6 +1226,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-20</th>
           <td>59</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>11.0</td>
           <td>15.0</td>
           <td>23.1</td>
@@ -1221,6 +1248,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-21</th>
           <td>117</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>15.0</td>
           <td>17.2</td>
           <td>27.6</td>
@@ -1240,6 +1270,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-22</th>
           <td>33</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>17.2</td>
           <td>11.3</td>
           <td>22.6</td>
@@ -1259,6 +1292,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-23</th>
           <td>40</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>11.3</td>
           <td>8.2</td>
           <td>20.0</td>
@@ -1278,6 +1314,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-24</th>
           <td>43</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>8.2</td>
           <td>11.8</td>
           <td>19.8</td>
@@ -1297,6 +1336,9 @@ activity levels were across the days of the study period.
         <tr>
           <th>2019-11-25</th>
           <td>36</td>
+          <td>-35.9507</td>
+          <td>148.3972</td>
+          <td>1513.9</td>
           <td>11.8</td>
           <td>13.0</td>
           <td>21.9</td>
@@ -1368,6 +1410,9 @@ We also define a set ``drop`` of columns not to include as covariates.
         "rainfall_mm",             # All zero in this dataset
         "cloud_amount_9am_oktas",  # Hass missing data
         "exposures",               # Exposure variable
+        "lat",
+        "lon",                     # All locations are the same
+        "elevation_m",             # in this example
     }
     covariates = list(filter(lambda c: c not in drop, maelstrom_df.columns))
 
@@ -1859,10 +1904,10 @@ individually, and plotting the effect:
 .. parsed-literal::
 
     Significant single-effect variables:
+      - wind_speed_9am_kph
+      - temperature_range
       - temperature_minimum_evening_degC
       - daylight_hours
-      - temperature_range
-      - wind_speed_9am_kph
 
 
 
@@ -1918,8 +1963,8 @@ and plotting the effect:
     Model Family:                 Poisson   Df Model:                            6
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.274
-    Date:                Wed, 04 Aug 2021   Deviance:                       24.473
-    Time:                        15:50:36   Pearson chi2:                     24.2
+    Date:                Sat, 07 Aug 2021   Deviance:                       24.473
+    Time:                        09:47:51   Pearson chi2:                     24.2
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
@@ -1936,11 +1981,11 @@ and plotting the effect:
     res.aic=108.54753196329011
     
     Significant mixed-effect variables:
-      - daylight_hours
-      - Intercept
       - temperature_minimum_evening_degC
+      - Intercept
       - temperature_minimum_degC
       - temperature_range
+      - daylight_hours
 
 
 
@@ -1995,20 +2040,20 @@ we get a better model.
     Model Family:                 Poisson   Df Model:                            4
     Link Function:                    log   Scale:                          1.0000
     Method:                          IRLS   Log-Likelihood:                -47.915
-    Date:                Wed, 04 Aug 2021   Deviance:                       25.756
-    Time:                        15:50:36   Pearson chi2:                     25.3
+    Date:                Sat, 07 Aug 2021   Deviance:                       25.756
+    Time:                        09:47:51   Pearson chi2:                     25.3
     No. Iterations:                     4                                         
     Covariance Type:            nonrobust                                         
     ====================================================================================================
                                            coef    std err          z      P>|z|      [0.025      0.975]
     ----------------------------------------------------------------------------------------------------
     Intercept                           39.6614     10.961      3.618      0.000      18.178      61.144
-    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
-    daylight_hours                      -3.0297      0.775     -3.909      0.000      -4.549      -1.511
-    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
     temperature_range                    0.1882      0.041      4.562      0.000       0.107       0.269
+    temperature_minimum_evening_degC     0.1997      0.020     10.108      0.000       0.161       0.238
+    temperature_minimum_degC            -0.1381      0.024     -5.790      0.000      -0.185      -0.091
+    daylight_hours                      -3.0297      0.775     -3.909      0.000      -4.549      -1.511
     ====================================================================================================
-    res.aic=105.83037074639378
+    res.aic=105.8303707463943
 
 
 

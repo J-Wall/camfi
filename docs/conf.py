@@ -40,7 +40,7 @@ def get_version(rel_path):
         raise RuntimeError("Unable to find version string.")
 
 
-release = get_version("../camfi/__init__.py")
+release = get_version("../camfi/_version.py")
 
 
 # -- General configuration ---------------------------------------------------

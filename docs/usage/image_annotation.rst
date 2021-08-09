@@ -82,7 +82,9 @@ Setting up the VIA project file
 
 3. Ensure "via.html" is placed into the parent directory containing the images
    to be annotated (``annotation_project`` in the above example), then open it
-   in you web browser by double-clicking it.
+   in you web browser by double-clicking it
+   (you can get a copy of via.html [version 2] at
+   https://www.robots.ox.ac.uk/~vgg/software/via/).
 
 4. In VIA, under "Project" in the top menu bar (see
    :numref:`fig-navigating_via`), select "Add url or path from text file".

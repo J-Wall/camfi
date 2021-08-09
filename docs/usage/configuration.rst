@@ -43,6 +43,8 @@ if you plan on using Camfi
 and would like to use something like that
 rather than a text editor.
 
+.. _example-configuration:
+
 Example configuration file
 --------------------------
 
@@ -62,8 +64,8 @@ Configuration specification
 
 What follows is the specification
 for Camfi configuration files
-in a human-readable
-tabulated format.
+rendered into
+a tabulated format.
 
 .. jsonschema:: ../source/schema/config.schema.json
     :lift_description:

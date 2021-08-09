@@ -9,7 +9,6 @@ from typing import List, Optional, Tuple
 
 from pydantic import (
     BaseModel,
-    Field,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveInt,
@@ -20,7 +19,7 @@ import torch
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import pad, rotate
 
-from camfi.util import smallest_enclosing_circle
+from camfi.util import smallest_enclosing_circle, Field
 
 
 class BoundingBox(BaseModel):

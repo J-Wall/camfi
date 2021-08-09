@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone, tzinfo
+from functools import wraps
 import itertools
 from math import sqrt
 from pathlib import Path
+from textwrap import wrap as _wrap
 from typing import (
     Callable,
     Dict,
@@ -15,11 +17,22 @@ from typing import (
 )
 
 import numpy as np
-from pydantic import NonNegativeInt
+from pydantic import Field as _pydantic_field, NonNegativeInt
 import torch
 
 
 DatetimeCorrector = Callable[[datetime], datetime]
+
+
+def fill(text, width=50, **kwargs):
+    return "\n\n".join(_wrap(text, width=width, **kwargs))
+
+
+@wraps(_pydantic_field)
+def Field(*args, **kwargs):
+    if "description" in kwargs:
+        kwargs["description"] = fill(kwargs["description"])
+    return _pydantic_field(*args, **kwargs)
 
 
 # Hack to get cache decorator to play nice with mypy

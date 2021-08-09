@@ -30,108 +30,177 @@ your model
 (see :ref:`training` section for how to do this),
 or if you want to use
 the included model,
-you can use ``camfiannotate`` to automatically
-annotate your images. Sample usage::
+you can use ``camfi annotate`` to automatically
+annotate your images.
+``annotator.inference`` must be configured in the configuration file.
+Example ``config.yml``
+(assuming camfi is being run from
+the examples directory in the camfi git repo)::
 
-   $ camfiannotate via_annotation_project_file.json \
-       --o autoannotated.json \
-       --model release \
-       --crop=0,0,4608,3312 \  # To crop out trailcamera info overlay
-       --device cuda \
-       --backup-device cpu \
-       --score-thresh 0.4
+    root: data
+    via_project_file: data/cabramurra_all_annotations.json
+    annotator:
+      crop:
+        x0: 0
+        y0: 0
+        x1: 4608
+        y1: 3312
+      inference:
+        output_path: data/cabramurra_autoannotated.json
+        device: cuda
+        backup_device: cpu
 
-This will annotate all the images in the input VIA project file using the
-release model, outputting a new VIA project file. The above options tell
-``camfiannotate`` to crop the images before running inference on them, and to
-use cuda (a GPU) to run the inference. By setting ``--backup-device cpu``, we
-tell the annotator to run inference on the CPU for images with fail on the GPU
-due to memory constraints (inference on images with lots of motion blurs in
-them takes up more memory). Finally, only annotations which have a score of at
-least 0.4 will be output. For model validation, it is recommended to set this
-to 0. Besides, you can always filter these later, for example::
+Then running::
 
-   $ camfi filter \
-       --i autoannotated.json \
-       --o autoannotated_0.9.json \
-       --by score \
-       --minimum 0.9
+    $ camfi --config config.yml annotate
 
-If you want to use a different model, you can set ``--model <filepath>``, where
-``<filepath>`` is the path to the model you want to use. Alternatively you can
-set ``--model latest``, which will check github for the latest released model.
+Will annotate all the images in the input VIA project file
+``data/cabramurra_alla_annotations.json``
+using the
+default "release" model, outputting a new VIA project file
+called ``data/cabramurra_autoannotated.json``.
+The above configuration options tell
+``camfi`` to crop the images before running inference on them,
+and to use cuda (a GPU) to run the inference.
+By setting ``backup_device: cpu``,
+we tell the annotator to
+run inference on the CPU for images with fail on the GPU
+due to memory constraints
+(inference on images with
+lots of motion blurs in them takes up more memory).
+
+If you want to use a different model,
+you can set ``model: <filepath>``,
+where ``<filepath>`` is the path to the model you want to use.
 
 .. _training:
 
 Training
 --------
 
-To train the model, you will first need a set of manually annotated images (see
-above for instructions to do this). Once you have this, you can select just the
-images which have at least one annotation for training and validation
-purposes::
-
-   $ camfi remove-unannotated \
-       --i via_annotation_project_file.json \
-       --o annotated_only.json
-
-If you are training on a server or Colab instance, you might want to package
-these images up along with the annotations in a zip file for easy uploading of
-only the data we actually need::
-
-   $ camfi zip-images \
-       --i annotated_only.json \
-       --o annotated_only.zip
+To train the model,
+you will first need a set of manually annotated images
+(see :doc:`image_annotation` for instructions on how to do this).
 
 To define a test set, we make a text file listing a random subset of the
-images.  This will make a test set of 50 images::
+images. We would like to inlcude only images with at least one annotation,
+so the following should be included in our config.yml::
 
-   $ camfi filelist --i annotated_only.json --shuffle 1234 | head -n 50 \
-       > test_set.txt
+    filters:
+      image_filters:
+        min_annotations: 1
 
-We are now ready for training. This can either be done from the command line
-using the ``traincamfiannotator`` command. For help on how to use this, run::
+Then we run the following command
+to make a test set of 50 images::
 
-   $ traincamfiannotator --help
+    $ camfi --config config.yml filter-images filelist \
+         | shuf | head -n 50 > data/cabramurra_test_set.txt
 
-Alternatively you can train on Colab. Please refer to the example model
-training notebook :doc:`notebooks/camfi_autoannotator_training`.
-An interactive version of this notebook is available on Colab_.
+We are now ready for training.
+This can be done from the command line
+using the ``camfi train`` command.
+We need ``annotator.training``
+to be configured in our config.yml::
 
-.. _Colab: https://colab.research.google.com/github/J-Wall/camfi/blob/main/examples/camfi_autoannotator_training.ipynb
+    root: data
+    via_project_file: data/cabramurra_all_annotations.json
+    annotator:
+      crop:
+        x0: 0
+        y0: 0
+        x1: 4608
+        y1: 3312
+      training:
+        mask_maker:
+          shape:
+          - 3312
+          - 4608
+          mask_dilate: 5
+        min_annotations: 1
+        test_set_file: data/cabramurra_test_set.txt
+        device: cuda
+        batch_size: 5
+        num_workers: 2
+        num_epochs: 20
+        outdir: data
+        save_intermediate: yes
+
+Then we can run::
+
+    $ camfi --config config.yml train
+
+Which will train camfi's instance segmentation model
+on the GPU,
+saving after each epoch into the ``data`` directory.
+
 
 Validation
 ----------
 
-To validate our automatic annotation model, we need a VIA project file
-containing manual annotations (e.g.
-``via_annotation_project_file_with_metadata.json``), and a second VIA project
-file containing only the images we want to run the validation on. For example,
-we may want to run validation on on our test set (e.g. those in
-``test_set.txt``). To make a test set VIA project file, we proceed in the same
-way as we did to create our original VIA project file (i.e. run ``via.html``,
-and select "Project" > "Add url or path from text file". Then select
-``test_set.txt``, and save the project as ``test_set.json``).
+To validate our automatic annotation model,
+we need a VIA project file containing manual annotations
+(e.g. the one used to train the model)
+and a second VIA project file containing
+automatically aquired annotations
+(aquired using the model we want to validate).
 
-To validate the automatic annotations, we need to first get them. Once we have
-the VIA project file for the images we want to run validation on, we run
-``camfiannotate`` on it::
+Validation requires ``annotator.validation`` to be configured.
+You should also include the configuration used for training,
+which will allow you to validate against
+the "train" and "test" image sets,
+as well as the "all" image set.
+With the following config.yml::
 
-   $ camfiannotate test_set.json \
-       --o test_set_autoannotated.json \
-       --crop=0,0,4608,3312 \  # To crop out trailcamera info overlay
-       --device cuda \
-       --backup-device cpu \
-       --score-thresh 0.0  # Important to set this to 0.0 for validation
+    root: data
+    via_project_file: data/cabramurra_all_annotations.json
+    annotator:
+      crop:
+        x0: 0
+        y0: 0
+        x1: 4608
+        y1: 3312
+      training:
+        mask_maker:
+          shape:
+          - 3312
+          - 4608
+          mask_dilate: 5
+        min_annotations: 1
+        test_set_file: data/cabramurra_test_set.txt
+        device: cuda
+        batch_size: 5
+        num_workers: 2
+        num_epochs: 20
+        outdir: data
+        save_intermediate: yes
+      inference:
+        output_path: data/cabramurra_autoannotated.json
+        device: cuda
+        backup_device: cpu
+      validation:
+        autoannotated_via_project_file: data/cabramurra_autoannotated.json
+        image_sets:
+        - all
+        - test
+        - train
+        output_dir: data
 
-This gives us the automatic annotations. To validate these against
-``via_annotation_project_file_with_metadata.json``, we run::
+and assuming we have already run training and inference,
+we can then run::
 
-   $ camfi validate-annotations \
-       via_annotation_project_file_with_metadata.json \
-       --i test_set.json \
-       --o validation.json
+    $ camfi --config config.yml validate
 
-This gives us ``validation.json``, which contains the validation data. For an
-example of how to interpret this data see the example notebook
+or we can conveniently run all three in one command::
+
+    $ camfi --config config.yml train annotate validate
+
+This will give us three validation files,
+``data/validation.all.json``,
+``data/validation.test.json``,
+and
+``data/validation.train.json``,
+which contain the validation data.
+For an example
+of how to interpret this data
+see the example notebook
 :doc:`notebooks/annotation_evaluation`.

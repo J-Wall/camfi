@@ -1,10 +1,32 @@
 Data analysis
 =============
 
+Including weather data
+----------------------
+
+If you are including weather data in your analyses,
+then you need to specify ``place`` in your configuration file.
+You will also need daily weather data
+from each weather station
+which is included in your study.
+This should be a comma-delimited file
+with at minimum the first column being "date"
+with dates formatted as YYYY-mm-dd.
+Currently, Camfi only accepts weather data files which
+have a header of exactly 7 lines,
+which is typical of the daily observation files
+from the `Bureau of Meteorology`_.
+This requirement may be dropped
+(or become configurable)
+in future versions of Camfi.
+
+.. _Bureau of Meteorology: http://www.bom.gov.au/
+
 Running camfi
 -------------
 
-Once the manual (or automatic) annotation is completed, running
+Once the manual (or automatic) annotation is completed,
+running
 ``camfi extract-wingbeats`` will analyse wingbeats from polyline-annotated moth
 motion blurs to gain information about the wingbeat frequency of the moths
 which produced those blurs.
@@ -12,94 +34,65 @@ which produced those blurs.
 Before proceeding, ensure you have:
 
 1. Measured the rolling shutter line rate of you camera(s)
+   (:doc:`notebooks/camera_calibration`)
 2. A completed annotation project file
 3. The image files used to produce the annotation file
 
-A general summary of usage is provided below::
+To perform wingbeat extraction,
+we need a configuration file
+with
+``wingbeat-extraction``
+configured.
+It is also adviced to have
+``camera``,
+``time``,
+and
+``place``
+configured,
+so that all relavant metadata is included
+(see :ref:`example-configuration`).
+Below we will assume that config.yml
+is this example configuration file.
 
-   NAME
-       camfi extract-wingbeats - Uses the camfi algorithm to measure the
-       wingbeat frequency of annotated flying insect motion blurs in still
-       images.
+Once we have our configuration file,
+running::
 
-   SYNOPSIS
-       camfi extract-wingbeats <flags>
+    $ camfi --config config.yml \
+         --output project_with_wingbeats.json \
+         load-exif extract-wingbeats write
 
-   DESCRIPTION
-       Uses the camfi algorithm to measure the wingbeat frequency of annotated
-       flying insect motion blurs in still images.
+Will insert wingbeat measurements
+into the VIA project,
+writing a new VIA project file,
+"project_with_wingbeats.json",
+which can then be used for futher analysis.
 
-   FLAGS
-       --processes=PROCESSES
-           Default: 1
-           number of child processes to spawn
-       --i=I
-           Type: Optional[]
-           Default: None
-           path to input VIA project json file. Defaults to sys.stdin
-       --o=O
-           Type: Optional[]
-           Default: None
-           path to output file. Defaults to sys.stdout
-
-       --line_rate=LINE_RATE
-           Default: inf
-           The line rate of the rolling shutter
-       --scan_distance=SCAN_DISTANCE
-           Default: 100
-           Half width of analysis windows (half width of blurs)
-       --max_dist=MAX_DIST
-           Type: Optional[]
-           Default: None
-           Maximum number of columns to calculate autocorrelation over.
-           Defaults to a half of the length of the image
-       --supplementary_figures=SUPPLEMENTARY_FIGURES
-           Type: Optional[]
-           Default: None
-           Directory in which to put supplementary figures (optional)
-
-   EXAMPLE USAGE
-       $ camfi extract-wingbeats \
-           --i via_annotation_project_file_with_metadata.json \
-           --line-rate 91813 \
-   	   --scan-distance 100 \
-   	   --supplementary-figures wingbeat_supplemantry_figures \
-   	   --processes 8 \
-   	   --o moth_wingbeats.csv
-
-Running the above will produce a tab-separated file called ``moth_wingbeats.csv``
-with the following columns:
-
-1.  ``image_name``: relative path to image
-2.  ``capture_time``: datetime in yyyy-mm-dd HH:MM:SS format
-3.  ``annotation_idx``: index of annotation in image (arbitrary)
-4.  ``best_peak``: period of wingbeat in pixels
-5.  ``blur_length``: length of motion blur in pixels
-6.  ``snr``: signal to noise ratio of best peak
-7.  ``wb_freq_up``: wingbeat frequency estimate, assuming upward motion (and zero
-    body-length)
-8.  ``wb_freq_down``: wingbeat frequency estimate, assuming downward motion (and
-    zero body-length)
-9.  ``et_up``: corrected moth exposure time, assuming upward motion
-10. ``et_dn``: corrected moth exposure time, assuming downward motion
-11. ``period_up``: wingbeat period, assuming upward motion (and zero body-length)
-12. ``period_dn``: wingbeat period, assuming downward motion (and zero
-    body-length)
-13. ``spec_dens``: comma separated values, with the spectral density array
-    associated with the annotation
+The wingbeat data can also be exported
+to various types of tab-separated files
+using the
+``image-table``,
+``region-table``,
+and
+``table``
+camfi commands
+(see :doc:`cli`).
 
 
 Wingbeat analysis
 -----------------
 
-Once ``camfi.py`` has been run, the output can be used for further analysis of
+Once ``camfi extract-wingbeats`` has been run,
+the output can be used for further analysis of
 wingbeat frequency. For an example of such analysis, please refer to the
 example :doc:`notebooks/wingbeat_analysis` notebook.
 
 Insect activity analysis
 ------------------------
 
-The annotation file with image metadata produced in section B of this manual
-can be used directly for analysis of insect activity levels. Please refer to
-the example :doc:`notebooks/activity_analysis` notebook for guidance on how
+The annotation file with image metadata produced
+by running ``camfi load-exif``
+can be used directly for analysis of insect activity levels.
+Please refer to the example
+:doc:`notebooks/activity_analysis`
+notebook for guidance on how
 this analysis could be conducted.

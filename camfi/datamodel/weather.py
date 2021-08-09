@@ -40,7 +40,6 @@ import numpy as np
 import pandas as pd
 from pydantic import (
     BaseModel,
-    Field,
     FilePath,
     NonNegativeFloat,
     ValidationError,
@@ -49,7 +48,7 @@ from pydantic import (
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
-from camfi.util import Timezone
+from camfi.util import Timezone, Field
 
 
 # Initialise skyfield
@@ -377,7 +376,13 @@ class WeatherStation(BaseModel):
     location: Location = Field(..., description="Location of weather station.")
     data_file: FilePath = Field(
         ...,
-        description="Path to csv file containing weather data from weather station.",
+        description=(
+            "Path to csv file containing weather data from weather station. "
+            "The firt 6 lines of the file are skipped, "
+            "and the 7th should contain column headers. "
+            "Should have one line per date. "
+            "Minimally, the first column should be date, in YYYY-mm-dd format. "
+        ),
     )
 
     class Config:

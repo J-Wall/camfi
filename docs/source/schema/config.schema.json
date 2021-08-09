@@ -12,7 +12,7 @@
     },
     "disable_progress_bar": {
       "title": "Disable Progress Bar",
-      "description": "Disables progress bars. By default, disable on non-TTY.",
+      "description": "Disables progress bars. By default, disable on\n\nnon-TTY. To force the progress bar to appear, set\n\nthis to false.",
       "type": "boolean"
     },
     "via_project_file": {
@@ -23,13 +23,13 @@
     },
     "day_zero": {
       "title": "Day Zero",
-      "description": "Used as reference date for plotting etc.",
+      "description": "Used as reference date for plotting etc. Currently\n\nthe Camfi CLI does not access this value, However\n\nit is used in some of the example notebooks.",
       "type": "string",
       "format": "date"
     },
     "output_tz": {
       "title": "Timezone",
-      "description": "Sets a global timezone used for various analyses.",
+      "description": "Sets a global timezone to convert all timezones\n\nto, for simpler comparison between locations in\n\ndifferent timezones.",
       "pattern": "^Z|[+-]\\d{2}(?::?\\d{2})?$",
       "examples": [
         "Z",
@@ -40,7 +40,7 @@
     },
     "default_output": {
       "title": "Default Output",
-      "description": "Path to write output. Outputs defined in wingbeat_extractor and annotator take precedence over this.",
+      "description": "Path to write output. Outputs defined in\n\nwingbeat_extractor and annotator take precedence\n\nover this.",
       "type": "string",
       "format": "path"
     },
@@ -64,17 +64,47 @@
     }
   },
   "definitions": {
+    "ImageFilterConfig": {
+      "title": "ImageFilterConfig",
+      "description": "Contains options for filtering images from a VIA project.",
+      "type": "object",
+      "properties": {
+        "min_annotations": {
+          "title": "Min Annotations",
+          "description": "Exclude images if they have fewer annotations than\n\nthis.",
+          "type": "integer"
+        },
+        "exclude_images": {
+          "title": "Exclude Images",
+          "description": "Images to exclude from VIA project. Can either be\n\na list of paths to image files, or a single path\n\nto a text file (i.e. not a list). If the latter,\n\nimage file paths will be read from text file, one\n\nper line.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "path"
+          }
+        },
+        "include_images": {
+          "title": "Include Images",
+          "description": "Images to include from VIA project. Images not in\n\nthis list will be excluded. Can either be a list\n\nof paths to image files, or a single path to a\n\ntext file (i.e. not a list). If the latter, image\n\nfile paths will be read from text file, one per\n\nline.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "path"
+          }
+        }
+      }
+    },
     "FloatFilter": {
       "title": "FloatFilter",
       "type": "object",
       "properties": {
         "ge": {
-          "title": "Greater or Equal",
+          "title": "Greater-than or Equal-to",
           "description": "Only include region if attribute >= this value.",
           "type": "number"
         },
         "le": {
-          "title": "Less or Equal",
+          "title": "Less-than or Equal-to",
           "description": "Only include region if attribute <= this value.",
           "type": "number"
         },
@@ -96,7 +126,7 @@
       "properties": {
         "score": {
           "title": "Score",
-          "description": "Sets threhsolds for the score region attribute.",
+          "description": "Sets filters for the score region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -105,7 +135,7 @@
         },
         "best_peak": {
           "title": "Best Peak",
-          "description": "Sets threhsolds for the best_peak region attribute.",
+          "description": "Sets filters for the best_peak region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -114,7 +144,7 @@
         },
         "blur_length": {
           "title": "Blur Length",
-          "description": "Sets threhsolds for the blur_length region attribute.",
+          "description": "Sets filters for the blur_length region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -123,7 +153,7 @@
         },
         "snr": {
           "title": "Snr",
-          "description": "Sets threhsolds for the snr region attribute.",
+          "description": "Sets filters for the snr region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -132,7 +162,7 @@
         },
         "wb_freq_up": {
           "title": "Wb Freq Up",
-          "description": "Sets threhsolds for the wb_freq_up region attribute.",
+          "description": "Sets filters for the wb_freq_up region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -141,7 +171,7 @@
         },
         "wb_freq_down": {
           "title": "Wb Freq Down",
-          "description": "Sets threhsolds for the wb_freq_down region attribute.",
+          "description": "Sets filters for the wb_freq_down region\n\nattribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -150,7 +180,7 @@
         },
         "et_up": {
           "title": "Et Up",
-          "description": "Sets threhsolds for the et_up region attribute.",
+          "description": "Sets filters for the et_up region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -159,7 +189,7 @@
         },
         "et_dn": {
           "title": "Et Dn",
-          "description": "Sets threhsolds for the et_dn region attribute.",
+          "description": "Sets filters for the et_dn region attribute.",
           "allOf": [
             {
               "$ref": "#/definitions/FloatFilter"
@@ -167,30 +197,15 @@
           ]
         }
       },
-      "description": "Contains options for filtering regions (annotations)."
+      "description": "Contains options for filtering regions (annotations) from images, based on the values of region attributes. "
     },
     "FilterConfig": {
       "title": "FilterConfig",
-      "description": "Contains settings for filtering VIA project",
+      "description": "Contains settings for filtering images and/or regions (annotations) from a VIA\nproject.",
       "type": "object",
       "properties": {
-        "exclude_images": {
-          "title": "Exclude Images",
-          "description": "Images to exclude from VIA project. Can either be a list of paths to image files, or a single path to a text file (i.e. not a list). If the latter, image file paths will be read from text file, one per line.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "path"
-          }
-        },
-        "include_images": {
-          "title": "Include Images",
-          "description": "Images to include from VIA project. Images not in this list will be excluded. Can either be a list of paths to image files, or a single path to a text file (i.e. not a list). If the latter, image file paths will be read from text file, one per line.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "path"
-          }
+        "image_filters": {
+          "$ref": "#/definitions/ImageFilterConfig"
         },
         "region_filters": {
           "$ref": "#/definitions/RegionFilterConfig"
@@ -204,12 +219,12 @@
       "properties": {
         "camera_time_to_actual_time_ratio": {
           "title": "Camera Time To Actual Time Ratio",
-          "description": "Used for correcting timestamps from an inaccurate clock.",
+          "description": "Used for correcting timestamps from an inaccurate\n\nclock. A value of 1.0 means the camera's clock\n\nruns at the correct speed. A value less than 1.0\n\nmeans that the camera's clock is slow, and a value\n\ngreater than 1.0 means the camera's clock is fast.",
           "type": "number"
         },
         "line_rate": {
           "title": "Line Rate",
-          "description": "Rolling-shutter line rate of camera (lines per second).",
+          "description": "Rolling-shutter line rate of camera (lines per\n\nsecond). Used during wingbeat extraction to\n\ndetermine the effective exposure time for moving\n\nobjects (flying insects) in images. This is\n\nrequired in order to calculate wingbeat frequency\n\naccurately.",
           "exclusiveMinimum": 0,
           "type": "number"
         }
@@ -221,19 +236,19 @@
       "properties": {
         "camera_start_time": {
           "title": "Camera Start Time",
-          "description": "Camera placement datetime (according to camera's clock).",
+          "description": "Camera placement datetime (according to camera's\n\nclock).",
           "type": "string",
           "format": "date-time"
         },
         "actual_start_time": {
           "title": "Actual Start Time",
-          "description": "Actual camera placement datetime (defaults to camera_start_time).",
+          "description": "Actual camera placement datetime (defaults to\n\ncamera_start_time).",
           "type": "string",
           "format": "date-time"
         },
         "camera_end_time": {
           "title": "Camera End Time",
-          "description": "Camera retrieval time (according to camera's clock).",
+          "description": "Camera retrieval time (according to camera's\n\nclock).",
           "type": "string",
           "format": "date-time"
         },
@@ -260,7 +275,7 @@
       "properties": {
         "camera_placements": {
           "title": "Camera Placements",
-          "description": "Mapping from sub-directories containing images to LocationTime instances.",
+          "description": "Mapping from sub-directories containing images to\n\nLocationTime instances.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/LocationTime"
@@ -278,7 +293,7 @@
       "properties": {
         "name": {
           "title": "Name",
-          "description": "Name of location. Used to link to camera placements.",
+          "description": "Name of location. Used to link to camera\n\nplacements.",
           "type": "string"
         },
         "lat": {
@@ -333,7 +348,7 @@
         },
         "data_file": {
           "title": "Data File",
-          "description": "Path to csv file containing weather data from weather station.",
+          "description": "Path to csv file containing weather data from\n\nweather station. The firt 6 lines of the file are\n\nskipped, and the 7th should contain column\n\nheaders. Should have one line per date. Minimally,\n\nthe first column should be date, in YYYY-mm-dd\n\nformat.",
           "format": "file-path",
           "type": "string"
         }
@@ -366,7 +381,7 @@
         },
         "location_weather_station_mapping": {
           "title": "Location Weather Station Mapping",
-          "description": "A mapping between location names and weather_station names.",
+          "description": "A mapping between location names and\n\nweather_station names.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -386,31 +401,31 @@
       "properties": {
         "device": {
           "title": "Device",
-          "description": "Using GPU ('cuda') can give 4x speedups for certain operations.",
+          "description": "Using GPU ('cuda') can give 4x speedups for\n\ncertain operations.",
           "default": "cpu",
           "type": "string"
         },
         "backup_device": {
           "title": "Backup Device",
-          "description": "Used when computation fails on main device due to memory limit.",
+          "description": "Used when computation fails on main device due to\n\nmemory limit.",
           "type": "string"
         },
         "scan_distance": {
           "title": "Scan Distance",
-          "description": "Max. distance from polyline used for wingbeat extraction.",
+          "description": "Max. distance from polyline used for wingbeat\n\nextraction.",
           "default": 50,
           "exclusiveMinimum": 0,
           "type": "integer"
         },
         "max_pixel_period": {
           "title": "Max Pixel Period",
-          "description": "Max. pixel period to check during wingbeat extraction.",
+          "description": "Max. pixel period to check during wingbeat\n\nextraction.",
           "exclusiveMinimum": 0,
           "type": "integer"
         },
         "force_load_exif_metadata": {
           "title": "Force Load Exif Metadata",
-          "description": "Forces EXIF metadata to be read from image instead of ViaProject.",
+          "description": "Forces EXIF metadata to be read from image instead\n\nof ViaProject.",
           "default": false,
           "type": "boolean"
         }
@@ -423,7 +438,7 @@
       "properties": {
         "x0": {
           "title": "X0",
-          "description": "Minimum inclusive (horizontal) x-coordinate of box.",
+          "description": "Minimum inclusive (horizontal) x-coordinate of\n\nbox.",
           "minimum": 0,
           "type": "integer"
         },
@@ -435,7 +450,7 @@
         },
         "x1": {
           "title": "X1",
-          "description": "Maximum exclusive (horizontal) x-coordinate of box.",
+          "description": "Maximum exclusive (horizontal) x-coordinate of\n\nbox.",
           "minimum": 0,
           "type": "integer"
         },
@@ -475,7 +490,7 @@
         },
         "mask_dilate": {
           "title": "Mask Dilate",
-          "description": "Morphological dilation to apply to segmentation skeletons.",
+          "description": "Morphological dilation to apply to segmentation\n\nskeletons.",
           "exclusiveMinimum": 0,
           "type": "integer"
         }
@@ -494,30 +509,30 @@
         },
         "min_annotations": {
           "title": "Min Annotations",
-          "description": "Only train on images which have at least this many annotations.",
+          "description": "Only train on images which have at least this many\n\nannotations. It often makes sense to set this to a\n\nlow number (e.g. 1). This will mean that any image\n\nwith *no* annotations in it will be skipped.",
           "type": "integer"
         },
         "max_annotations": {
           "title": "Max Annotations",
-          "description": "Only train on images which have at most this many annotations.",
+          "description": "Only train on images which have at most this many\n\nannotations. This option exists because GPU memory\n\nconsumption during each step of training depends\n\non the number of annotations in the loaded images,\n\nso images with a lot of annotations can cause\n\ntraining to crash. It probably makes sense to\n\nleave this unset, and only set it if you are\n\nrunnning into GPU memory errors.",
           "type": "integer"
         },
         "box_margin": {
           "title": "Box Margin",
-          "description": "Margin to add to bounding boxes of object annotations.",
+          "description": "Margin (in pixels) to add to bounding boxes of\n\nobject annotations. This may affect endpoint\n\nestimation of polyline annotataions during\n\ninference.",
           "default": 10,
           "exclusiveMinimum": 0,
           "type": "integer"
         },
         "test_set_file": {
           "title": "Test Set File",
-          "description": "Contains filepaths (one per line). Do not set if test_set is set.",
+          "description": "Path to file containing filepaths (one per line).\n\nDo not set if test_set is set.",
           "format": "file-path",
           "type": "string"
         },
         "test_set": {
           "title": "Test Set",
-          "description": "List of images to exclude from training.",
+          "description": "List of images to exclude from training. Also used\n\nby validator to determine which subsets of images\n\nto validate against.",
           "default": [],
           "type": "array",
           "items": {
@@ -527,7 +542,11 @@
         },
         "load_pretrained_model": {
           "title": "Load Pretrained Model",
-          "description": "Path or url to model parameters file to initialise training.",
+          "description": "Path or url to model .pth file or one of\n\ncamfi.models.model_urls to initialise training. By\n\ndefault, Resnet50 FPN backbone trained on the COCO\n\ndataset is used.",
+          "examples": [
+            "v1",
+            "release"
+          ],
           "anyOf": [
             {
               "type": "string",
@@ -540,43 +559,47 @@
         },
         "device": {
           "title": "Device",
-          "description": "Device to run training on (e.g. cuda or cpu).",
+          "description": "Device to run training on. Use cuda for a Nvidia\n\nGPU.",
           "default": "cpu",
+          "examples": [
+            "cuda",
+            "cpu"
+          ],
           "type": "string"
         },
         "batch_size": {
           "title": "Batch Size",
-          "description": "Number of images to load at once.",
+          "description": "Number of images to load at once. This has memory\n\nconsumption implications, So if you're running in\n\nto problems with memory availability on the GPU,\n\nconsider lowering this.",
           "default": 5,
           "type": "integer"
         },
         "num_workers": {
           "title": "Num Workers",
-          "description": "Number of worker processes for data loader to spawn.",
+          "description": "Number of worker processes for data loader to\n\nspawn. Depending on your machine, setting this\n\nreally high can have diminishing returns as system\n\nIO will become the rate-limiting step.",
           "default": 2,
           "type": "integer"
         },
         "num_epochs": {
           "title": "Num Epochs",
-          "description": "Number of epochs to train.",
+          "description": "Number of epochs (traversals of the entire\n\ntraining set) to train. Note that data\n\naugmentation (e.g. random horizontal flipping) is\n\napplied only once to each image during each epoch.",
           "default": 10,
           "type": "integer"
         },
         "outdir": {
           "title": "Outdir",
-          "description": "Path to directory where to save model(s).",
+          "description": "Path to directory where to save model (or models\n\nif save_intermediate is set).",
           "default": ".",
           "format": "directory-path",
           "type": "string"
         },
         "model_name": {
           "title": "Model Name",
-          "description": "Identifier to include in model save file. Default YYYYmmdd.",
+          "description": "Identifier to include in the file name of the\n\ntrained model(s). By default, this will be\n\ninferred from the date the configuration is\n\nparsed, in the format YYYYmmdd.",
           "type": "string"
         },
         "save_intermediate": {
           "title": "Save Intermediate",
-          "description": "If True, model is saved after each epoch.",
+          "description": "If True, model is saved after each epoch. By\n\ndefault, the model is only saved at the very end.",
           "default": false,
           "type": "boolean"
         }
@@ -589,13 +612,13 @@
       "properties": {
         "output_path": {
           "title": "Output Path",
-          "description": "If set, automatically generated annotations will be saved to file.",
+          "description": "If set, automatically generated annotations will\n\nbe written to the file at the specified path. If\n\nunset, then the annotations will be written to the\n\nfile at the path specified by\n\nCamfiConfig.default_output. If neither is set, the\n\nannotations will not be written to file, which is\n\nprobably only useful if you are using camfi as a\n\npython module, rather than from the command line.",
           "type": "string",
           "format": "path"
         },
         "model": {
           "title": "Model",
-          "description": "Path or url to model .pth file or one of camfi.models.model_urls.",
+          "description": "Pre-trained instance segmentation model to use\n\nduring automated annotaton. Can be a path or url\n\nto a model .pth file or one of\n\ncamfi.models.model_urls.",
           "default": "release",
           "examples": [
             "v1",
@@ -623,19 +646,19 @@
         },
         "backup_device": {
           "title": "Backup Device",
-          "description": "Used for images which fail on device due to memory constraints.",
+          "description": "Used for images which fail on device due to memory\n\nconstraints. It is recommended to set this to\n\n'cpu' if device is set to 'cuda'.",
           "type": "string"
         },
         "split_angle": {
           "title": "Split Angle",
-          "description": "Approximate maximum angle between polyline segments in degrees.",
+          "description": "Approximate maximum angle between polyline\n\nsegments in degrees.",
           "default": 15.0,
           "exclusiveMinimum": 0,
           "type": "number"
         },
         "poly_order": {
           "title": "Poly Order",
-          "description": "Order of polynomial used for fitting motion blur paths.",
+          "description": "Order of polynomial used for fitting motion blur\n\npaths.",
           "default": 2,
           "exclusiveMinimum": 0,
           "type": "integer"
@@ -651,7 +674,7 @@
         },
         "endpoint_extra_args": {
           "title": "Endpoint Extra Args",
-          "description": "Extra arguments to pass to endpoint method function.",
+          "description": "Extra arguments to pass to endpoint method\n\nfunction.",
           "default": [
             10
           ],
@@ -660,19 +683,19 @@
         },
         "score_thresh": {
           "title": "Score Thresh",
-          "description": "Score threshold between 0.0 and 1.0 for automatic annotations to be kept.",
-          "default": 0.4,
+          "description": "Score threshold between 0.0 and 1.0 for automatic\n\nannotations to be kept.Setting this to higher\n\nvalues will result fewer annotations being made.",
+          "default": 0.0,
           "type": "number"
         },
         "overlap_thresh": {
           "title": "Overlap Thresh",
-          "description": "Minimum weighted IoM for non-maximum suppression of detections.",
+          "description": "Minimum weighted IoM between 0.0 and 1.0 for non-\n\nmaximum suppression of detections. Setting this to\n\nhigher values will result in a higher number of\n\nannotations being made, since fewer pairs of\n\nannotations will be assumed to relate to the same\n\nobject as eachother.",
           "default": 0.4,
           "type": "number"
         },
         "edge_thresh": {
           "title": "Edge Thresh",
-          "description": "Polyline annotations this close to edge of image are converted to circles.",
+          "description": "Polyline annotations which go this close (measured\n\nin pixels) to edge of the image will be converted\n\nto circle annotations. This is because wingbeat\n\nmeasurements cannot be made unless the entire\n\nmotion blur is contained within the image.",
           "default": 20,
           "minimum": 0,
           "type": "integer"
@@ -686,19 +709,19 @@
       "properties": {
         "autoannotated_via_project_file": {
           "title": "Autoannotated Via Project File",
-          "description": "Path to file containing VIA Project with annotations to validate.",
+          "description": "Path to file containing VIA Project with\n\nautomatically obtained annotations to validate.",
           "type": "string",
           "format": "path"
         },
         "iou_thresh": {
           "title": "Iou Thresh",
-          "description": "Threshold of intersection-over-union to match annotations.",
+          "description": "Threshold of bounding-box intersection-over-union\n\nto match automatically obtained annotations to\n\nground truth annotations.",
           "default": 0.5,
           "type": "number"
         },
         "image_sets": {
           "title": "Image Sets",
-          "description": "Image sets to perform training on.",
+          "description": "Image sets to perform validation on. Possible sets\n\nare 'all', 'test', and 'train'. Multiple sets can\n\nbe specified. If including 'test' or 'train',\n\nannotator.training must also be configured.",
           "default": [
             "all"
           ],
@@ -711,13 +734,13 @@
         },
         "output_dir": {
           "title": "Output Dir",
-          "description": "If set, results of validation will be saved.",
+          "description": "If set, results of validation will be saved to\n\nthis directory (one file per image set).",
           "format": "directory-path",
           "type": "string"
         },
         "output_stem": {
           "title": "Output Stem",
-          "description": "Stem of output files.",
+          "description": "Stem of output files. Output files will be saved\n\nas ``output_dir/output_stem.image_set.json``.",
           "default": "validation",
           "type": "string"
         }

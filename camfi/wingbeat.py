@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from pydantic import (
     BaseModel,
-    Field,
     NonNegativeInt,
     PositiveFloat,
     PositiveInt,
@@ -27,7 +26,7 @@ from tqdm import tqdm
 
 from camfi.datamodel.geometry import PolylineShapeAttributes
 from camfi.datamodel.via import ViaRegionAttributes, ViaMetadata, ViaProject
-from camfi.util import DatetimeCorrector
+from camfi.util import DatetimeCorrector, Field
 
 
 def autocorrelation(roi: torch.Tensor, max_pixel_period: PositiveInt) -> torch.Tensor:

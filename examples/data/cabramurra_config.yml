@@ -2,6 +2,9 @@ root: data
 via_project_file: data/cabramurra_all_annotations.json
 day_zero: 2019-01-01
 output_tz: +10:00
+filters:
+  image_filters:
+    min_annotations: 1
 camera:
   camera_time_to_actual_time_ratio: 1.0
   line_rate: 9.05e+04
@@ -53,6 +56,7 @@ annotator:
     batch_size: 5
     num_workers: 2
     num_epochs: 20
+    outdir: data
     save_intermediate: true
   inference:
     output_path: data/cabramurra_autoannotated.json
