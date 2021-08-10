@@ -1148,6 +1148,5 @@ class CamfiConfig(BaseModel):
                 unit="img",
                 dynamic_ncols=True,
                 ascii=True,
-                color="green",
             ):
                 f.write(filename)

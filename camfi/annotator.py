@@ -510,7 +510,6 @@ class Annotator(BaseModel):
             unit="img",
             dynamic_ncols=True,
             ascii=True,
-            color="green",
             postfix=postfix,
         )
         for img_idx in pb:
@@ -624,7 +623,6 @@ def validate_annotations(
             unit="img",
             dynamic_ncols=True,
             ascii=True,
-            color="green",
         ):
             gt_metadata = ground_truth.via_img_metadata[img_key]
             ious = sparse.dok_matrix(

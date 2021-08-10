@@ -503,7 +503,6 @@ class ViaProject(BaseModel):
             unit="img",
             dynamic_ncols=True,
             ascii=True,
-            color="green",
         ):
             metadata.load_exif_metadata(
                 root=root,

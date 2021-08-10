@@ -539,7 +539,6 @@ def extract_all_wingbeats(
         unit="img",
         dynamic_ncols=True,
         ascii=True,
-        color="green",
         postfix=postfix,
     )
     for img_key, metadata in pb:
