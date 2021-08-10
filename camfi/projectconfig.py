@@ -1064,8 +1064,8 @@ class CamfiConfig(BaseModel):
                 if annotator.training is None:
                     raise TrainingConfigUnspecifiedError
                 else:
-                    include_set = set(training.test_set)
                     training = annotator.training
+                    include_set = set(training.test_set)
 
                     def _subset_fn(metadata: ViaMetadata) -> bool:
                         if metadata.filename not in include_set:
