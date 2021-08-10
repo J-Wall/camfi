@@ -299,6 +299,8 @@ class Annotator(BaseModel):
                 else:
                     raise
 
+        del img
+
         return Prediction.from_tensor_dict(prediction)
 
     def filter_annotations(self, prediction: Prediction) -> Prediction:
