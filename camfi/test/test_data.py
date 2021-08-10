@@ -360,10 +360,7 @@ class TestViaProject:
     def test_parse_dump_parse_dump_equal(self, via_project):
         via_project_raw = via_project.json(by_alias=True, indent=2, exclude_unset=True)
         project2 = ViaProject.parse_raw(via_project_raw)
-        assert (
-            project2.json(by_alias=True, indent=2, exclude_unset=True)
-            == via_project_raw
-        )
+        assert project2.formatted_json() == via_project_raw
 
 
 class TestLocationTimeZone:

@@ -407,6 +407,10 @@ class ViaProject(BaseModel):
 
         alias_generator = lambda x: f"_{x}"
 
+    def formatted_json(self, **kwargs) -> str:
+        """Like json, but fixes by_alias=True, indent=2, and exclude_unset=True."""
+        return self.json(by_alias=True, indent=2, exclude_unset=True, **kwargs)
+
     def load_all_exif_metadata(
         self,
         root: Path = Path(),

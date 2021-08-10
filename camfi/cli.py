@@ -142,6 +142,13 @@ class Commander:
             )
         }
 
+    ################################# Camfi commands #################################
+    # Any (non-private) method defined here will be exposed to the commandline through
+    # $ camfi <translated-method-name>  (see Commander._to_sh and Commander._to_py for
+    # translation rules. Hopefully they are self-explanatory.
+    # Docstrings can be in ReStructured Text, and are used for both documentation and
+    # the help page ($ camfi --help). Any "``"s will be stripped out of the help page.
+
     def annotate(self) -> None:
         """Performs automatic annotation on all the images in via_project, outputting
         the resulting annotated VIA project file to the configured ``output_path``
