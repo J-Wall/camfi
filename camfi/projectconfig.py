@@ -641,29 +641,43 @@ class CamfiConfig(BaseModel):
         return values
 
     @classmethod
-    def parse_yaml(cls, document: str) -> CamfiConfig:
-        """Parses yaml document and returns a CamfiConfig instance.
+    def parse_yaml(cls, document: str, **replace_fields) -> CamfiConfig:
+        """Parses YAML document and returns a CamfiConfig instance.
 
         Parameters
         ----------
         document : str
             StrictYAML document string.
+        **replace_fields
+            If set, fields will be replaced with those set in replace_fields before
+            parsing.
 
         Returns
         -------
         config : CamfiConfig
             CamfiConfig instance with settings defined in document.
         """
-        return cls.parse_obj(load(document).data)
+        options = load(document).data
+        for key, value in replace_fields.items():
+            if key in cls.__fields__:
+                options[key] = value
+            else:
+                raise ValueError(
+                    f"Given keyword argument {key}. Expected one of {cls.__fields__}."
+                )
+        return cls.parse_obj(options)
 
     @classmethod
-    def parse_yaml_file(cls, document_path: Path) -> CamfiConfig:
-        """Parses yaml document read from file and returns a CamfiConfig instance.
+    def parse_yaml_file(cls, document_path: Path, **replace_fields) -> CamfiConfig:
+        """Parses YAML document read from file and returns a CamfiConfig instance.
 
         Parameters
         ----------
         document_path : Path
             Path to file containing yaml document.
+        **replace_fields
+            If set, fields will be replaced with those set in replace_fields before
+            parsing.
 
         Returns
         -------
@@ -673,7 +687,36 @@ class CamfiConfig(BaseModel):
         with open(document_path, "r") as f:
             document = f.read()
 
-        return cls.parse_yaml(document)
+        return cls.parse_yaml(document, **replace_fields)
+
+    @classmethod
+    def parse_json_file(cls, document_path: Path, **replace_fields) -> CamfiConfig:
+        """Parses JSON document read from file and returns a CamfiConfig instance.
+
+        Parameters
+        ----------
+        document_path : Path
+            Path to file containing yaml document.
+        **replace_fields
+            If set, fields will be replaced with those set in replace_fields before
+            parsing.
+
+        Returns
+        -------
+        config : CamfiConfig
+            CamfiConfig instance with settings defined in document.
+        """
+        with open(document_path, "r") as f:
+            options = json.load(f)
+
+        for key, value in replace_fields.items():
+            if key in cls.__fields__:
+                options[key] = value
+            else:
+                raise ValueError(
+                    f"Given keyword argument {key}. Expected one of {cls.__fields__}."
+                )
+        return cls.parse_obj(options)
 
     def yaml(self, **kwargs) -> str:
         """Serialises self to yaml string.

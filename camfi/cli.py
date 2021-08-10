@@ -58,8 +58,23 @@ class Commander:
         ----------
         config_path : Optional[Path]
             Path to configuration file. Can be JSON (.json) or StrictYAML (.yaml|.yml).
+        input_file : Optional[Path]
+            Path to VIA project file.
+            If set, ``self.config.via_project_file`` will be overwritten with this
+            value.
+        root : Optional[Path]
+            Path to root directory containing all images.
+            If set, ``self.config.root`` will be overwritten with this value.
         output : Optional[Path]
-            If set, ``self.default_output`` will be overwritten with this value.
+            If set, ``self.config.default_output`` will be overwritten with this value.
+        disable_progress_bar : Optional[bool]
+            Option to force progress bars to be hidden or shown.
+            If set, ``self.config.disable_project_bar`` will be overwritten with this
+            value.
+        vprint : Callable
+            Called for verbose printing.
+        vvprint : Callable
+            Called for very verbose printing.
         """
         self._vprint, self._vvprint = vprint, vvprint
 
@@ -69,40 +84,42 @@ class Commander:
 
         self._vvprint("Done.")
 
+        self._vvprint("Updating command-line configurable config params...")
+        replace_fields: dict[str, str] = {}
+        if input_file:
+            self._vvprint(f"Setting config.via_project_file = {input_file}")
+            replace_fields["via_project_file"] = str(input_file)
+        if root:
+            self._vvprint(f"Setting config.root = {root}")
+            replace_fields["root"] = str(root)
+        if output:
+            self._vvprint(f"Setting config.default_output = {output}")
+            replace_fields["default_output"] = str(output)
+        if disable_progress_bar is not None:  # Could be True or False
+            self._vvprint(
+                f"Setting config.disable_progress_bar = {disable_progress_bar}"
+            )
+            replace_fields["disable_progress_bar"] = str(disable_progress_bar)
+
+        self._vvprint("Done updating params.")
+
         self._vprint(
             f"Parsing configuration file: {config_path}..."
             if config_path
             else "Creating configuration."
         )
         if config_path is None:
-            self.config = CamfiConfig()
+            self.config = CamfiConfig(**replace_fields)
         elif config_path.suffix.startswith(".j"):
-            self.config = CamfiConfig.parse_file(config_path)
+            self.config = CamfiConfig.parse_json_file(config_path, **replace_fields)
         elif config_path.suffix.startswith(".y"):
-            self.config = CamfiConfig.parse_yaml_file(config_path)
+            self.config = CamfiConfig.parse_yaml_file(config_path, **replace_fields)
         else:
             raise ConfigParseError(
                 "Could not determine config format from file suffix. "
                 f"Expected one of (.json|.yaml|.yml). Got {config_path.suffix}."
             )
         self._vprint("Done.")
-
-        self._vvprint("Updating command-line configurable config params...")
-        if input_file:
-            self._vvprint(f"Setting config.via_project_file = {input_file}")
-            self.config.via_project_file = input_file
-        if root:
-            self._vvprint(f"Setting config.root = {root}")
-            self.config.root = root
-        if output:
-            self._vvprint(f"Setting config.default_output = {output}")
-            self.config.default_output = output
-        if disable_progress_bar is not None:  # Could be True or False
-            self._vvprint(
-                f"Setting config.disable_progress_bar = {disable_progress_bar}"
-            )
-            self.config.disable_progress_bar = disable_progress_bar
-        self._vvprint("Done updating params.")
 
     @classmethod
     def _get_command(cls, command: str) -> Callable[[], None]:
