@@ -222,8 +222,8 @@ class Annotator(BaseModel):
     dataset: CamfiDataset
     model: MaskRCNN = "release"
     device: Union[str, torch.device] = "cpu"
-    backup_model: Optional[MaskRCNN] = None
     backup_device: Optional[Union[str, torch.device]] = None
+    backup_model: Optional[MaskRCNN] = None
     split_angle: PositiveFloat = 15.0
     poly_order: PositiveInt = 2
     endpoint_method: Callable[
@@ -254,7 +254,7 @@ class Annotator(BaseModel):
 
     @validator("backup_model", pre=True, always=True)
     def copy_model_to_backup_device(cls, v, values):
-        assert v is None, "Should not set 'backup_model'. It will be set autoimatically"
+        assert v is None, "Should not set 'backup_model'. It will be set automatically"
         if "backup_device" in values and values["backup_device"] is not None:
             v = copy_annotation_model(values["model"])
             v.to(values["backup_device"])
