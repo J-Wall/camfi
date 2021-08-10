@@ -534,9 +534,9 @@ class Annotator(BaseModel):
 
         print(f"Annotation complete.", file=stderr)
         return ViaProject(
-            via_attributes=self.dataset.via_project.via_attributes,
-            via_img_metadata=via_img_metadata,
-            via_settings=self.dataset.via_project.via_settings,
+            _via_attributes=self.dataset.via_project.via_attributes,
+            _via_img_metadata=via_img_metadata,
+            _via_settings=self.dataset.via_project.via_settings,
         )
 
 
