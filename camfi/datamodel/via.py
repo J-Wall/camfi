@@ -405,11 +405,7 @@ class ViaProject(BaseModel):
     class Config:
         """Sets pydantic.BaseModel configuration of ViaProject."""
 
-        fields = {
-            "via_attributes": "_via_attributes",
-            "via_img_metadata": "_via_img_metadata",
-            "via_settings": "_via_settings",
-        }
+        alias_generator = lambda x: f"_{x}"
 
     def load_all_exif_metadata(
         self,

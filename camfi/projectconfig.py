@@ -1116,10 +1116,12 @@ class CamfiConfig(BaseModel):
         """Writes self.via_project as json to self.default_output (if set) or stdout."""
         if self.default_output:
             with open(self.default_output, "w") as f:
-                f.write(self.via_project.json(indent=2, exclude_unset=True))
+                f.write(
+                    self.via_project.json(by_alias=True, indent=2, exclude_unset=True)
+                )
 
         else:
-            print(self.via_project.json(indent=2, exclude_unset=True))
+            print(self.via_project.json(by_alias=True, indent=2, exclude_unset=True))
 
     def filelist(self) -> list[Path]:
         """lists the images in self.via_project.

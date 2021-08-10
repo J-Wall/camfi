@@ -346,6 +346,25 @@ class TestViaProject:
         with raises(ValidationError):
             ViaProject.parse_raw(via_project_raw)
 
+    def test_model_creation_and_dumping(self):
+        project = ViaProject.construct(
+            via_attributes={},
+            via_img_metadata={},
+            via_settings={},
+        )
+        assert (
+            project.json(by_alias=True)
+            == '{"_via_attributes": {}, "_via_img_metadata": {}, "_via_settings": {}}'
+        )
+
+    def test_parse_dump_parse_dump_equal(self, via_project):
+        via_project_raw = via_project.json(by_alias=True, indent=2, exclude_unset=True)
+        project2 = ViaProject.parse_raw(via_project_raw)
+        assert (
+            project2.json(by_alias=True, indent=2, exclude_unset=True)
+            == via_project_raw
+        )
+
 
 class TestLocationTimeZone:
     def test_all_offset_aware_or_naive(self):
