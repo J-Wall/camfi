@@ -638,7 +638,7 @@ def validate_annotations(
             for i, j in itertools.product(
                 range(len(metadata.regions)), range(len(gt_metadata.regions))
             ):
-                iou = metadata.regions[i].shape_attributes.interesection_over_union(
+                iou = metadata.regions[i].shape_attributes.intersection_over_union(
                     gt_metadata.regions[i].shape_attributes
                 )
                 if iou >= iou_thresh:
