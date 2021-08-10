@@ -639,7 +639,7 @@ def validate_annotations(
                 range(len(metadata.regions)), range(len(gt_metadata.regions))
             ):
                 iou = metadata.regions[i].shape_attributes.intersection_over_union(
-                    gt_metadata.regions[i].shape_attributes
+                    gt_metadata.regions[j].shape_attributes
                 )
                 if iou >= iou_thresh:
                     ious[i, j] = iou
