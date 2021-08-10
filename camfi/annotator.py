@@ -233,6 +233,7 @@ class Annotator(BaseModel):
     score_thresh: float = 0.4
     overlap_thresh: float = 0.4
     edge_thresh: NonNegativeInt = 20
+    _backup_model_used: int = 0
 
     class Config:
         arbitrary_types_allowed = True
@@ -296,6 +297,7 @@ class Annotator(BaseModel):
             except RuntimeError:
                 if self.backup_model:
                     prediction = self.backup_model([img.to(self.backup_device)])[0]
+                    self._backup_model_used += 1
                 else:
                     raise
 
@@ -503,6 +505,8 @@ class Annotator(BaseModel):
         via_img_metadata: dict[str, ViaMetadata] = {}
 
         postfix = {"tot_annotations": 0}
+        if self.backup_device:
+            postfix["backup_device_used"] = self._backup_model_used
         pb = trange(
             len(self.dataset),
             disable=disable_progress_bar,
@@ -524,6 +528,8 @@ class Annotator(BaseModel):
             )
             via_img_metadata[img_key] = out_metadata
             postfix["tot_annotations"] += len(regions)
+            if self.backup_device:
+                postfix["backup_device_used"] = self._backup_model_used
             pb.set_postfix(postfix, refresh=False)
 
         print(f"Annotation complete.", file=stderr)
