@@ -467,15 +467,10 @@ class Annotator(BaseModel):
             mask = prediction.masks[i]
             score = prediction.scores[i]
             shape_attributes: Union[CircleShapeAttributes, PolylineShapeAttributes]
-            try:
-                shape_attributes = self.fit_poly(box, mask)
-            except (ValueError, IndexError):
-                # If there is a problem fitting a polyline, use circle
-                shape_attributes = CircleShapeAttributes.from_bounding_box(box)
-            else:
-                shape_attributes = self.convert_to_circle(
-                    shape_attributes, (mask.shape[-2], mask.shape[-1])
-                )
+            shape_attributes = self.fit_poly(box, mask)
+            shape_attributes = self.convert_to_circle(
+                shape_attributes, (mask.shape[-2], mask.shape[-1])
+            )
             region_attributes = ViaRegionAttributes(score=score)
             regions.append(
                 ViaRegion(
