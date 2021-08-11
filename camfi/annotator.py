@@ -18,6 +18,7 @@ from pydantic import (
     NonNegativeFloat,
     PositiveFloat,
     PositiveInt,
+    ValidationError,
     validator,
 )
 from scipy import sparse
@@ -40,7 +41,12 @@ from camfi.datamodel.via import (
     ViaRegionAttributes,
 )
 from camfi.models import model_urls
-from camfi.util import endpoint_truncate, weighted_intersection_over_minimum, Field
+from camfi.util import (
+    endpoint_truncate,
+    smallest_enclosing_circle,
+    weighted_intersection_over_minimum,
+    Field,
+)
 from ._torchutils import collate_fn, get_model_instance_segmentation, train_one_epoch
 
 
@@ -359,7 +365,7 @@ class Annotator(BaseModel):
         self,
         box: BoundingBox,
         mask: torch.Tensor,
-    ) -> PolylineShapeAttributes:
+    ) -> Union[PolylineShapeAttributes, CircleShapeAttributes, None]:
         """Uses polynomial regression to fit a polyline annotation to the provided
         segmentation mask.
 
@@ -372,11 +378,11 @@ class Annotator(BaseModel):
 
         Returns
         -------
-        polyline : PolylineShapeAttributes
+        shape_attributes : Union[PolylineShapeAttributes, CircleShapeAttributes, None]
             Geometry of automatic annotation.
         """
         portrait = box.is_portrait()
-        crop_mask = box.crop_image(mask).cpu().numpy()
+        crop_mask = box.crop_image(mask).cpu().numpy().reshape(box.shape)
 
         y, x = np.where(crop_mask > 0.0)
         weights = np.array(crop_mask[y, x]).flatten()
@@ -392,7 +398,7 @@ class Annotator(BaseModel):
         val_mask = np.logical_and(dep_vals < crop_mask.shape[portrait], dep_vals >= 0)
         y_vals = (dep_vals, ind_vals)[portrait][val_mask]
         x_vals = (ind_vals, dep_vals)[portrait][val_mask]
-        fit_mask_vals = crop_mask[y_vals, x_vals]
+        fit_mask_vals = crop_mask[y_vals.astype("i4"), x_vals.astype("i4")]
 
         endpoints = ind_vals[
             list(self.endpoint_method(fit_mask_vals, *self.endpoint_extra_args))
@@ -405,12 +411,20 @@ class Annotator(BaseModel):
         all_points_ind, all_points_dep = poly_fit.linspace(
             n=int(np.ceil(angle_diff / self.split_angle) + 2), domain=endpoints
         )
-        polyline = PolylineShapeAttributes(
-            all_points_x=list((all_points_ind, all_points_dep)[portrait] + box.x0),
-            all_points_y=list((all_points_dep, all_points_ind)[portrait] + box.y0),
-        )
+        all_points_x = list((all_points_ind, all_points_dep)[portrait] + box.x0)
+        all_points_y = list((all_points_dep, all_points_ind)[portrait] + box.y0)
+        try:
+            shape_attributes = PolylineShapeAttributes(
+                all_points_x=all_points_x, all_points_y=all_points_y
+            )
+        except ValidationError:
+            try:
+                cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
+                shape_attributes = CircleShapeAttributes(cx=cx, cy=cy, r=r)
+            except ValidationError:
+                return None
 
-        return polyline
+        return shape_attributes
 
     def convert_to_circle(
         self,
@@ -468,9 +482,12 @@ class Annotator(BaseModel):
             score = prediction.scores[i]
             shape_attributes: Union[CircleShapeAttributes, PolylineShapeAttributes]
             shape_attributes = self.fit_poly(box, mask)
-            shape_attributes = self.convert_to_circle(
-                shape_attributes, (mask.shape[-2], mask.shape[-1])
-            )
+            if shape_attributes is None:
+                continue
+            if shape_attributes.name == "polyline":
+                shape_attributes = self.convert_to_circle(
+                    shape_attributes, (mask.shape[-2], mask.shape[-1])
+                )
             region_attributes = ViaRegionAttributes(score=score)
             regions.append(
                 ViaRegion(
