@@ -618,7 +618,10 @@ class CamfiConfig(BaseModel):
         return ViaProject.parse_file(self.via_project_file)
 
     class Config:
-        json_encoders = {Timezone: str}
+        json_encoders = {
+            Timezone: str,
+            Path: lambda x: x.as_posix(),
+        }
         keep_untouched = (cached_property,)
         schema_extra = {"description": "Camfi configuration."}
 
@@ -663,7 +666,8 @@ class CamfiConfig(BaseModel):
                 options[key] = value
             else:
                 raise ValueError(
-                    f"Given keyword argument {key}. Expected one of {cls.__fields__}."
+                    f"Given keyword argument {key}. "
+                    f"Expected one of {cls.__fields__.keys()}."
                 )
         return cls.parse_obj(options)
 
@@ -714,7 +718,8 @@ class CamfiConfig(BaseModel):
                 options[key] = value
             else:
                 raise ValueError(
-                    f"Given keyword argument {key}. Expected one of {cls.__fields__}."
+                    f"Given keyword argument {key}. "
+                    f"Expected one of {cls.__fields__.keys()}."
                 )
         return cls.parse_obj(options)
 

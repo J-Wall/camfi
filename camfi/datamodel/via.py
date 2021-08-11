@@ -406,6 +406,7 @@ class ViaProject(BaseModel):
         """Sets pydantic.BaseModel configuration of ViaProject."""
 
         alias_generator = lambda x: f"_{x}"
+        json_encoders = {Path: lambda x: x.as_posix()}
 
     def formatted_json(self, **kwargs) -> str:
         """Like json, but fixes by_alias=True, indent=2, and exclude_unset=True."""
