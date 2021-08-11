@@ -409,8 +409,8 @@ class ViaProject(BaseModel):
         json_encoders = {Path: lambda x: x.as_posix()}
 
     def formatted_json(self, **kwargs) -> str:
-        """Like json, but fixes by_alias=True, indent=2, and exclude_unset=True."""
-        return self.json(by_alias=True, indent=2, exclude_unset=True, **kwargs)
+        """Like json, but fixes by_alias=True, indent=2, and exclude_none=True."""
+        return self.json(by_alias=True, indent=2, exclude_none=True, **kwargs)
 
     def load_all_exif_metadata(
         self,
