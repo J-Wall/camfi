@@ -411,7 +411,7 @@ class Prediction(TargetPredictionABC):
             ],
             labels=[int(v) for v in tensor_dict["labels"]],
             masks=list(tensor_dict["masks"]),
-            scores=[int(v) for v in tensor_dict["scores"]],
+            scores=[float(v) for v in tensor_dict["scores"]],
         )
 
     @classmethod
