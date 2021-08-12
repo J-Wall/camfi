@@ -631,19 +631,19 @@ def validate_annotations(
     results: list[AnnotationValidationResult] = []
 
     for name, subset_function in subset_functions.items():
-        annotations = auto_annotations.filtered_copy(subset_function)
+        gt_annotations = ground_truth.filtered_copy(subset_function)
 
         result = AnnotationValidationResult()
 
-        for img_key, metadata in tqdm(
-            annotations.via_img_metadata.items(),
+        for img_key, gt_metadata in tqdm(
+            gt_annotations.via_img_metadata.items(),
             disable=disable_progress_bar,
             desc=f"Validating {name} annotations",
             unit="img",
             dynamic_ncols=True,
             ascii=True,
         ):
-            gt_metadata = ground_truth.via_img_metadata[img_key]
+            metadata = auto_annotations.via_img_metadata[img_key]
             ious = sparse.dok_matrix(
                 (len(metadata.regions), len(gt_metadata.regions)), dtype="f8"
             )
@@ -665,12 +665,19 @@ def validate_annotations(
 
             for i, match in enumerate(matches):
                 score = metadata.regions[i].region_attributes.score
-                if match >= 0:
+                if score is None:
+                    raise ValueError(
+                        "Invalid automatically obtained annotation. "
+                        "Ensure that auto_annotations were obtained automatically "
+                        f"(region {i} of {img_key} missing 'score' region_attribute)."
+                    )
+                elif match >= 0:
                     result.true_positives.append(score)
                     result.ious.append((ious[i, match], score))
                     shape = metadata.regions[i].shape_attributes
                     gt_shape = gt_metadata.regions[match].shape_attributes
                     if shape.name == gt_shape.name == "polyline":
+                        assert isinstance(shape, PolylineShapeAttributes)
                         h_dist = shape.hausdorff_distance(gt_shape)
                         result.polyline_hausdorff_distances.append((h_dist, score))
                         l_diff = shape.length() - gt_shape.length()
