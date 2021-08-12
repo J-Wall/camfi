@@ -413,6 +413,7 @@ class Annotator(BaseModel):
         )
         all_points_x = list((all_points_ind, all_points_dep)[portrait] + box.x0)
         all_points_y = list((all_points_dep, all_points_ind)[portrait] + box.y0)
+        shape_attributes: Union[PolylineShapeAttributes, CircleShapeAttributes, None]
         try:
             shape_attributes = PolylineShapeAttributes(
                 all_points_x=all_points_x, all_points_y=all_points_y
@@ -422,7 +423,7 @@ class Annotator(BaseModel):
                 cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
                 shape_attributes = CircleShapeAttributes(cx=cx, cy=cy, r=r)
             except ValidationError:
-                return None
+                shape_attributes = None
 
         return shape_attributes
 
@@ -480,11 +481,11 @@ class Annotator(BaseModel):
             box = prediction.boxes[i]
             mask = prediction.masks[i]
             score = prediction.scores[i]
-            shape_attributes: Union[CircleShapeAttributes, PolylineShapeAttributes]
             shape_attributes = self.fit_poly(box, mask)
             if shape_attributes is None:
                 continue
             if shape_attributes.name == "polyline":
+                assert isinstance(shape_attributes, PolylineShapeAttributes)
                 shape_attributes = self.convert_to_circle(
                     shape_attributes, (mask.shape[-2], mask.shape[-1])
                 )
