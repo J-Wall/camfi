@@ -1031,7 +1031,7 @@ class CamfiConfig(BaseModel):
         )
         if output_path:
             with open(output_path, "w") as f:
-                f.write(annotated_project.formatted_json())
+                print(annotated_project.formatted_json(), file=f)
 
         return annotated_project
 
@@ -1156,7 +1156,7 @@ class CamfiConfig(BaseModel):
                     output_dir / f"{annotator.validation.output_stem}.{image_set}.json"
                 )
                 with open(output_file, "w") as f:
-                    f.write(validation_result.json(indent=2))
+                    print(validation_result.json(indent=2), file=f)
 
         return validation_results
 
@@ -1164,7 +1164,7 @@ class CamfiConfig(BaseModel):
         """Writes self.via_project as json to self.default_output (if set) or stdout."""
         if self.default_output:
             with open(self.default_output, "w") as f:
-                f.write(self.via_project.formatted_json())
+                print(self.via_project.formatted_json(), file=f)
 
         else:
             print(self.via_project.formatted_json())

@@ -139,7 +139,7 @@ class Commander:
     def _write(self, s: str):
         if self.config.default_output:
             with open(self.config.default_output, "w") as f:
-                f.write(s)
+                print(s, file=f)
         else:
             print(s)
 
@@ -627,7 +627,7 @@ def main():
     elif args.json_conf_out:
         vprint(f"Writing config JSON to {args.json_conf_out}...")
         with open(args.json_conf_out, "w") as f:
-            f.write(commander.config.json(indent=2, exclude_unset=True))
+            print(commander.config.json(indent=2, exclude_unset=True), file=f)
         vprint("Done.")
 
     # Output config YAML
@@ -638,7 +638,7 @@ def main():
     elif args.yaml_conf_out:
         vprint(f"Writing config YAML to {args.yaml_conf_out}...")
         with open(args.yaml_conf_out, "w") as f:
-            f.write(commander.config.yaml())
+            print(commander.config.yaml(), file=f)
         vprint("Done.")
 
     # Run commands
