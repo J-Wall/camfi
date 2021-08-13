@@ -26,7 +26,7 @@ FORCE: ;
 source/cabramurra_config.json: ../examples/data/cabramurra_config.yml
 	python -c "from camfi.projectconfig import CamfiConfig; import os; os.chdir('../examples'); print(CamfiConfig.parse_yaml_file('data/cabramurra_config.yml').json(exclude_unset=True, indent=2))" > $@
 
-notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/camfi_autoannotator_training.rst usage/notebooks/wingbeat_analysis.rst
+notebooks = usage/notebooks/activity_analysis.rst usage/notebooks/annotation_evaluation.rst usage/notebooks/camera_calibration.rst usage/notebooks/wingbeat_analysis.rst
 
 notebook_files = usage/notebooks/activity_analysis_files usage/notebooks/annotation_evaluation_files usage/notebooks/camera_calibration_files usage/notebooks/wingbeat_analysis_files
 

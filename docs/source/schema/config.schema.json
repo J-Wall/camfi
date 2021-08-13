@@ -545,6 +545,7 @@
           "description": "Path or url to model .pth file or one of\n\ncamfi.models.model_urls to initialise training. By\n\ndefault, Resnet50 FPN backbone trained on the COCO\n\ndataset is used.",
           "examples": [
             "v1",
+            "v2",
             "release"
           ],
           "anyOf": [
@@ -622,6 +623,7 @@
           "default": "release",
           "examples": [
             "v1",
+            "v2",
             "release"
           ],
           "anyOf": [

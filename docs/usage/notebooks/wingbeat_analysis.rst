@@ -122,7 +122,7 @@ is often the case for cheap cameras).
           "device": "cuda",
           "batch_size": 5,
           "num_workers": 2,
-          "num_epochs": 20,
+          "num_epochs": 15,
           "save_intermediate": true
         },
         "inference": {

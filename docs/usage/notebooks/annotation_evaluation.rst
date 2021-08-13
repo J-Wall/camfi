@@ -18,9 +18,9 @@ Next, load the validation data
 
 .. code:: ipython3
 
-    validation_file = "data/validation.json"
-    validation_file_all = "data/validation_all.json"
-    validation_file_annotated_only = "data/validation_annotated_only.json"
+    validation_file = "data/validation.test.json"
+    validation_file_all = "data/validation.all.json"
+    validation_file_train = "data/validation.train.json"
         
     with open(validation_file, "r") as f:
         validation = json.load(f)
@@ -28,8 +28,8 @@ Next, load the validation data
     with open(validation_file_all, "r") as f:
         validation_all = json.load(f)
         
-    with open(validation_file_annotated_only, "r") as f:
-        validation_annotated_only = json.load(f)
+    with open(validation_file_train, "r") as f:
+        validation_train = json.load(f)
         
     list(validation.keys())
 
@@ -38,7 +38,7 @@ Next, load the validation data
 
 .. parsed-literal::
 
-    ['all_ious',
+    ['ious',
      'polyline_hausdorff_distances',
      'length_differences',
      'true_positives',
@@ -65,7 +65,7 @@ similar results for the full set and the test set.
     iou_positions = np.vstack([iou_X.ravel(), iou_Y.ravel()])
     
     # All images
-    ious_all, iou_scores_all = zip(*validation_all["all_ious"])
+    ious_all, iou_scores_all = zip(*validation_all["ious"])
     ious_all = np.array(ious_all)
     iou_scores_all = np.array(iou_scores_all)
     
@@ -81,7 +81,7 @@ similar results for the full set and the test set.
     )
     
     # Test set
-    ious, iou_scores = zip(*validation["all_ious"])
+    ious, iou_scores = zip(*validation["ious"])
     ious = np.array(ious)
     iou_scores = np.array(iou_scores)
     
@@ -104,8 +104,8 @@ similar results for the full set and the test set.
 .. parsed-literal::
 
     mean IoU:
-    Full set: 0.8084382787232963
-    Test set: 0.8003903525507208
+    Full set: 0.8135264456997439
+    Test set: 0.8054630747838181
 
 
 
@@ -121,7 +121,7 @@ similar results for the full set and the test set.
 
 .. parsed-literal::
 
-    array([ 0.,  2.,  4.,  6.,  8., 10., 12., 14., 16., 18., 20.])
+    array([ 0. ,  1.5,  3. ,  4.5,  6. ,  7.5,  9. , 10.5, 12. , 13.5, 15. ])
 
 
 
@@ -186,8 +186,8 @@ show similar results for the full set and the test set.
 .. parsed-literal::
 
     mean Hausdorff distance:
-    Full set: 28.548972369821694
-    Test set: 26.8674040582616
+    Full set: 29.224007981876568
+    Test set: 28.76616770267623
 
 
 
@@ -263,14 +263,14 @@ difference, and show similar results for the full set and the test set.
 .. parsed-literal::
 
     mean length difference:
-    Full set: -8.985949664173894
-    Test set: 2.3907378483120802
+    Full set: -3.308262066472856
+    Test set: 5.155644178390503
     mean absolute length difference:
-    Full set: 28.526585350741474
-    Test set: 26.85377608474589
+    Full set: 28.52835982924359
+    Test set: 28.5195529460907
     std length difference:
-    Full set: 43.31024776806316
-    Test set: 40.257610580046396
+    Full set: 46.44938175547716
+    Test set: 51.003080907488574
 
 
 
@@ -333,13 +333,13 @@ false positives.
 .. parsed-literal::
 
     Full set:
-    True positives:  1025
-    False positives: 18352
-    False negatives:  394
+    True positives:   997
+    False positives: 12522
+    False negatives:  422
     
     Test set:
     True positives:    64
-    False positives:  113
+    False positives:  106
     False negatives:   25
 
 
@@ -417,36 +417,36 @@ set, and the test set
     average_precision = sum(ap_precision_values) / len(ap_precision_values)
     
     # Annotated only
-    true_positives_annotated_only = np.array(validation_annotated_only["true_positives"])
-    false_positives_annotated_only = np.array(validation_annotated_only["false_positives"])
-    false_negatives_annotated_only = validation_annotated_only["false_negatives"]
+    true_positives_train = np.array(validation_train["true_positives"])
+    false_positives_train = np.array(validation_train["false_positives"])
+    false_negatives_train = validation_train["false_negatives"]
     
-    precision_annotated_only = [0.]
-    recall_annotated_only = [1.]
+    precision_train = [0.]
+    recall_train = [1.]
     
-    for score_cutoff in np.sort(np.concatenate((true_positives_annotated_only, false_positives_annotated_only))):
-        tp = np.count_nonzero(true_positives_annotated_only >= score_cutoff)
-        fp = np.count_nonzero(false_positives_annotated_only >= score_cutoff)
+    for score_cutoff in np.sort(np.concatenate((true_positives_train, false_positives_train))):
+        tp = np.count_nonzero(true_positives_train >= score_cutoff)
+        fp = np.count_nonzero(false_positives_train >= score_cutoff)
         try:
             pr = tp / (tp + fp)
-            re = tp / (tp + false_negatives_annotated_only)
+            re = tp / (tp + false_negatives_train)
         except ZeroDivisionError:
             pass
         finally:
-            precision_annotated_only.append(pr)
-            recall_annotated_only.append(re)
+            precision_train.append(pr)
+            recall_train.append(re)
             
-    precision_annotated_only.append(1.)
-    recall_annotated_only.append(0.)
+    precision_train.append(1.)
+    recall_train.append(0.)
             
-    precision_annotated_only = np.array(precision_annotated_only)
-    recall_annotated_only = np.array(recall_annotated_only)
+    precision_train = np.array(precision_train)
+    recall_train = np.array(recall_train)
     
-    ap_precision_values_annotated_only = []
+    ap_precision_values_train = []
     for ap_recall_value in np.linspace(0., 1., num=11, endpoint=True):
-        ap_precision_values_annotated_only.append(precision_annotated_only[recall_annotated_only >= ap_recall_value].max())
+        ap_precision_values_train.append(precision_train[recall_train >= ap_recall_value].max())
     
-    average_precision_annotated_only = sum(ap_precision_values_annotated_only) / len(ap_precision_values_annotated_only)
+    average_precision_train = sum(ap_precision_values_train) / len(ap_precision_values_train)
        
     fig = plt.figure()
     ax = fig.add_subplot(
@@ -458,25 +458,82 @@ set, and the test set
     )
     ax.plot(recall[1:-1], precision[1:-1], c="tab:blue", label="Test set")
     ax.plot(recall_all[1:-1], precision_all[1:-1], c="tab:red", label="Full set")
-    ax.plot(recall_annotated_only[1:-1], precision_annotated_only[1:-1], c="tab:orange", label="Annotated set")
+    ax.plot(recall_train[1:-1], precision_train[1:-1], c="tab:orange", label="Annotated set")
     ax.legend()
     
     print("AP_50:")
     print(f"Full set: {average_precision_all}")
     print(f"Test set: {average_precision}")
-    print(f"Annotated set: {average_precision_annotated_only}")
+    print(f"Training set: {average_precision_train}")
 
 
 .. parsed-literal::
 
     AP_50:
-    Full set: 0.6183247090779226
-    Test set: 0.6823916331895055
-    Annotated set: 0.6903068007027883
+    Full set: 0.5879457315920177
+    Test set: 0.6866600298656048
+    Training set: 0.6683919288386905
 
 
 
 .. image:: annotation_evaluation_files/annotation_evaluation_14_1.png
+
+
+We also want to visualise the training process
+
+.. code:: ipython3
+
+    from training_log_parser import parse_lines
+    
+    with open("data/20210809_14_model_log.txt", "r") as f:
+        epochs = parse_lines(f)
+        
+    all_vals = {}
+    for epoch in epochs:
+        for key in epoch.keys():
+            all_vals.setdefault(key, []).extend(epoch[key])
+
+.. code:: ipython3
+
+    t = np.cumsum(all_vals["time"])
+    fig = plt.figure()
+    ax = fig.add_subplot(
+        111,
+        xlabel="Time (s)",
+        yscale="log",
+    )
+    ax.set_ylabel("Loss function")
+    
+    tot_t = 0.
+    for epoch in epochs[:-1]:
+        tot_t += sum(epoch["time"])
+        ax.axvline(tot_t, c="k", ls="dotted", alpha=0.5)
+    
+        
+    ax.plot(t, all_vals["loss"], label="loss")
+        
+    tot_t += sum(epochs[-1]["time"])
+    ax.axvline(tot_t, c="k", ls="dotted", label="epoch", alpha=0.5)
+        
+    #ax.legend()
+    
+    ax2 = ax.twinx()
+    ax2.set_yscale("log")
+    ax2.set_ylabel("Learning rate")
+    ax2.plot(t, all_vals["lr"], c="k", label="Learning rate", ds="steps-pre")
+    #ax2.legend()
+
+
+
+
+.. parsed-literal::
+
+    [<matplotlib.lines.Line2D at 0x7f5b8ec93cd0>]
+
+
+
+
+.. image:: annotation_evaluation_files/annotation_evaluation_17_1.png
 
 
 Putting together one figure
@@ -530,21 +587,54 @@ Putting together one figure
     phd_xlabel = "Hausdorff Distance (px)"
     l_diff_xlabel = "Length Difference (px)"
     
-    iou_title = "(a) "
-    phd_title = "(b) "
-    l_diff_title = "(c) "
-    pr_title = "(d) "
+    iou_title = "(b) "
+    phd_title = "(c) "
+    l_diff_title = "(d) "
+    pr_title = "(e) "
     
     fig_width = 180  # mm
     fig_width /= 25.4  # inches
-    fig_height = fig_width * 3 / 4
+    fig_height = fig_width
     
     fig = plt.figure(
         figsize=(fig_width, fig_height),
         tight_layout=True,
     )
     
-    ax_loc = 220
+    t = np.cumsum(all_vals["time"])
+    ax = fig.add_subplot(
+        311,
+        xlabel="Training time (s)",
+        yscale="log",
+    )
+    ax.set_ylabel("Loss function")
+    ax.set_title(
+        "(a) ",
+        fontdict=fontdict,
+        loc=tloc,
+        y=0.85,
+    )
+    
+    tot_t = 0.
+    for epoch in epochs[:-1]:
+        tot_t += sum(epoch["time"])
+        ax.axvline(tot_t, c="k", ls="dotted", alpha=0.5)
+    
+        
+    ax.plot(t, all_vals["loss"], c="k", label="loss")
+        
+    tot_t += sum(epochs[-1]["time"])
+    ax.axvline(tot_t, ymax=0.85, c="k", ls="dotted", label="epoch", alpha=0.5)
+        
+    #ax.legend()
+    
+    ax2 = ax.twinx()
+    ax2.set_yscale("log")
+    ax2.set_ylabel("Learning rate")
+    ax2.plot(t, all_vals["lr"], c="g", label="Learning rate", ds="steps-pre")
+    #ax2.legend()
+    
+    ax_loc = 322
     for metric in ["iou", "phd", "l_diff"]:
         ax_loc += 1
         xlabel = locals()[f"{metric}_xlabel"]
@@ -608,7 +698,7 @@ Putting together one figure
     
     # Precision vs. Recall
     ax4 = fig.add_subplot(
-        224,
+        ax_loc + 1,
         xlabel="Detection Recall",
         ylabel="Detection Precision",
         xlim=(0., 1.),
@@ -627,8 +717,8 @@ Putting together one figure
         label="Test set",
     )
     ax4.plot(
-        recall_annotated_only[1:-1], 
-        precision_annotated_only[1:-1],
+        recall_train[1:-1], 
+        precision_train[1:-1],
         c="tab:orange",
         label="Annotated set",
     )
@@ -666,7 +756,7 @@ Putting together one figure
 
 
 
-.. image:: annotation_evaluation_files/annotation_evaluation_17_0.png
+.. image:: annotation_evaluation_files/annotation_evaluation_20_0.png
 
 
 .. code:: ipython3
