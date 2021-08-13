@@ -38,7 +38,17 @@ for automatic annotation by Camfi.
 
 .. _VIA: https://www.robots.ox.ac.uk/~vgg/software/via/
 
-Concrete dependencies for camfi are provided in requirements.txt_. They are:
+The `GEOS library`_ is also required by Shapely,
+which is one of Camfi's dependencies.
+This can be installed with conda if you don't have a system install::
+
+    $ conda install -c conda-forge geos
+
+.. _GEOS library: https://trac.osgeo.org/geos/
+
+Concrete python library dependencies
+for camfi are provided in requirements.txt_.
+They are:
 
 .. literalinclude:: ../../requirements.txt
 
