@@ -626,3 +626,20 @@ class ViaProject(BaseModel):
             if function(value)
         }
         self.via_img_metadata = _new_img_metadata
+
+    def __or__(self, other: ViaProject) -> ViaProject:
+        """Returns a new ``ViaProject`` instance with ``via_img_metadata`` taken from
+        combining ``self`` and ``other``. ``via_attributes`` and ``via_settings`` are
+        taken from ``self``. If there is an image key which appears in both projects,
+        then the value from ``other`` will be taken (as per the convention for ``|`` on
+        ``dict`` in python).
+        """
+        return ViaProject.construct(
+            via_attributes=self.via_attributes,
+            via_img_metadata=self.via_img_metadata | other.via_img_metadata,
+            via_settings=self.via_settings,
+        )
+
+    def __ior__(self, other: ViaProject) -> ViaProject:
+        self.via_img_metadata |= other.via_img_metadata
+        return self

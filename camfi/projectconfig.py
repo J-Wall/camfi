@@ -563,8 +563,13 @@ class CamfiConfig(BaseModel):
             "set this to false. "
         ),
     )
-    via_project_file: Optional[FilePath] = Field(
-        None, description="Path to file containing VIA project."
+    via_project_file: Union[list[FilePath], FilePath, None] = Field(
+        None,
+        description=(
+            "Path to file containing VIA project. "
+            "Can either be given as a single path or a list of paths. "
+            "If a list is given, then the VIA projects will be merged. "
+        ),
     )
     day_zero: Optional[date] = Field(
         None,
@@ -615,6 +620,11 @@ class CamfiConfig(BaseModel):
         """
         if self.via_project_file is None:
             raise ViaProjectUnspecifiedError
+        elif isinstance(self.via_project_file, list):
+            merged_via_project = ViaProject.parse_file(self.via_project_file[0])
+            for project_file in self.via_project_file[1:]:
+                merged_via_project |= ViaProject.parse_file(project_file)
+            return merged_via_project
         return ViaProject.parse_file(self.via_project_file)
 
     class Config:
