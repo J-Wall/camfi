@@ -60,6 +60,8 @@ class ViaFileAttributes(BaseModel):
 
     @validator("datetime_corrected", "datetime_original", pre=True)
     def valid_datetime_str(cls, v):
+        if v is None:
+            return v
         try:
             return datetime.fromisoformat(v)
         except ValueError:
