@@ -307,11 +307,19 @@ class ViaMetadata(BaseModel):
         with open(Path(root) / self.filename, "rb") as image_file:
             image = exif.Image(image_file)
 
+        tags = set(dir(image))
+
         self.file_attributes = ViaFileAttributes(
-            datetime_original=image.datetime_original,
-            exposure_time=image.exposure_time,
-            pixel_x_dimension=image.pixel_x_dimension,
-            pixel_y_dimension=image.pixel_y_dimension,
+            datetime_original=image.datetime_original
+            if "datetime_original" in tags
+            else None,
+            exposure_time=image.exposure_time if "exposure_time" in tags else None,
+            pixel_x_dimension=image.pixel_x_dimension
+            if "pixel_x_dimension" in tags
+            else None,
+            pixel_y_dimension=image.pixel_y_dimension
+            if "pixel_y_dimension" in tags
+            else None,
             location=location,
         )
 
