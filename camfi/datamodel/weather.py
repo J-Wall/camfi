@@ -42,7 +42,6 @@ from pydantic import (
     BaseModel,
     FilePath,
     NonNegativeFloat,
-    ValidationError,
     validator,
 )
 from skyfield.api import Loader, wgs84

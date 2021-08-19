@@ -17,7 +17,6 @@ from pydantic import (
     NonNegativeInt,
     PositiveFloat,
     PositiveInt,
-    ValidationError,
     validator,
 )
 import sklearn.mixture
@@ -648,7 +647,7 @@ class BcesEM(BaseModel):
         if isinstance(v, float):
             v = np.ones_like(values["x"]) * v
         if v.shape != values["x"].shape:
-            raise ValidationError(
+            raise ValueError(
                 f"Data must have same shape. {values['x'].shape}, {v.shape}."
             )
         return v
@@ -662,7 +661,7 @@ class BcesEM(BaseModel):
             v = v.integers(0, values["n_classes"], len(values["x"]), "u1")
 
         if v.shape != values["x"].shape:
-            raise ValidationError(
+            raise ValueError(
                 f"Data must have same shape. {values['x'].shape}, {v.shape}."
             )
 

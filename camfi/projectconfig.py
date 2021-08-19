@@ -18,7 +18,6 @@ from pydantic import (
     NonNegativeInt,
     PositiveFloat,
     PositiveInt,
-    ValidationError,
     root_validator,
     validator,
 )
@@ -647,7 +646,7 @@ class CamfiConfig(BaseModel):
         )
         for camera_placement in values["time"].camera_placements.values():
             if camera_placement.location not in specified_locations:
-                raise ValidationError(
+                raise ValueError(
                     f"location {camera_placement.location} unspecified in place field."
                 )
 

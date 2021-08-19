@@ -6,6 +6,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
+from sys import stderr
 from typing import Any, Callable, Mapping, Optional, Union
 
 import exif
@@ -310,20 +311,44 @@ class ViaMetadata(BaseModel):
             image = exif.Image(image_file)
 
         tags = set(dir(image))
+        required_tags = {
+            "datetime_original",
+            "exposure_time",
+            "pixel_x_dimension",
+            "pixel_y_dimension",
+        }
 
-        self.file_attributes = ViaFileAttributes(
-            datetime_original=image.datetime_original
-            if "datetime_original" in tags
-            else None,
-            exposure_time=image.exposure_time if "exposure_time" in tags else None,
-            pixel_x_dimension=image.pixel_x_dimension
-            if "pixel_x_dimension" in tags
-            else None,
-            pixel_y_dimension=image.pixel_y_dimension
-            if "pixel_y_dimension" in tags
-            else None,
-            location=location,
-        )
+        if tags.issuperset(required_tags):
+            self.file_attributes = ViaFileAttributes(
+                datetime_original=image.datetime_original,
+                exposure_time=image.exposure_time,
+                pixel_x_dimension=image.pixel_x_dimension,
+                pixel_y_dimension=image.pixel_y_dimension,
+                location=location,
+            )
+        else:
+            print(
+                (
+                    f"Warning: EXIF data missing from {self.filename}. "
+                    f"Missing fields {required_tags - tags}. "
+                    "This could indicate file corruption. "
+                    "Consider removing image from project. "
+                ),
+                file=stderr,
+            )
+            self.file_attributes = ViaFileAttributes(
+                datetime_original=image.datetime_original
+                if "datetime_original" in tags
+                else None,
+                exposure_time=image.exposure_time if "exposure_time" in tags else None,
+                pixel_x_dimension=image.pixel_x_dimension
+                if "pixel_x_dimension" in tags
+                else None,
+                pixel_y_dimension=image.pixel_y_dimension
+                if "pixel_y_dimension" in tags
+                else None,
+                location=location,
+            )
 
         if (
             datetime_corrector is not None
