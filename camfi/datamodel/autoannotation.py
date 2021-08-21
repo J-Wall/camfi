@@ -683,13 +683,22 @@ class CamfiDataset(BaseModel, Dataset):
 
         if self.crop is not None:
             image = self.crop.crop_image(image)
+            metadata.filter_by_bounds(self.crop)
 
         if self.inference_mode:
             target = Target.empty(image_id=idx)
-        else:  # Training mode
+        else:  # Training mode. self.mask_maker must be set.
+            if image.shape[-2:] != self.mask_maker.shape:  # type: ignore[union-attr]
+                raise ValueError(
+                    f"Non-conforming image shape encountered ({metadata.filename}). "
+                )
+
             boxes = metadata.get_bounding_boxes()
             for box in boxes:
-                box.add_margin(self.box_margin)
+                box.add_margin(
+                    self.box_margin,
+                    shape=self.mask_maker.shape,  # type: ignore[union-attr]
+                )
             target = Target(
                 boxes=boxes,
                 labels=metadata.get_labels(),

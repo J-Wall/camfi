@@ -416,6 +416,16 @@ class ViaMetadata(BaseModel):
             filter(lambda x: x.passes_filter(region_filters), self.regions)
         )
 
+    def filter_by_bounds(self, bounds: BoundingBox) -> None:
+        """Removes regions which are not in bounds. Operates in place.
+
+        Parameters
+        ----------
+        bounds : BoundingBox
+            Regions which are not in bounds are removed.
+        """
+        self.regions = list(filter(lambda x: x.in_box(bounds), self.regions))
+
 
 class ViaProject(BaseModel):
     """Defines the structure of a VIA project file. Can be used for loading and saving
