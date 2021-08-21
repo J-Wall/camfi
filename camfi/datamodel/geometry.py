@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import atan2, degrees, sqrt
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -532,6 +532,39 @@ class PointShapeAttributes(ViaShapeAttributes):
         """
         return self.get_bounding_box().in_box(box)
 
+    def snap_to_bounds(self, bounds: BoundingBox) -> PointShapeAttributes:
+        """Returns a PointShapeAttributes instance inside bounds, at the closest point
+        to self. If already in bounds, returns self.
+
+        Parameters
+        ----------
+        bounds : BoundingBox
+            Bounds to snap to.
+
+        Returns
+        -------
+        point : PointShapeAttributes
+            New point inside bounds.
+
+        Examples
+        --------
+        >>> point = PointShapeAttributes(cx=2, cy=13)
+        >>> bounds = BoundingBox(x0=0, y0=0, x1=5, y1=7)
+        >>> point.snap_to_bounds(bounds)
+        PointShapeAttributes(name='point', cx=2.0, cy=6.0)
+
+        >>> bounds = BoundingBox(x0=0, y0=0, x1=5, y1=17)
+        >>> point.snap_to_bounds(bounds) is point
+        True
+        """
+        if self.in_box(bounds):
+            return self
+
+        cx = min(max(self.cx, bounds.x0), bounds.x1 - 1)
+        cy = min(max(self.cy, bounds.y0), bounds.y1 - 1)
+
+        return PointShapeAttributes(cx=cx, cy=cy)
+
 
 class CircleShapeAttributes(ViaShapeAttributes):
     """Defines a circle geometry.
@@ -643,6 +676,28 @@ class CircleShapeAttributes(ViaShapeAttributes):
         """
         return self.get_bounding_box().in_box(box)
 
+    def snap_to_bounds(self, bounds: BoundingBox) -> CircleShapeAttributes:
+        """Returns a CircleShapeAttributes instance inside bounds, at the closest point
+        to self. If already in bounds, returns self.
+
+        Parameters
+        ----------
+        bounds : BoundingBox
+            Bounds to snap to.
+
+        Returns
+        -------
+        circle : CircleShapeAttributes
+            New circle inside bounds.
+        """
+        if self.in_box(bounds):
+            return self
+
+        cx = min(max(self.cx, bounds.x0), bounds.x1 - 1)
+        cy = min(max(self.cy, bounds.y0), bounds.y1 - 1)
+
+        return CircleShapeAttributes(cx=cx, cy=cy, r=self.r)
+
 
 class PolylineShapeAttributes(ViaShapeAttributes):
     """Defines a polyline geometry.
@@ -738,6 +793,27 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         False
         """
         return self.get_bounding_box().in_box(box)
+
+    def snap_to_bounds(
+        self, bounds: BoundingBox
+    ) -> Union[PolylineShapeAttributes, CircleShapeAttributes]:
+        """If self.in_box(bounds) is True, then returns self. Otherwise, returns a
+        CircleShapeAttributes within bounds.
+
+        Parameters
+        ----------
+        bounds : BoundingBox
+            Bounds to snap to.
+
+        Returns
+        -------
+        shape : Union[PolylineShapeAttributes, CircleShapeAttributes]
+            New circle inside bounds, or self.
+        """
+        if self.in_box(bounds):
+            return self
+
+        return self.as_circle().snap_to_bounds(bounds)
 
     def extract_region_of_interest(
         self, image: torch.Tensor, scan_distance: PositiveInt

@@ -202,7 +202,6 @@ class TargetPredictionABC(BaseModel, ABC):
     boxes: list[BoundingBox]
     labels: list[PositiveInt]
     masks: list[torch.Tensor]
-    shape: Optional[tuple[NonNegativeInt, NonNegativeInt]] = None
 
     class Config:
         """Pydantic configuration for TargetPredictionABC."""
@@ -233,16 +232,6 @@ class TargetPredictionABC(BaseModel, ABC):
         for mask in v[1:]:
             if mask.shape != shape:
                 raise ValueError("All masks must have same shape")
-
-        return v
-
-    @validator("shape", pre=True, always=True)
-    def shape_same_as_mask_shape(cls, v, values):
-        if "masks" in values and len(values["masks"]) >= 1:
-            if v is None:
-                return values["masks"][0].shape[0], values["masks"][0].shape[1]
-            elif v != values["masks"][0].shape:
-                raise ValueError("Shape inconsistent with masks")
 
         return v
 
@@ -305,13 +294,6 @@ class Target(TargetPredictionABC):
         tensor_dict : dict[str, torch.Tensor]
             Compatible with pytorch instance segmentation model.
         """
-        if len(self) == 0 and self.shape is not None:
-            return dict(
-                boxes=torch.zeros((0, 4)),
-                labels=torch.zeros((0,)),
-                image_id=torch.tensor([self.image_id]),
-                masks=torch.zeros((0,) + self.shape),
-            )
         return dict(
             boxes=torch.tensor([[b.x0, b.y0, b.x1, b.y1] for b in self.boxes]),
             labels=torch.tensor(self.labels),
@@ -360,7 +342,7 @@ class Target(TargetPredictionABC):
         Examples
         --------
         >>> Target.empty()
-        Target(boxes=[], labels=[], masks=[], shape=None, image_id=0)
+        Target(boxes=[], labels=[], masks=[], image_id=0)
         """
         return Target.construct(boxes=[], labels=[], image_id=image_id, masks=[])
 
@@ -444,7 +426,7 @@ class Prediction(TargetPredictionABC):
         Examples
         --------
         >>> Prediction.empty()
-        Prediction(boxes=[], labels=[], masks=[], shape=None, scores=[])
+        Prediction(boxes=[], labels=[], masks=[], scores=[])
         """
         return Prediction.construct(boxes=[], labels=[], masks=[], scores=[])
 
@@ -701,7 +683,6 @@ class CamfiDataset(BaseModel, Dataset):
 
         if self.crop is not None:
             image = self.crop.crop_image(image)
-            metadata.filter_by_bounds(self.crop)
 
         if self.inference_mode:
             target = Target.empty(image_id=idx)
@@ -711,6 +692,11 @@ class CamfiDataset(BaseModel, Dataset):
                     f"Non-conforming image shape encountered ({metadata.filename}). "
                 )
 
+            metadata.snap_to_bounds(
+                BoundingBox.from_shape(
+                    self.mask_maker.shape  # type: ignore[union-attr]
+                )
+            )
             boxes = metadata.get_bounding_boxes()
             for box in boxes:
                 box.add_margin(
@@ -722,7 +708,6 @@ class CamfiDataset(BaseModel, Dataset):
                 labels=metadata.get_labels(),
                 image_id=idx,
                 masks=self.mask_maker.get_masks(metadata),  # type: ignore[union-attr]
-                shape=self.mask_maker.shape,  # type: ignore[union-attr]
             )
 
             if self.transform is not None:

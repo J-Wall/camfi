@@ -168,6 +168,27 @@ class ViaRegion(BaseModel):
 
         return True
 
+    def snap_to_bounds(self, bounds: BoundingBox) -> None:
+        """Moves self.shape_attributes so that it is completely contained within given
+        bounds. If self.shape_attributes is a PolylineShapeAttributes, and it is moved,
+        it is converted to a CircleShapeAttributes (and any invalid region attributes
+        are removed). Operates in-place.
+
+        Parameters
+        ----------
+        bounds : BoundingBox
+            Bounds to snap annotation to.
+        """
+        shape = self.shape_attributes.snap_to_bounds(bounds)
+
+        if shape.name != "polyline" and self.shape_attributes.name == "polyline":
+            # Need to remove invalid region_attributes.
+            self.region_attributes = ViaRegionAttributes.construct(
+                score=self.region_attributes.score
+            )
+
+        self.shape_attributes = shape
+
 
 class ViaMetadata(BaseModel):
     """Combines file-level image metadata with a list of annotations contained within
@@ -416,15 +437,16 @@ class ViaMetadata(BaseModel):
             filter(lambda x: x.passes_filter(region_filters), self.regions)
         )
 
-    def filter_by_bounds(self, bounds: BoundingBox) -> None:
-        """Removes regions which are not in bounds. Operates in place.
+    def snap_to_bounds(self, bounds: BoundingBox) -> None:
+        """Snaps regions to bounds. Operates in place.
 
         Parameters
         ----------
         bounds : BoundingBox
-            Regions which are not in bounds are removed.
+            Regions which are not in bounds are snapped.
         """
-        self.regions = list(filter(lambda x: x.in_box(bounds), self.regions))
+        for region in self.regions:
+            region.snap_to_bounds(bounds)
 
 
 class ViaProject(BaseModel):
