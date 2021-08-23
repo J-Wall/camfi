@@ -95,13 +95,13 @@ class BoundingBox(BaseModel):
         Examples
         --------
         >>> BoundingBox.from_shape((10, 15))
-        BoundingBox(x0=0, y0=0, x1=16, y1=11)
+        BoundingBox(x0=0, y0=0, x1=15, y1=10)
 
         >>> BoundingBox.from_shape((10, 15), border=3)
-        BoundingBox(x0=3, y0=3, x1=13, y1=8)
+        BoundingBox(x0=3, y0=3, x1=12, y1=7)
         """
         return BoundingBox(
-            x0=border, y0=border, x1=shape[1] + 1 - border, y1=shape[0] + 1 - border
+            x0=border, y0=border, x1=shape[1] - border, y1=shape[0] - border
         )
 
     @property
