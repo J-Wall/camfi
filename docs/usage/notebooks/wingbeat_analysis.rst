@@ -54,6 +54,11 @@ is often the case for cheap cameras).
       "via_project_file": "data/cabramurra_all_annotations.json",
       "day_zero": "2019-01-01",
       "output_tz": "+10:00",
+      "filters": {
+        "image_filters": {
+          "min_annotations": 1
+        }
+      },
       "camera": {
         "camera_time_to_actual_time_ratio": 1.0,
         "line_rate": 90500.0
@@ -123,6 +128,7 @@ is often the case for cheap cameras).
           "batch_size": 5,
           "num_workers": 2,
           "num_epochs": 15,
+          "outdir": "data",
           "save_intermediate": true
         },
         "inference": {
@@ -172,12 +178,6 @@ your system, consider setting
 
     # Uncomment if wingbeat data hasn't been extracted already
     # config.extract_all_wingbeats()
-
-
-.. parsed-literal::
-
-    The history saving thread hit an unexpected error (OperationalError('disk I/O error')).History will not be written to the database.
-
 
 After running the above two steps, you might like to save the results to
 a new VIA project file. Uncommenting the following will save a new VIA
@@ -478,6 +478,16 @@ the data by an SNR threshold.
     snr_thresh = 4.0
     polyline_regions = regions[regions["name"] == "polyline"]
     above_thresh = polyline_regions[polyline_regions["snr"] >= snr_thresh]
+    len(above_thresh)
+
+
+
+
+.. parsed-literal::
+
+    580
+
+
 
 We can already visualise the data, with the SNR threshold indicated by a
 red line.
@@ -587,12 +597,17 @@ This can do this re-mapping with some indexing trickery using
     class_mask = inverse_index[bces_em.class_mask]
     bces_results = sorted(bces_results)
     
+    print("Classifications:")
+    print("\n".join(str(n) for n in np.bincount(class_mask)))
     print("Multiple BCES linear regression parameters:")
     print("\n".join(str(b) for b in bces_results))
 
 
 .. parsed-literal::
 
+    Classifications:
+    75
+    505
     Multiple BCES linear regression parameters:
     gradient=23.684945219639722 y_intercept=21.164640791557133 gradient_stderr=1.8436575083709323 y_intercept_stderr=30.356672106881156 cov_xy=-54.37303718722761
     gradient=48.648490469072115 y_intercept=30.410128999818426 gradient_stderr=1.4469572965456388 y_intercept_stderr=18.927271182452444 cov_xy=-26.431054889875146

@@ -17,9 +17,20 @@
     },
     "via_project_file": {
       "title": "Via Project File",
-      "description": "Path to file containing VIA project.",
-      "format": "file-path",
-      "type": "string"
+      "description": "Path to file containing VIA project. Can either be\n\ngiven as a single path or a list of paths. If a\n\nlist is given, then the VIA projects will be\n\nmerged.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "file-path"
+          }
+        },
+        {
+          "type": "string",
+          "format": "file-path"
+        }
+      ]
     },
     "day_zero": {
       "title": "Day Zero",
@@ -546,6 +557,7 @@
           "examples": [
             "v1",
             "v2",
+            "v2.1.4",
             "release"
           ],
           "anyOf": [
@@ -624,6 +636,7 @@
           "examples": [
             "v1",
             "v2",
+            "v2.1.4",
             "release"
           ],
           "anyOf": [
