@@ -37,7 +37,7 @@ class ViaRegionAttributes(BaseModel):
         None, gt=0, description="period of wingbeat in pixels"
     )
     blur_length: Optional[float] = Field(
-        None, gt=0.0, description="length of motion blur in pixels"
+        None, ge=0.0, description="length of motion blur in pixels"
     )
     snr: Optional[float] = Field(None, description="signal to noise ratio of best peak")
     wb_freq_up: Optional[float] = Field(

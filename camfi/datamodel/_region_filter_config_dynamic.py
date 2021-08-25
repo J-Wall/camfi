@@ -3,7 +3,7 @@
 The code in this file is not directly used by camfi. It is used for generating
 _region_filter_config_static.py which is imported by via.py.
 
-Running ``python camf/datamodel/_region_filter_config_dynamic.py`` from the camfi
+Running ``python camfi/datamodel/_region_filter_config_dynamic.py`` from the camfi
 root dir will generate region_filter_config.py. The funky thing about this
 is this script actually depends on camfi being installed already. Make of that what you
 will. Basically, this script can be ignored unless you are developing the
