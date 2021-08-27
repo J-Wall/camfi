@@ -456,14 +456,21 @@ class WingbeatExtractor(WingbeatExtractorConfig):
             # higher frequency corresponding to a downward direction of flight with
             # respect to the camera's orientation.
             y_diff = polyline.y_diff()
-            corrected_exposure_time = (
+            et_up, et_dn = (
                 (self.exposure_time + torch.tensor([y_diff, -y_diff]) / self.line_rate)
                 .sort()
                 .values
             )
+
+            # Insects are banned from flying backwards in time. So if we catch one doing
+            # that, then we know it must have actually been going the opposite
+            # direction.
+            if et_up < 0.0:
+                et_up = et_dn
+
             period = [
                 torch.arange(1, max_pixel_period + 1) * float(et) / roi.shape[1]
-                for et in corrected_exposure_time
+                for et in [et_up, et_dn]
             ]
             wb_freq_up, wb_freq_down = [1 / period[i][best_peak] for i in (0, 1)]
 
@@ -474,8 +481,8 @@ class WingbeatExtractor(WingbeatExtractorConfig):
                 snr=snr,
                 wb_freq_up=wb_freq_up,
                 wb_freq_down=wb_freq_down,
-                et_up=float(corrected_exposure_time[0]),
-                et_dn=float(corrected_exposure_time[1]),
+                et_up=et_up,
+                et_dn=et_dn,
             )
 
         # Plot supplementary figure
