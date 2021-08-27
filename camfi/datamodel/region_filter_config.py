@@ -12,56 +12,56 @@ from pydantic import BaseModel, Field
 class FloatFilter(BaseModel):
     ge: float = Field(
         ...,
-        description='Only include region if attribute >= this value.',
-        title='Greater-than or Equal-to',
+        description="Only include region if attribute >= this value.",
+        title="Greater-than or Equal-to",
     )
     le: float = Field(
         ...,
-        description='Only include region if attribute <= this value.',
-        title='Less-than or Equal-to',
+        description="Only include region if attribute <= this value.",
+        title="Less-than or Equal-to",
     )
     exclude_none: Optional[bool] = Field(
         False,
-        description='Whether to exclude region if attribute is not set.',
-        title='Exclude None',
+        description="Whether to exclude region if attribute is not set.",
+        title="Exclude None",
     )
 
 
 class RegionFilterConfig(BaseModel):
     score: Optional[FloatFilter] = Field(
-        None, description='Sets filters for the score region attribute.', title='Score'
+        None, description="Sets filters for the score region attribute.", title="Score"
     )
     best_peak: Optional[FloatFilter] = Field(
         None,
-        description='Sets filters for the best_peak region attribute.',
-        title='Best Peak',
+        description="Sets filters for the best_peak region attribute.",
+        title="Best Peak",
     )
     blur_length: Optional[FloatFilter] = Field(
         None,
-        description='Sets filters for the blur_length region attribute.',
-        title='Blur Length',
+        description="Sets filters for the blur_length region attribute.",
+        title="Blur Length",
     )
     snr: Optional[FloatFilter] = Field(
-        None, description='Sets filters for the snr region attribute.', title='Snr'
+        None, description="Sets filters for the snr region attribute.", title="Snr"
     )
     wb_freq_up: Optional[FloatFilter] = Field(
         None,
-        description='Sets filters for the wb_freq_up region attribute.',
-        title='Wb Freq Up',
+        description="Sets filters for the wb_freq_up region attribute.",
+        title="Wb Freq Up",
     )
     wb_freq_down: Optional[FloatFilter] = Field(
         None,
-        description='Sets filters for the wb_freq_down region\n\nattribute.',
-        title='Wb Freq Down',
+        description="Sets filters for the wb_freq_down region\n\nattribute.",
+        title="Wb Freq Down",
     )
     et_up: Optional[FloatFilter] = Field(
-        None, description='Sets filters for the et_up region attribute.', title='Et Up'
+        None, description="Sets filters for the et_up region attribute.", title="Et Up"
     )
     et_dn: Optional[FloatFilter] = Field(
-        None, description='Sets filters for the et_dn region attribute.', title='Et Dn'
+        None, description="Sets filters for the et_dn region attribute.", title="Et Dn"
     )
 
     class Config:
         schema_extra = {
-            "description": 'Contains options for filtering regions (annotations) from images, based on the values of region attributes. '
+            "description": "Contains options for filtering regions (annotations) from images, based on the values of region attributes. "
         }
