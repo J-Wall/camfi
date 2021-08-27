@@ -269,6 +269,10 @@ class Commander:
         (e.g. ``load-exif``, ``extract-wingbeats`` and ``apply-filters``).
         Prints to stdout if no output is given.
         """
+        self._vprint(
+            "Writing to "
+            f"{self.config.default_output if self.config.default_output else 'stdout'}"
+        )
         self.config.write_project()
 
     def do_nothing(self) -> None:
