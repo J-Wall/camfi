@@ -443,7 +443,7 @@ class WingbeatExtractor(WingbeatExtractorConfig):
         # Find wingbeat peak
         best_peak, snr = find_best_peak(mean_autocorrelation)
 
-        if best_peak is None:  # Failed to find peak
+        if best_peak is None or best_peak >= max_pixel_period:  # Failed to find peak
             region_attributes = ViaRegionAttributes(
                 score=score, blur_length=polyline.length()
             )
