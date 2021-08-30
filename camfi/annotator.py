@@ -635,14 +635,16 @@ def validate_annotations(
 
         result = AnnotationValidationResult()
 
-        for img_key, gt_metadata in tqdm(
-            gt_annotations.via_img_metadata.items(),
+        for img_key in tqdm(
+            gt_annotations.via_img_metadata.keys()
+            & auto_annotations.via_img_metadata.keys(),
             disable=disable_progress_bar,
             desc=f"Validating {name} annotations",
             unit="img",
             dynamic_ncols=True,
             ascii=True,
         ):
+            gt_metadata = gt_annotations.via_img_metadata[img_key]
             metadata = auto_annotations.via_img_metadata[img_key]
             ious = sparse.dok_matrix(
                 (len(metadata.regions), len(gt_metadata.regions)), dtype="f8"
