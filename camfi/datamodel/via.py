@@ -161,9 +161,9 @@ class ViaRegion(BaseModel):
         for field in filters.__fields__.keys():
             attribute = getattr(self.region_attributes, field)
             filt = getattr(filters, field)
-            if filt.exclude_none and attribute is None:
+            if filt and filt.exclude_none and attribute is None:
                 return False
-            if attribute > filt.le or attribute < filt.ge:
+            if filt and (attribute > filt.le or attribute < filt.ge):
                 return False
 
         return True
