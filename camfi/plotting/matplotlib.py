@@ -583,7 +583,10 @@ def plot_activity_levels_summaries(
     fig : plt.Figure
         Figure containing plots.
     """
-    fig = plt.figure(figsize=(sub_figsize[0], sub_figsize[1] * len(locations)))
+    if separate_plots:
+        fig = plt.figure(figsize=(sub_figsize[0], sub_figsize[1] * len(locations)))
+    else:
+        fig = plt.figure(figsize=(sub_figsize[0], sub_figsize[1]))
     sharex: Optional[plt.Axes] = None
     if separate_plots is False:
         ax = fig.add_subplot(111, **ax_kwargs)
