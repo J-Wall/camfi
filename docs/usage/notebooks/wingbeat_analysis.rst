@@ -8,14 +8,16 @@ First, load the required libraries.
 
 .. code:: ipython3
 
+    from math import sqrt
     from pathlib import Path
     
     from matplotlib import pyplot as plt
     import numpy as np
+    from scipy import stats
     
     from camfi.projectconfig import CamfiConfig
     from camfi.plotting.matplotlib import MatplotlibWingbeatFrequencyPlotter
-    from camfi.wingbeat import BcesEM, GMM
+    from camfi.wingbeat import BcesEM, GMM, WeightedGaussian
 
 To run ``via_project.load_all_exif_metadata`` and
 ``wingbeat_extractor.extract_wingbeats()`` below, you will first need to
@@ -505,6 +507,9 @@ red line.
 .. image:: wingbeat_analysis_files/wingbeat_analysis_15_0.png
 
 
+With zero bodylength assumption
+-------------------------------
+
 Based on the above plots, we now wish to select a number of target
 classes. This will be used for fitting a Gaussian mixture-model to the
 preliminary winbeat frequencies (which assume zero bodylength), and for
@@ -540,18 +545,97 @@ Gaussian mixture-model.
     mean=1.6913164856912772 std=0.07106824294152196 weight=0.8597422733759577
 
 
-In Hz, the mean preliminary wingbeat frequencies for the respective
-classes are
+To get mean and standard deviation in Hz, we need to re-parametrise.
 
 .. code:: ipython3
 
-    print("\n".join(f"{10 ** r.mean} Hz" for r in gmm_results))
+    for weighted_gaussian in gmm_results:
+        mean_hz, std_hz = weighted_gaussian.get_natural_params_from_log(10.0)
+        print(f"μ = {mean_hz} Hz  σ = {std_hz}  weight = {weighted_gaussian.weight}")
 
 
 .. parsed-literal::
 
-    24.93850468145082 Hz
-    49.126574840025675 Hz
+    μ = 25.102738892471677 Hz  σ = 2.8856693084544567  weight = 0.14025772662404282
+    μ = 49.41306955900124 Hz  σ = 5.34427937939624  weight = 0.8597422733759577
+
+
+The estimate of standard deviation includes the measurement error
+associated with exposure time ambiguity. Here we will attempt to make an
+estimate of the underlying wingbeat frequency standard deviation.
+
+First, we need to check that measurement error is not correlated with
+log10(wingbeat frequency)
+
+.. code:: ipython3
+
+    log10_means = (np.log10(above_thresh.wb_freq_down) + np.log10(above_thresh.wb_freq_up)) / 2
+    log10_errors = log10_means - np.log10(above_thresh.wb_freq_down)
+    
+    densities = np.stack([stats.norm.pdf(log10_means, loc=r.mean, scale=r.std) for r in gmm_results])
+    gmm_classification_prediction = densities.argmax(axis=0)
+
+.. code:: ipython3
+
+    fig = plt.figure()
+    ax = fig.add_subplot(
+        111,
+        xlabel="log10(wingbeat frequency)",
+        ylabel="Direction ambiguity measurement error",
+    )
+    ax.scatter(
+        log10_means,
+        log10_errors,
+        marker="x",
+        c=np.array(["tab:blue", "tab:green"])[gmm_classification_prediction],
+    )
+    
+    for i in range(n_classes):
+        class_mask = gmm_classification_prediction == i
+        r, p = stats.pearsonr(log10_means[class_mask], log10_errors[class_mask])
+        print(f"class {i}:  r = {r}  p(|R| >= |r|) = {p}")
+
+
+.. parsed-literal::
+
+    class 0:  r = 0.1120666137470634  p(|R| >= |r|) = 0.3042812058830173
+    class 1:  r = 0.10711341709033767  p(|R| >= |r|) = 0.017240476736024066
+
+
+
+.. image:: wingbeat_analysis_files/wingbeat_analysis_25_1.png
+
+
+It appears that measurement error is not correlated to measurement
+value, so we can proceed using the relation
+
+.. math::  Var(X + Y) = Var(X) + Var(Y) 
+
+.. code:: ipython3
+
+    log10_wingbeat_gaussians = []
+    
+    for i in range(n_classes):
+        class_mask = gmm_classification_prediction == i
+        error_var = np.var(log10_errors[class_mask], ddof=1)
+        log10_wingbeat_var = gmm_results[i].std ** 2 - error_var
+        log10_wingbeat_gaussians.append(
+            WeightedGaussian(
+                mean=gmm_results[i].mean,
+                std=np.sqrt(log10_wingbeat_var),
+                weight=gmm_results[i].weight,
+            )
+        )
+        
+    for weighted_gaussian in log10_wingbeat_gaussians:
+        mean_hz, std_hz = weighted_gaussian.get_natural_params_from_log(10.0)
+        print(f"μ = {mean_hz} Hz  σ = {std_hz}  weight = {weighted_gaussian.weight}")
+
+
+.. parsed-literal::
+
+    μ = 25.101781030581876 Hz  σ = 2.8771046444652533  weight = 0.14025772662404282
+    μ = 49.403384640368735 Hz  σ = 5.25188370862169  weight = 0.8597422733759577
 
 
 We can set the ``gmm_results`` parameter to plot the figure with the
@@ -568,8 +652,11 @@ Gaussian mixture model shown.
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_23_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_29_0.png
 
+
+Without zero bodylength assumption
+----------------------------------
 
 Now we use an EM algorithm to classify the data using BCES regressions
 of :math:`L` vs. :math:`P \Delta t`.
@@ -595,10 +682,11 @@ This can do this re-mapping with some indexing trickery using
 
     inverse_index = np.argsort(np.argsort(bces_results))
     class_mask = inverse_index[bces_em.class_mask]
+    class_n = np.bincount(class_mask)
     bces_results = sorted(bces_results)
     
     print("Classifications:")
-    print("\n".join(str(n) for n in np.bincount(class_mask)))
+    print("\n".join(str(n) for n in class_n))
     print("Multiple BCES linear regression parameters:")
     print("\n".join(str(b) for b in bces_results))
 
@@ -611,6 +699,59 @@ This can do this re-mapping with some indexing trickery using
     Multiple BCES linear regression parameters:
     gradient=23.684945219639722 y_intercept=21.164640791557133 gradient_stderr=1.8436575083709323 y_intercept_stderr=30.356672106881156 cov_xy=-54.37303718722761
     gradient=48.648490469072115 y_intercept=30.410128999818426 gradient_stderr=1.4469572965456388 y_intercept_stderr=18.927271182452444 cov_xy=-26.431054889875146
+
+
+Testing zero bodylength assumption
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We can test the zero body-length assumption by calculating the
+t-statistic of the intercept of the linear regression
+
+.. math::  t = \frac{\hat{\beta_0} - 0}{SE(\hat{\beta_0})} 
+
+where :math:`\hat{\beta_0}` is the estimate of the intercept. We then
+can test the following hypotheses:
+
+.. math::  H_0 : \quad \hat{\beta_0} = 0 , 
+
+.. math::  H_1 : \quad \hat{\beta_0} > 0 . 
+
+We perform a one-sided test, since negative bodylength does not make
+physical sense (so there is no need for a two-sided test). Note that
+this is also more conservative, since a higher-powered test is more
+likely to reject :math:`H_0`, which would force us to reject the zero
+body-length assumption.
+
+.. code:: ipython3
+
+    t_values = np.array([estimates.y_intercept / estimates.y_intercept_stderr for estimates in bces_results])
+    dfs = class_n - 2  # Two estimators per linear regression
+    p_values = stats.t.sf(t_values, dfs)
+    print(t_values)
+    print(p_values)
+
+
+.. parsed-literal::
+
+    [0.69719898 1.60668322]
+    [0.24394638 0.05437571]
+
+
+We see that for both regressions, we have insufficient evidence to
+reject the zero body-length assumption (:math:`p > 0.05`). It is
+therefore reasonable to use the estimates given by the GMM approach.
+
+.. code:: ipython3
+
+    for weighted_gaussian in log10_wingbeat_gaussians:
+        mean_hz, std_hz = weighted_gaussian.get_natural_params_from_log(10.0)
+        print(f"μ = {mean_hz} Hz  σ = {std_hz}  weight = {weighted_gaussian.weight}")
+
+
+.. parsed-literal::
+
+    μ = 25.101781030581876 Hz  σ = 2.8771046444652533  weight = 0.14025772662404282
+    μ = 49.403384640368735 Hz  σ = 5.25188370862169  weight = 0.8597422733759577
 
 
 Finally, we reproduce the figure from the publication, which includes
@@ -630,7 +771,7 @@ both the GMM and EM classification
 
 
 
-.. image:: wingbeat_analysis_files/wingbeat_analysis_29_0.png
+.. image:: wingbeat_analysis_files/wingbeat_analysis_40_0.png
 
 
 ``fig`` is just a matplotlib ``Figure`` instance, so we can save it
