@@ -830,6 +830,8 @@ class BcesEM(BaseModel):
 
 @total_ordering
 class WeightedGaussian(BaseModel):
+    """Result of fitting GMM.
+    """
     mean: float
     std: float
     weight: float = 1.0
@@ -841,8 +843,42 @@ class WeightedGaussian(BaseModel):
             other.weight,
         )
 
+    def get_natural_params_from_log(self, b: float = 10.0) -> tuple[float, float]:
+        """Performs a re-parametrisation, assuming self's parameters are on a log
+        scale. Returns mean and standard deviation on the natural scale.
+
+        Parameters
+        ----------
+        b : float
+            Base of logarithm (default: 10)
+
+        Returns
+        -------
+        mu : float
+           Mean on natural scale.
+        sigma : float
+           Standard deviation on natural scale.
+        """
+        var = self.std * self.std
+        mu = b ** (self.mean + 0.5 * var)
+        sigma = mu * sqrt(b ** var - 1)
+
+        return mu, sigma
+
 
 class GMM(BaseModel):
+    """Implements a gaussian mixture model and log10-gaussian mixture model.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Data to fit
+    n_classes : int
+        Number of classes (should be positive)
+    seed : Optional[int]
+        Randomisation seed. Set for reproducible results.
+    """
+
     x: np.ndarray
     n_classes: PositiveInt
     seed: Optional[int] = None
@@ -887,6 +923,8 @@ class GMM(BaseModel):
         )
 
     def fit(self) -> list[WeightedGaussian]:
+        """Fits the model.
+        """
         gmm = sklearn.mixture.GaussianMixture(
             n_components=self.n_classes, random_state=self.seed
         )
