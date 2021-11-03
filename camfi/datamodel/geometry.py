@@ -15,12 +15,12 @@ from pydantic import (
     PositiveInt,
     validator,
 )
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 import torch
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import pad, rotate
 
-from camfi.util import smallest_enclosing_circle, Field
+from camfi.util import smallest_enclosing_circle, euclidean_distance, Field
 
 
 class BoundingBox(BaseModel):
@@ -423,6 +423,36 @@ class ViaShapeAttributes(BaseModel, ABC):
             True if within box.
         """
 
+    @abstractmethod
+    def point_matching_distance(self, other: PointShapeAttributes) -> float:
+        pass
+
+    @abstractmethod
+    def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
+        pass
+
+    @abstractmethod
+    def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
+        pass
+
+    def matching_distance(self, other: ViaShapeAttributes) -> float:
+        """Calculates the distance between two shapes for the purposes of matching
+        annotations between consecutive frames in a video.
+
+        Returns
+        -------
+        d: float
+            Matching distance, where lower numbers indicate a better match.
+        """
+        if other.name == "polyline":
+            return self.polyline_matching_distance(other)
+        elif other.name == "circle":
+            return self.circle_matching_distance(other)
+        elif other.name == "point":
+            return self.point_matching_distance(other)
+        else:
+            raise ValueError(f"Unexpected shape '{other.name}'")
+
     def y_diff(self) -> PositiveInt:
         """Returns the total height (y-dimension) of the annotation (in pixels).
 
@@ -566,6 +596,26 @@ class PointShapeAttributes(ViaShapeAttributes):
 
         return PointShapeAttributes(cx=cx, cy=cy)
 
+    def to_shapely(self) -> Point:
+        """Casts self to a shapely.Point instance.
+
+        Returns
+        -------
+        p : Point
+        """
+        return Point(self.cx, self.cy)
+
+    def point_matching_distance(self, other: PointShapeAttributes) -> float:
+        return euclidean_distance(self.cx, self.cy, other.cx, other.cy)
+
+    def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
+        return max(
+            0, euclidean_distance(self.cx, self.cy, other.cx, other.cy) - other.r
+        )
+
+    def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
+        return self.to_shapely().distance(other.to_shapely())
+
 
 class CircleShapeAttributes(ViaShapeAttributes):
     """Defines a circle geometry.
@@ -698,6 +748,18 @@ class CircleShapeAttributes(ViaShapeAttributes):
         cy = min(max(self.cy, bounds.y0), bounds.y1 - 1)
 
         return CircleShapeAttributes(cx=cx, cy=cy, r=self.r)
+
+    def point_matching_distance(self, other: PointShapeAttributes) -> float:
+        return other.circle_matching_distance(self)
+
+    def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
+        return max(
+            0,
+            euclidean_distance(self.cx, self.cy, other.cx, other.cy) - self.r - other.r,
+        )
+
+    def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
+        return other.circle_matching_distance(self)
 
 
 class PolylineShapeAttributes(ViaShapeAttributes):
@@ -1057,3 +1119,36 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         1.0
         """
         return self.to_shapely().hausdorff_distance(polyline.to_shapely())
+
+    def get_endpoints(self) -> tuple[Point, Point]:
+        """Gets endpoints of polyline as shapely Point instances.
+
+        Returns
+        -------
+        p0 : Point
+            Endpoint of polyline.
+        p1 : Point
+            Endpoint of polyline.
+        """
+        return (
+            Point(self.all_points_x[0], self.all_points_y[0]),
+            Point(self.all_points_x[-1], self.all_points_y[-1]),
+        )
+
+    def point_matching_distance(self, other: PointShapeAttributes) -> float:
+        return other.polyline_matching_distance(self)
+
+    def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
+        return other.as_point().polyline_matching_distance(self)
+
+    def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
+        p00, p01 = self.get_endpoints()
+        p10, p11 = other.get_endpoints()
+
+        linestring0 = self.to_shapely()
+        linestring1 = other.to_shapely()
+
+        d0 = min(p00.distance(linestring1), p01.distance(linestring1))
+        d1 = min(p10.distance(linestring0), p11.distance(linestring0))
+
+        return max(d0, d1)

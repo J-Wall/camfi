@@ -189,6 +189,22 @@ class ViaRegion(BaseModel):
 
         self.shape_attributes = shape
 
+    def matching_distance(self, other: ViaRegion) -> float:
+        """Calculates the distance between two shapes for the purposes of matching
+        annotations between consecutive frames in a video.
+
+        Parameters
+        ----------
+        other : ViaRegion
+            Region to match against.
+
+        Returns
+        -------
+        d : float
+            Matching distance, where lower numbers indicate a better match.
+        """
+        return self.shape_attributes.matching_distance(other.shape_attributes)
+
 
 class ViaMetadata(BaseModel):
     """Combines file-level image metadata with a list of annotations contained within

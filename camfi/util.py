@@ -161,6 +161,33 @@ def smallest_enclosing_circle(
     return welzl(tuple(P), ())
 
 
+def euclidean_distance(x0: float, y0: float, x1: float, y1: float) -> float:
+    """Calculates the Euclidean distance between two points (x0, y0) and (x1, y1).
+
+    Parameters
+    ----------
+    x0 : float
+        x-coordinate of first point.
+    y0 : float
+        y-coordinate of first point.
+    x1 : float
+        x-coordinate of second point.
+    y1 : float
+        y-coordinate of second point.
+
+    Returns
+    -------
+    d : float
+        Distance between the points
+
+    Examples
+    --------
+    >>> euclidean_distance(0.0, 0.0, 1.0, 0.0)
+    1.0
+    """
+    return sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+
+
 def dilate_idx(
     rr: np.ndarray,
     cc: np.ndarray,
