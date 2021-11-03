@@ -423,7 +423,9 @@ def endpoint_truncate(
     end_index : NonNegativeInt
         Index of endpoint of polyline annotation.
     """
-    return (n, len(fit_mask_vals) - n)
+    i0 = min(n, len(fit_mask_vals) - 2)
+    i1 = max(i0 + 1, len(fit_mask_vals) - n)
+    return i0, i1
 
 
 endpoint_methods = {"truncate": endpoint_truncate}
