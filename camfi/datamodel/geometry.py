@@ -609,9 +609,7 @@ class PointShapeAttributes(ViaShapeAttributes):
         return euclidean_distance(self.cx, self.cy, other.cx, other.cy)
 
     def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
-        return max(
-            0, euclidean_distance(self.cx, self.cy, other.cx, other.cy) - other.r
-        )
+        return euclidean_distance(self.cx, self.cy, other.cx, other.cy) / other.r
 
     def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
         return self.to_shapely().distance(other.to_shapely())
@@ -753,10 +751,8 @@ class CircleShapeAttributes(ViaShapeAttributes):
         return other.circle_matching_distance(self)
 
     def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
-        return max(
-            0,
-            euclidean_distance(self.cx, self.cy, other.cx, other.cy) - self.r - other.r,
-        )
+        d = euclidean_distance(self.cx, self.cy, other.cx, other.cy)
+        return max(d / self.r, d / other.r)
 
     def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
         return other.circle_matching_distance(self)
@@ -1139,7 +1135,7 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         return other.polyline_matching_distance(self)
 
     def circle_matching_distance(self, other: CircleShapeAttributes) -> float:
-        return other.as_point().polyline_matching_distance(self)
+        return other.as_point().polyline_matching_distance(self) / other.r
 
     def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
         p00, p01 = self.get_endpoints()
