@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from math import atan2, degrees, sqrt
 from typing import Optional, Union
 
+import numpy as np
 from pydantic import (
     BaseModel,
     NonNegativeFloat,
@@ -738,6 +739,45 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         """
         cx, cy, r = smallest_enclosing_circle(zip(self.all_points_x, self.all_points_y))
         return CircleShapeAttributes(cx=cx, cy=cy, r=r)
+
+    def centre_of_mass(self) -> PointShapeAttributes:
+        """Finds the centre of mass of the polyline.
+
+        Returns
+        -------
+        p: PointShapeAttributes
+            Centre of mass
+
+        Examples
+        --------
+        >>> polyline = PolylineShapeAttributes(all_points_x=[0, 1], all_points_y=[0, 0])
+        >>> polyline.centre_of_mass()
+        PointShapeAttributes(name='point', cx=0.5, cy=0.0)
+        >>> polyline = PolylineShapeAttributes(all_points_x=[0, 0, 0],
+        ...                                    all_points_y=[0, 2, 6])
+        >>> polyline.centre_of_mass()
+        PointShapeAttributes(name='point', cx=0.0, cy=3.0)
+        """
+        x_centres = [
+            0.5 * (self.all_points_x[i] + self.all_points_x[i + 1])
+            for i in range(len(self.all_points_x) - 1)
+        ]
+        y_centres = [
+            0.5 * (self.all_points_y[i] + self.all_points_y[i + 1])
+            for i in range(len(self.all_points_y) - 1)
+        ]
+        segment_weights = [
+            sqrt(
+                (self.all_points_x[i + 1] - self.all_points_x[i]) ** 2
+                + (self.all_points_y[i + 1] - self.all_points_y[i]) ** 2
+            )
+            for i in range(len(self.all_points_x) - 1)
+        ]
+
+        cx = np.average(x_centres, weights=segment_weights)
+        cy = np.average(y_centres, weights=segment_weights)
+
+        return PointShapeAttributes(cx=cx, cy=cy)
 
     def get_bounding_box(self) -> BoundingBox:
         """Finds the bounding box of all the points in the polyline.
