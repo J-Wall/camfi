@@ -435,7 +435,12 @@ class ViaShapeAttributes(BaseModel, ABC):
     def polyline_matching_distance(self, other: PolylineShapeAttributes) -> float:
         pass
 
-    def matching_distance(self, other: ViaShapeAttributes) -> float:
+    def matching_distance(
+        self,
+        other: Union[
+            PointShapeAttributes, CircleShapeAttributes, PolylineShapeAttributes
+        ],
+    ) -> float:
         """Calculates the distance between two shapes for the purposes of matching
         annotations between consecutive frames in a video.
 
