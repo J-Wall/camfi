@@ -117,8 +117,10 @@ class VideoAnnotator(BaseModel):
     metadata: Optional[dict] = None
 
     def prep_video(self, filepath: Path) -> np.ndarray:
-        v, _, self.metadata = read_video(filepath).numpy()
-        v = temporal_filter(v, width=self.temporal_filter_width, use_max=self.use_max)
+        v, _, self.metadata = read_video(filepath)
+        v = temporal_filter(
+            v.numpy(), width=self.temporal_filter_width, use_max=self.use_max
+        )
         v = np.moveaxis(v, -1, 1).astype("f4") / 255  # [frame, channel, height, width]
         return torch.tensor(v)
 
