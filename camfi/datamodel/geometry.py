@@ -62,7 +62,7 @@ class BoundingBox(BaseModel):
         """Pydantic validation method, called when instantiating BoundingBox.
         Ensures that x1 > x0."""
         if "x0" in values and v <= values["x0"]:
-            raise ValueError("x1 and y1 must be larger than x0 and y0")
+            raise ValueError("x1 must be larger than x0")
         return v
 
     @validator("y1")
@@ -70,12 +70,12 @@ class BoundingBox(BaseModel):
         """Pydantic validation method, called when instantiating BoundingBox.
         Ensures that y1 > y0."""
         if "y0" in values and v <= values["y0"]:
-            raise ValueError("x1 and y1 must be larger than x0 and y0")
+            raise ValueError("y1 must be larger than y0")
         return v
 
     @classmethod
     def from_shape(
-        self, shape: tuple[PositiveInt, PositiveInt], border: NonNegativeInt = 0
+        cls, shape: tuple[PositiveInt, PositiveInt], border: NonNegativeInt = 0
     ) -> BoundingBox:
         """Creates an instance of BoundingBox from an image shape, useful for defining
         a region of interest within an image, not too close to the edge.
@@ -101,9 +101,16 @@ class BoundingBox(BaseModel):
         >>> BoundingBox.from_shape((10, 15), border=3)
         BoundingBox(x0=3, y0=3, x1=12, y1=7)
         """
-        return BoundingBox(
-            x0=border, y0=border, x1=shape[1] - border, y1=shape[0] - border
-        )
+        return cls(x0=border, y0=border, x1=shape[1] - border, y1=shape[0] - border)
+
+    @classmethod
+    def from_zero_area(cls, x0, y0, x1, y1) -> BoundingBox:
+        if x1 == x0:
+            x1 += 1
+        if y1 == y0:
+            y1 += 1
+
+        return cls(x0=x0, y0=y0, x1=x1, y1=y1)
 
     @property
     def shape(self) -> tuple[int, int]:
