@@ -3,7 +3,7 @@
 
 import itertools
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import numpy as np
 from pydantic import BaseModel, PositiveInt
