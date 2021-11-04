@@ -152,7 +152,9 @@ class VideoAnnotator(BaseModel):
         region_string_members = []
         for i, region_list in enumerate(regions):
             r = []
-            for region in filter(x: x.shape_attributes.name == "polyline", region_list):
+            for region in filter(
+                lambda x: x.shape_attributes.name == "polyline", region_list
+            ):
                 r.append(RegionStringMember(region=region, frame_index=i))
             region_string_members.append(r)
 
