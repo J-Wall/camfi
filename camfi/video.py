@@ -14,7 +14,7 @@ from torch import Tensor
 from torchvision.io import read_video
 
 from camfi import annotator
-from camfi.datamodel.autoannotations import CamfiDataset, Prediction
+from camfi.datamodel.autoannotation import CamfiDataset, Prediction
 from camfi.datamodel.via import ViaRegion
 
 
