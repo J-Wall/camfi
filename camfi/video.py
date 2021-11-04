@@ -54,6 +54,13 @@ class FrameAnnotator(annotator.Annotator):
 
         return Prediction.from_tensor_dict(prediction)
 
+    def convert_to_circle(
+        self,
+        polyline: PolylineShapeAttributes,
+        img_shape: tuple[PositiveInt, PositiveInt],
+    ) -> Union[PolylineShapeAttributes, CircleShapeAttributes]:
+        return polyline
+
     def annotate_img(self, img: Tensor) -> list[ViaRegion]:  # type: ignore[override]
         """See `camfi.annotator.Annotator.annotate_img`. This is the equivalent method
         but operates on image tensor instead of index.
@@ -152,9 +159,7 @@ class VideoAnnotator(BaseModel):
         region_string_members = []
         for i, region_list in enumerate(regions):
             r = []
-            for region in filter(
-                lambda x: x.shape_attributes.name == "polyline", region_list
-            ):
+            for region in region_list:
                 r.append(RegionStringMember(region=region, frame_index=i))
             region_string_members.append(r)
 
