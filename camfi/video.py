@@ -16,6 +16,7 @@ from torchvision.io import read_video
 from camfi import annotator
 from camfi.datamodel.autoannotation import CamfiDataset, Prediction
 from camfi.datamodel.via import ViaRegion
+from camfi.datamodel.geometry import CircleShapeAttributes, PolylineShapeAttributes
 
 
 class FrameAnnotator(annotator.Annotator):
