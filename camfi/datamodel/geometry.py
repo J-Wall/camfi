@@ -104,7 +104,7 @@ class BoundingBox(BaseModel):
         return cls(x0=border, y0=border, x1=shape[1] - border, y1=shape[0] - border)
 
     @classmethod
-    def from_zero_area(cls, x0, y0, x1, y1) -> BoundingBox:
+    def from_zero_area(cls, x0: int, y0: int, x1: int, y1: int) -> BoundingBox:
         if x1 == x0:
             x1 = x1 + 1
         if y1 == y0:

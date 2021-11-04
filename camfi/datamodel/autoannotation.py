@@ -406,7 +406,9 @@ class Prediction(TargetPredictionABC):
         """
         return Prediction(
             boxes=[
-                BoundingBox.from_zero_area(x0=x0, y0=y0, x1=x1, y1=y1)
+                BoundingBox.from_zero_area(
+                    x0=int(x0), y0=int(y0), x1=int(x1), y1=int(y1)
+                )
                 for x0, y0, x1, y1 in tensor_dict["boxes"]
             ],
             labels=[int(v) for v in tensor_dict["labels"]],
