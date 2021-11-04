@@ -62,7 +62,7 @@ class BoundingBox(BaseModel):
         """Pydantic validation method, called when instantiating BoundingBox.
         Ensures that x1 > x0."""
         if "x0" in values and v <= values["x0"]:
-            raise ValueError("x1 must be larger than x0")
+            raise ValueError(f"x1 ({v}) must be larger than x0 ({values['x0']})")
         return v
 
     @validator("y1")
@@ -70,7 +70,7 @@ class BoundingBox(BaseModel):
         """Pydantic validation method, called when instantiating BoundingBox.
         Ensures that y1 > y0."""
         if "y0" in values and v <= values["y0"]:
-            raise ValueError("y1 must be larger than y0")
+            raise ValueError(f"y1 ({v}) must be larger than y0 ({values['y0']})")
         return v
 
     @classmethod
