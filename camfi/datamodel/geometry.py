@@ -1149,7 +1149,11 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         linestring0 = self.to_shapely()
         linestring1 = other.to_shapely()
 
-        d0 = min(p00.distance(linestring1), p01.distance(linestring1))
-        d1 = min(p10.distance(linestring0), p11.distance(linestring0))
+        distances = [
+            p00.distance(linestring1),
+            p01.distance(linestring1),
+            p10.distance(linestring0),
+            p11.distance(linestring0),
+        ]
 
-        return max(d0, d1)
+        return sorted(distances)[1]
