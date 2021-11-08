@@ -200,6 +200,10 @@ class VideoAnnotator(BaseModel):
         for ds, regions0, regions1 in zip(
             distances, region_string_members, region_string_members[1:]
         ):
+            # Mask out above-threshold distances
+            ds = ds.copy()
+            ds[ds > self.max_matching_dist] = self.max_matching_dist + 1.0
+
             # Propagate colours
             rows, cols = linear_sum_assignment(ds)
             for r, c in zip(rows, cols):
