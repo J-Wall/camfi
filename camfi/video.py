@@ -130,11 +130,11 @@ class RegionStringMember(BaseModel):
 
 
 def get_all_points_x(regions: list[RegionStringMember]) -> list[NonNegativeFloat]:
-    return [x for r in regions for xs in r.all_points_x for x in xs]
+    return [x for r in regions for x in r.all_points_x]
 
 
 def get_all_points_y(regions: list[RegionStringMember]) -> list[NonNegativeFloat]:
-    return [y for r in regions for ys in r.all_points_y for y in ys]
+    return [y for r in regions for y in r.all_points_y]
 
 
 class VideoAnnotator(BaseModel):
