@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, Optional, Union
 
 import numpy as np
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, PositiveInt, NonNegativeFloat
 from scipy.ndimage import maximum_filter1d, minimum_filter1d
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -113,6 +113,28 @@ class RegionStringMember(BaseModel):
     region: ViaRegion
     frame_index: int
     colour: int = -1
+
+    @property
+    def all_points_x(self) -> list[NonNegativeFloat]:
+        if self.region.shape_attributes.name == "polyline":
+            return self.region.shape_attributes.all_points_x
+        else:
+            return [self.region.shape_attributes.cx]
+
+    @property
+    def all_points_y(self) -> list[NonNegativeFloat]:
+        if self.region.shape_attributes.name == "polyline":
+            return self.region.shape_attributes.all_points_y
+        else:
+            return [self.region.shape_attributes.cy]
+
+
+def get_all_points_x(regions: list[RegionStringMember]) -> list[NonNegativeFloat]:
+    return [x for r in regions for xs in r.all_points_x for x in xs]
+
+
+def get_all_points_y(regions: list[RegionStringMember]) -> list[NonNegativeFloat]:
+    return [y for r in regions for ys in r.all_points_y for y in ys]
 
 
 class VideoAnnotator(BaseModel):
