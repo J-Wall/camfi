@@ -737,6 +737,10 @@ class CircleShapeAttributes(ViaShapeAttributes):
         """
         return self.get_bounding_box().in_box(box)
 
+    def length(self) -> NonNegativeFloat:
+        """Returns 2 * self.r"""
+        return 2 * self.r
+
     def snap_to_bounds(self, bounds: BoundingBox) -> CircleShapeAttributes:
         """Returns a CircleShapeAttributes instance inside bounds, at the closest point
         to self. If already in bounds, returns self.
