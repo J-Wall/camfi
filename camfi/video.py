@@ -5,13 +5,13 @@ import itertools
 from pathlib import Path
 from typing import Callable, Optional, Union
 
+import imageio
 import numpy as np
 from pydantic import BaseModel, PositiveInt, NonNegativeFloat
 from scipy.ndimage import maximum_filter1d, minimum_filter1d
 from scipy.optimize import linear_sum_assignment
 import torch
 from torch import Tensor
-from torchvision.io import read_video
 
 from camfi import annotator
 from camfi.datamodel.autoannotation import CamfiDataset, Prediction
@@ -146,10 +146,13 @@ class VideoAnnotator(BaseModel):
     max_matching_dist: float = np.inf
     metadata: Optional[dict] = None
 
-    def prep_video(self, filepath: Path) -> np.ndarray:
-        v, _, self.metadata = read_video(filepath)
+    def prep_video(self, filepath: Path) -> torch.Tensor:
+        reader = imageio.get_reader(filepath)
+        self.metadata = reader.get_meta_data()
+        v = np.stack([img for img in reader])
+
         v = temporal_filter(
-            v.numpy(), width=self.temporal_filter_width, use_max=self.use_max
+            v, width=self.temporal_filter_width, use_max=self.use_max
         )
         v = np.moveaxis(v, -1, 1).astype("f4") / 255  # [frame, channel, height, width]
         return torch.tensor(v)
