@@ -617,6 +617,9 @@ class PointShapeAttributes(ViaShapeAttributes):
         """
         return Point(self.cx, self.cy)
 
+    def centre_of_mass(self) -> PointShapeAttributes:
+        return self
+
     def point_matching_distance(self, other: PointShapeAttributes) -> float:
         return euclidean_distance(self.cx, self.cy, other.cx, other.cy)
 
@@ -679,7 +682,7 @@ class CircleShapeAttributes(ViaShapeAttributes):
         cx, cy, r = smallest_enclosing_circle(zip(all_points_x, all_points_y))
         return CircleShapeAttributes(cx=cx, cy=cy, r=r)
 
-    def as_point(self):
+    def as_point(self) -> PointShapeAttributes:
         """Converts a CircleShapeAttributes instance to a PointShapeAttributes instance.
 
         Returns
@@ -688,6 +691,9 @@ class CircleShapeAttributes(ViaShapeAttributes):
             Point at centre of circle.
         """
         return PointShapeAttributes(cx=self.cx, cy=self.cy)
+
+    def centre_of_mass(self) -> PointShapeAttributes:
+        return self.as_point()
 
     def get_bounding_box(self) -> BoundingBox:
         """Finds the bounding box of the point at the centre of the circle.
@@ -1168,3 +1174,48 @@ class PolylineShapeAttributes(ViaShapeAttributes):
         ]
 
         return sorted(distances)[1]
+
+    def reorient(
+        self,
+        source: Optional[PointShapeAttributes] = None,
+        target: Optional[PointShapeAttributes] = None,
+    ) -> None:
+        """Reorders self.all_points_x and self.all_points_y to point away from ``s`` and
+        towards ``t``. Operates in-place.
+
+        Parameters
+        ----------
+        source : PointShapeAttributes
+            Point to orient away from.
+        target : PointShapeAttributes
+            Point to orient towards.
+        """
+        if source is None and target is None:
+            raise ValueError("Must give at a source or a target (or both).")
+
+        forward_score = 0.0
+        backward_score = 0.0
+
+        if source is not None:
+            forward_score += sqrt(
+                (self.all_points_x[-1] - source.cx) ** 2
+                + (self.all_points_y[-1] - source.cy) ** 2
+            )
+            backward_score += sqrt(
+                (self.all_points_x[0] - source.cx) ** 2
+                + (self.all_points_y[0] - source.cy) ** 2
+            )
+
+        if target is not None:
+            forward_score += sqrt(
+                (self.all_points_x[0] - target.cx) ** 2
+                + (self.all_points_y[0] - target.cy) ** 2
+            )
+            backward_score += sqrt(
+                (self.all_points_x[-1] - target.cx) ** 2
+                + (self.all_points_y[-1] - target.cy) ** 2
+            )
+
+        if backward_score > forward_score:
+            self.all_points_x.reverse()
+            self.all_points_y.reverse()

@@ -215,3 +215,21 @@ class VideoAnnotator(BaseModel):
                     colour += 1
 
         return out
+
+
+def reorient_regions(regions: list[RegionStringMember]) -> None:
+    """Takes a list of RegionStringMembers, and reorients them so that they are all
+    pointing forwards in time. Operates inplace.
+
+    Parameters
+    ----------
+    regions : list[RegionStringMember]
+        List of regions to reorient. It is assumed that they are in chronological order.
+    """
+    centres = [r.region.shape_attributes.centre_of_mass() for r in regions]
+
+    for region, source, target in zip(
+        regions, [None] + centres[:-1], centres[1:] + [None]
+    ):
+        if region.region.shape_attributes.name == "polyline":
+            region.region.shape_attributes.reorient(source=source, target=target)
