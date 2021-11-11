@@ -1,6 +1,7 @@
 """Provides camfi with functionality to work with short video clips.
 """
 
+from argparse import ArgumentParser
 import itertools
 from pathlib import Path
 from typing import Callable, Optional, Union
@@ -10,13 +11,16 @@ import numpy as np
 from pydantic import BaseModel, PositiveInt, NonNegativeFloat
 from scipy.ndimage import maximum_filter1d, minimum_filter1d
 from scipy.optimize import linear_sum_assignment
+from strictyaml import load
 import torch
 from torch import Tensor
 
 from camfi import annotator
+from camfi.projectconfig import InferenceConfig
 from camfi.datamodel.autoannotation import CamfiDataset, Prediction
 from camfi.datamodel.via import ViaRegion
 from camfi.datamodel.geometry import CircleShapeAttributes, PolylineShapeAttributes
+from camfi.util import endpoint_methods
 
 
 class FrameAnnotator(annotator.Annotator):
@@ -87,6 +91,10 @@ def all_channels_equal(frames: np.ndarray) -> bool:
     )
 
 
+def return_true(frames: np.ndarray) -> bool:
+    return True
+
+
 def temporal_filter(
     frames: np.ndarray,
     width: int = 2,
@@ -137,6 +145,15 @@ def get_all_points_y(regions: list[RegionStringMember]) -> list[NonNegativeFloat
     return [y for r in regions for y in r.all_points_y]
 
 
+class RegionString(BaseModel):
+    regions: list[RegionStringMember]
+
+
+class ColouredRegions(BaseModel):
+    region_strings: dict[int, RegionString]
+    video_file: Optional[str] = None
+
+
 class VideoAnnotator(BaseModel):
     """Implements video clip annotation procedure."""
 
@@ -144,6 +161,7 @@ class VideoAnnotator(BaseModel):
     temporal_filter_width: PositiveInt = 2
     use_max: Callable[[np.ndarray], bool] = all_channels_equal
     max_matching_dist: float = np.inf
+    min_string_length: PositiveInt = 3
     metadata: Optional[dict] = None
 
     def prep_video(self, filepath: Path) -> torch.Tensor:
@@ -151,9 +169,7 @@ class VideoAnnotator(BaseModel):
         self.metadata = reader.get_meta_data()
         v = np.stack([img for img in reader])
 
-        v = temporal_filter(
-            v, width=self.temporal_filter_width, use_max=self.use_max
-        )
+        v = temporal_filter(v, width=self.temporal_filter_width, use_max=self.use_max)
         v = np.moveaxis(v, -1, 1).astype("f4") / 255  # [frame, channel, height, width]
         return torch.tensor(v)
 
@@ -223,6 +239,15 @@ class VideoAnnotator(BaseModel):
 
         return out
 
+    def filter_region_strings(
+        self, coloured_regions: dict[int, list[RegionStringMember]]
+    ) -> dict[int, list[RegionStringMember]]:
+        return {
+            k: v
+            for (k, v) in coloured_regions.items()
+            if len(v) >= self.min_string_length
+        }
+
 
 def reorient_regions(regions: list[RegionStringMember]) -> None:
     """Takes a list of RegionStringMembers, and reorients them so that they are all
@@ -240,3 +265,135 @@ def reorient_regions(regions: list[RegionStringMember]) -> None:
     ):
         if region.region.shape_attributes.name == "polyline":
             region.region.shape_attributes.reorient(source=source, target=target)
+
+
+def parse_args():
+    parser = ArgumentParser(
+        prog="camfi-video",
+        description=None,
+        epilog=None,
+    )
+    parser.add_argument(
+        "-c",
+        "--annotator-config",
+        nargs=1,
+        required=True,
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "-t",
+        "--temporal-filter-width",
+        nargs=1,
+        type=int,
+        default=2,
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--max-filter-always",
+        action="store_true",
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "-d",
+        "--max-matching-dist",
+        type=float,
+        default=np.inf,
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "-l",
+        "--min-string-length",
+        type=int,
+        default=3,
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "infile",
+        nargs=1,
+        help=(
+            "",
+            "",
+        ),
+    )
+    parser.add_argument(
+        "outfile",
+        nargs=1,
+        help=(
+            "",
+            "",
+        ),
+    )
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    with open(args.annotator_config, "r") as f:
+        annotator_config = InferenceConfig.parse_obj(load(f.read()).data)
+
+    frame_annotator = FrameAnnotator(
+        model=annotator_config.model,
+        device=annotator_config.device,
+        backup_device=annotator_config.backup_device,
+        split_angle=annotator_config.split_angle,
+        poly_order=annotator_config.poly_order,
+        endpoint_method=endpoint_methods[annotator_config.endpoint_method],
+        endpoint_extra_args=annotator_config.endpoint_extra_args,
+        score_thresh=annotator_config.score_thresh,
+        overlap_thresh=annotator_config.overlap_thresh,
+        edge_thresh=annotator_config.edge_thresh,
+    )
+
+    video_annotator = VideoAnnotator(
+        frame_annotator=frame_annotator,
+        temporal_filter_width=args.temporal_filter_width,
+        use_max=return_true if args.max_filter_always else all_channels_equal,
+        max_matching_dist=args.max_matching_dist,
+        min_string_length=args.min_string_length,
+    )
+
+    video = video_annotator.prep_video(args.infile)
+
+    regions = video_annotator.annotate_frames(video)
+    distances = video_annotator.matching_distances(regions)
+
+    coloured_regions = video_annotator.colour_regions(regions, distances)
+    for region_string in coloured_regions.values():
+        if len(region_string) > 1:
+            video.reorient_regions(region_string)
+
+    filtered_regions = video_annotator.filter_region_strings(coloured_regions)
+
+    out_str = ColouredRegions(
+        region_strings={
+            k: RegionString(regions=v) for (k, v) in filtered_regions.items()
+        },
+        video_file=args.infile,
+    ).json(
+        exclude_none=True,
+        indent=2,
+    )
+    with open(args.outfile, "w") as f:
+        f.write(out_str)
+
+
+if __name__ == "__main__":
+    main()

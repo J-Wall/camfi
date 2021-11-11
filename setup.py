@@ -116,6 +116,7 @@ setup(
     entry_points={  # Optional
         "console_scripts": [
             "camfi=camfi.cli:main",
+            "camfi-video=camfi.video:main",
         ],
     },
 )
