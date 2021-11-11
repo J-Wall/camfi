@@ -362,7 +362,7 @@ def main():
             region_strings={
                 k: RegionString(regions=v) for (k, v) in filtered_regions.items()
             },
-            video_file=args.infile,
+            video_file=infile,
         ).json(
             exclude_none=True,
         )
