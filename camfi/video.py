@@ -346,7 +346,7 @@ def main():
     for infile in args.infile:
         print(f"Processing {infile}")
 
-        video = video_annotator.prep_video(args.infile)
+        video = video_annotator.prep_video(infile)
 
         regions = video_annotator.annotate_frames(video)
         distances = video_annotator.matching_distances(regions)
