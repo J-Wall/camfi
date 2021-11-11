@@ -374,7 +374,7 @@ def main():
     coloured_regions = video_annotator.colour_regions(regions, distances)
     for region_string in coloured_regions.values():
         if len(region_string) > 1:
-            video.reorient_regions(region_string)
+            reorient_regions(region_string)
 
     filtered_regions = video_annotator.filter_region_strings(coloured_regions)
 
