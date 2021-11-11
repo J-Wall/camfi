@@ -277,63 +277,40 @@ def parse_args():
         "-c",
         "--annotator-config",
         required=True,
-        help=(
-            ""
-            ""
-        ),
+        help=("" ""),
     )
     parser.add_argument(
         "-t",
         "--temporal-filter-width",
         type=int,
         default=2,
-        help=(
-            ""
-            ""
-        ),
+        help=("" ""),
     )
     parser.add_argument(
         "-m",
         "--max-filter-always",
         action="store_true",
-        help=(
-            ""
-            ""
-        ),
+        help=("" ""),
     )
     parser.add_argument(
         "-d",
         "--max-matching-dist",
         type=float,
         default=np.inf,
-        help=(
-            ""
-            ""
-        ),
+        help=("" ""),
     )
     parser.add_argument(
         "-l",
         "--min-string-length",
         type=int,
         default=3,
-        help=(
-            ""
-            ""
-        ),
+        help=("" ""),
     )
     parser.add_argument(
-        "infile",
-        help=(
-            ""
-            ""
-        ),
-    )
-    parser.add_argument(
-        "outfile",
-        help=(
-            ""
-            ""
-        ),
+        "-i",
+        "--infile",
+        nargs="+",
+        help=("" ""),
     )
 
     return parser.parse_args()
@@ -366,28 +343,31 @@ def main():
         min_string_length=args.min_string_length,
     )
 
-    video = video_annotator.prep_video(args.infile)
+    for infile in args.infile:
+        print(f"Processing {infile}")
 
-    regions = video_annotator.annotate_frames(video)
-    distances = video_annotator.matching_distances(regions)
+        video = video_annotator.prep_video(args.infile)
 
-    coloured_regions = video_annotator.colour_regions(regions, distances)
-    for region_string in coloured_regions.values():
-        if len(region_string) > 1:
-            reorient_regions(region_string)
+        regions = video_annotator.annotate_frames(video)
+        distances = video_annotator.matching_distances(regions)
 
-    filtered_regions = video_annotator.filter_region_strings(coloured_regions)
+        coloured_regions = video_annotator.colour_regions(regions, distances)
+        for region_string in coloured_regions.values():
+            if len(region_string) > 1:
+                reorient_regions(region_string)
 
-    out_str = ColouredRegions(
-        region_strings={
-            k: RegionString(regions=v) for (k, v) in filtered_regions.items()
-        },
-        video_file=args.infile,
-    ).json(
-        exclude_none=True,
-    )
-    with open(args.outfile, "w") as f:
-        f.write(out_str)
+        filtered_regions = video_annotator.filter_region_strings(coloured_regions)
+
+        out_str = ColouredRegions(
+            region_strings={
+                k: RegionString(regions=v) for (k, v) in filtered_regions.items()
+            },
+            video_file=args.infile,
+        ).json(
+            exclude_none=True,
+        )
+        with open(infile + ".annotated.json", "w") as f:
+            f.write(out_str)
 
 
 if __name__ == "__main__":
