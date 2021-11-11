@@ -68,11 +68,15 @@ def load_annotation_model(model_path_or_url: Union[Path, str]) -> MaskRCNN:
     print(f"Loading model: {model_path_or_url}", file=stderr)
     model = get_model_instance_segmentation(2, pretrained=False)
     if isinstance(model_path_or_url, Path):
-        state_dict = torch.load(model_path_or_url)
+        state_dict = torch.load(model_path_or_url, map_location="cpu")
     elif model_path_or_url in model_urls:
-        state_dict = torch.hub.load_state_dict_from_url(model_urls[model_path_or_url])
+        state_dict = torch.hub.load_state_dict_from_url(
+            model_urls[model_path_or_url], map_location="cpu"
+        )
     else:
-        state_dict = torch.hub.load_state_dict_from_url(model_path_or_url)
+        state_dict = torch.hub.load_state_dict_from_url(
+            model_path_or_url, map_location="cpu"
+        )
     model.load_state_dict(state_dict)
     return model
 
