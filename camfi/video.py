@@ -279,8 +279,8 @@ def parse_args():
         nargs=1,
         required=True,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
@@ -290,8 +290,8 @@ def parse_args():
         type=int,
         default=2,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
@@ -299,8 +299,8 @@ def parse_args():
         "--max-filter-always",
         action="store_true",
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
@@ -309,8 +309,8 @@ def parse_args():
         type=float,
         default=np.inf,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
@@ -319,24 +319,24 @@ def parse_args():
         type=int,
         default=3,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
         "infile",
         nargs=1,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
     parser.add_argument(
         "outfile",
         nargs=1,
         help=(
-            "",
-            "",
+            ""
+            ""
         ),
     )
 
