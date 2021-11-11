@@ -385,7 +385,6 @@ def main():
         video_file=args.infile,
     ).json(
         exclude_none=True,
-        indent=2,
     )
     with open(args.outfile, "w") as f:
         f.write(out_str)
