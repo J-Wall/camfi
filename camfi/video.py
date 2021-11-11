@@ -276,7 +276,6 @@ def parse_args():
     parser.add_argument(
         "-c",
         "--annotator-config",
-        nargs=1,
         required=True,
         help=(
             ""
@@ -286,7 +285,6 @@ def parse_args():
     parser.add_argument(
         "-t",
         "--temporal-filter-width",
-        nargs=1,
         type=int,
         default=2,
         help=(
@@ -325,7 +323,6 @@ def parse_args():
     )
     parser.add_argument(
         "infile",
-        nargs=1,
         help=(
             ""
             ""
@@ -333,7 +330,6 @@ def parse_args():
     )
     parser.add_argument(
         "outfile",
-        nargs=1,
         help=(
             ""
             ""
