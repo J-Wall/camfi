@@ -4,7 +4,7 @@
 [![Documentation Status](https://readthedocs.org/projects/camfi/badge/?version=latest)](https://camfi.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/309541834.svg)](https://zenodo.org/badge/latestdoi/309541834)
 
-**C**amera-based **A**nalysis and **M**onitoring of **F**lying **I**nsects
+**C**amera-based **A**utomated **M**onitoring of **F**lying **I**nsects
 
 Camfi is a method for the long-term non-invasive monitoring of the activity and
 abundance of low-flying insects using inexpensive wildlife cameras. It provides
